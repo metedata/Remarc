@@ -1,0 +1,11 @@
+// Release.xcconfig
+
+#include "Shared.xcconfig"
+
+// Developer ID signing for distribution
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Developer ID Application
+PROVISIONING_PROFILE_SPECIFIER = Remarc-release-provisioning-profile
+
+// Hardened runtime required for notarization
+ENABLE_HARDENED_RUNTIME = YES

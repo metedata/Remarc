@@ -1,0 +1,3 @@
+# Cloudflare Workers static assets redirects.
+# No docs landing page: the root goes straight to the first page.
+/ /getting-started/what-is-remarc/ 301

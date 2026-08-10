@@ -1,0 +1,83 @@
+{
+  "totalCommentsCreated": 3,
+  "activeSessionID": "9C4F8D7E-1A2B-3C4D-5E6F-708192A3B4C5",
+  "sessions": [
+    {
+      "id": "9C4F8D7E-1A2B-3C4D-5E6F-708192A3B4C5",
+      "name": "Sample Session 1",
+      "createdAt": 800000000,
+      "isDeleted": false,
+      "deletedAt": null,
+      "isAutoDismissed": false,
+      "autoDismissedAt": null,
+      "origin": "manual",
+      "claudeCodeSessionId": null
+    },
+    {
+      "id": "11111111-2222-3333-4444-555555555555",
+      "name": "Sample Session 2",
+      "createdAt": 800000100,
+      "isDeleted": false,
+      "deletedAt": null,
+      "isAutoDismissed": false,
+      "autoDismissedAt": null,
+      "origin": "claudeCode",
+      "claudeCodeSessionId": "claude-session-abc"
+    }
+  ],
+  "comments": [
+    {
+      "id": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      "type": { "quickNote": {} },
+      "commentText": "Sample quick note comment",
+      "source": "Test",
+      "appBundleID": null,
+      "createdAt": 800000050,
+      "updatedAt": 800000050,
+      "sessionID": "9C4F8D7E-1A2B-3C4D-5E6F-708192A3B4C5",
+      "isDeleted": false,
+      "deletedAt": null,
+      "status": "open",
+      "resolutionSummary": null,
+      "resolvedBy": null,
+      "resolvedAt": null,
+      "attachments": []
+    },
+    {
+      "id": "BBBBBBBB-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      "type": { "comment": { "text": "the text I commented on" } },
+      "commentText": "Sample comment on selected text",
+      "source": "Xcode",
+      "appBundleID": "com.apple.dt.Xcode",
+      "createdAt": 800000060,
+      "updatedAt": 800000070,
+      "sessionID": "11111111-2222-3333-4444-555555555555",
+      "isDeleted": false,
+      "deletedAt": null,
+      "status": "handedOff",
+      "resolutionSummary": null,
+      "resolvedBy": null,
+      "resolvedAt": null,
+      "attachments": []
+    },
+    {
+      "id": "CCCCCCCC-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      "type": { "quickNote": {} },
+      "commentText": "Sample resolved comment",
+      "source": "Test",
+      "appBundleID": null,
+      "createdAt": 800000080,
+      "updatedAt": 800000090,
+      "sessionID": "11111111-2222-3333-4444-555555555555",
+      "isDeleted": false,
+      "deletedAt": null,
+      "status": "resolved",
+      "resolutionSummary": "Addressed by adjusting the spacing",
+      "resolvedBy": "claude",
+      "resolvedAt": 800000090,
+      "attachments": []
+    }
+  ],
+  "orphanedImages": [],
+  "transcriptions": []
+}

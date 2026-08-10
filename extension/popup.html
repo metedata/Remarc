@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <!-- Header: logo + title + status + pause/play -->
+    <div class="header">
+      <img class="header-logo" src="icons/icon128.png" alt="Remarc">
+      <span class="header-title">Remarc</span>
+      <div class="status-pill" id="statusPill">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
+      <button class="power-btn" id="powerBtn" title="Pause extension" style="display:none">
+        <svg id="pauseIcon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="3" y="2" width="4" height="12" rx="1"/>
+          <rect x="9" y="2" width="4" height="12" rx="1"/>
+        </svg>
+        <svg id="playIcon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="display:none">
+          <path d="M4 2.5a.5.5 0 0 1 .77-.42l9 5.5a.5.5 0 0 1 0 .84l-9 5.5A.5.5 0 0 1 4 13.5v-11z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Action buttons -->
+    <div class="actions">
+      <button class="action-btn" id="grabBtn" disabled>
+        <span class="btn-icon">⌖</span>
+        <span class="btn-label">Grab Element</span>
+        <span class="btn-shortcut" id="grabShortcut"></span>
+      </button>
+      <button class="action-btn" id="regionBtn" disabled>
+        <span class="btn-icon">⬚</span>
+        <span class="btn-label">Select Region</span>
+        <span class="btn-shortcut" id="regionShortcut"></span>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Reconnect hint (shown when disconnected or LNA-blocked) -->
+    <div class="reconnect-hint" id="reconnectHint" style="display:none">
+      <span class="reconnect-text" id="reconnectText">Reload page to connect</span>
+      <button class="reconnect-btn" id="reconnectBtn" title="Reload page">
+        <!-- Reload icon (default) -->
+        <svg class="reconnect-icon-reload" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M13.65 2.35A8 8 0 1 0 16 8h-2a6 6 0 1 1-1.76-4.24L10 6h6V0l-2.35 2.35z"/>
+        </svg>
+        <!-- External link icon (shown when LNA-blocked, opens Chrome settings) -->
+        <svg class="reconnect-icon-settings" width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M9 1v2h3.59L6.29 9.29l1.41 1.41L14 4.41V8h2V1H9zM2 3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8h-2v5H3V5h5V3H2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Settings link -->
+    <div class="footer">
+      <button class="settings-link" id="settingsBtn">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M6.6 1h2.8l.4 2.1c.4.2.8.4 1.1.6l2-.8 1.4 2.4-1.6 1.4c0 .2.1.4.1.6v.4l-.1.6 1.6 1.4-1.4 2.4-2-.8c-.3.3-.7.5-1.1.6L9.4 15H6.6l-.4-2.1c-.4-.2-.8-.4-1.1-.6l-2 .8-1.4-2.4 1.6-1.4a4 4 0 0 1-.1-.6v-.4l.1-.6L1.7 6.3l1.4-2.4 2 .8c.3-.3.7-.5 1.1-.6L6.6 1zM8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z"/>
+        </svg>
+        Extension Settings…
+      </button>
+    </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

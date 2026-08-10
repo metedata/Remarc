@@ -1,0 +1,269 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		8B90D1482DEDD44A00FBD189 /* RemarcFeature in Frameworks */ = {isa = PBXBuildFile; productRef = 8B90D1472DEDD44A00FBD189 /* RemarcFeature */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		8BC265752DEDD3F500F279A4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8BC265542DEDD3F400F279A4 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8BC2655B2DEDD3F400F279A4;
+			remoteInfo = Remarc;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		8BC2655C2DEDD3F400F279A4 /* Remarc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remarc.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8BC265742DEDD3F500F279A4 /* RemarcUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemarcUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8BD71C1E2DEE424400CEDD92 /* Exceptions for "Config" folder in "Remarc" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Debug.xcconfig,
+				Release.xcconfig,
+				Shared.xcconfig,
+			);
+			target = 8BC2655B2DEDD3F400F279A4 /* Remarc */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		8B90D1BC2DEE373300FBD189 /* Config */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8BD71C1E2DEE424400CEDD92 /* Exceptions for "Config" folder in "Remarc" target */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		8BC2655E2DEDD3F400F279A4 /* Remarc */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Remarc;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8BC265592DEDD3F400F279A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8B90D1482DEDD44A00FBD189 /* RemarcFeature in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		8B90D1462DEDD44A00FBD189 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8BC265532DEDD3F400F279A4 = {
+			isa = PBXGroup;
+			children = (
+				8B90D1BC2DEE373300FBD189 /* Config */,
+				8BC2655E2DEDD3F400F279A4 /* Remarc */,
+				8B90D1462DEDD44A00FBD189 /* Frameworks */,
+				8BC2655D2DEDD3F400F279A4 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8BC2655D2DEDD3F400F279A4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8BC2655C2DEDD3F400F279A4 /* Remarc.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8BC2655B2DEDD3F400F279A4 /* Remarc */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8BC2657E2DEDD3F500F279A4 /* Build configuration list for PBXNativeTarget "Remarc" */;
+			buildPhases = (
+				8BC265582DEDD3F400F279A4 /* Sources */,
+				8BC265592DEDD3F400F279A4 /* Frameworks */,
+				8BC2655A2DEDD3F400F279A4 /* Resources */,
+				A1MCP0012DEDD000000000001 /* Copy MCP Server */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8B90D1BC2DEE373300FBD189 /* Config */,
+				8BC2655E2DEDD3F400F279A4 /* Remarc */,
+			);
+			name = Remarc;
+			packageProductDependencies = (
+				8B90D1472DEDD44A00FBD189 /* RemarcFeature */,
+			);
+			productName = Remarc;
+			productReference = 8BC2655C2DEDD3F400F279A4 /* Remarc.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8BC265542DEDD3F400F279A4 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1630;
+				LastUpgradeCheck = 1630;
+				ORGANIZATIONNAME = "$(ORGANIZATION_NAME)";
+				TargetAttributes = {
+					8BC2655B2DEDD3F400F279A4 = {
+						CreatedOnToolsVersion = 16.3;
+						SystemCapabilities = {
+							com.apple.Keychain = {
+								enabled = 1;
+							};
+						};
+					};
+				};
+			};
+			buildConfigurationList = 8BC265572DEDD3F400F279A4 /* Build configuration list for PBXProject "Remarc" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 8BC265532DEDD3F400F279A4;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8BC2655D2DEDD3F400F279A4 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8BC2655B2DEDD3F400F279A4 /* Remarc */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8BC2655A2DEDD3F400F279A4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		A1MCP0012DEDD000000000001 /* Copy MCP Server */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../mcp/vendor/remarc-mcp.js",
+				"$(SRCROOT)/../mcp/vendor/PROVENANCE.json",
+				"$(SRCROOT)/../mcp/skill/SKILL.md",
+			);
+			name = "Copy MCP Server";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/remarc-mcp.js",
+				"$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/remarc-skill.md",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Fail the build rather than shipping whatever happens to be on disk.\nset -euo pipefail\n\n# The server is vendored from the plugin repo, which owns it - refresh it\n# with scripts/sync-mcp-vendor.sh. This phase used to build a gitignored\n# mcp/dist, so a clean checkout shipped nothing and a stale tree shipped a\n# server months old, silently either way.\nVENDOR=\"${SRCROOT}/../mcp/vendor\"\ntest -s \"$VENDOR/remarc-mcp.js\"\ntest -s \"$VENDOR/PROVENANCE.json\"\n\n# The recorded hash must match the bytes, or the vendor was edited by hand.\nEXPECTED=$(/usr/bin/python3 -c \"import json;print(json.load(open('$VENDOR/PROVENANCE.json'))['sha256'])\")\nACTUAL=$(/usr/bin/shasum -a 256 \"$VENDOR/remarc-mcp.js\" | /usr/bin/awk '{print $1}')\nif [ \"$EXPECTED\" != \"$ACTUAL\" ]; then\n  echo \"error: mcp/vendor/remarc-mcp.js does not match its recorded sha256\" >&2\n  exit 1\nfi\n\nRES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\ncp \"$VENDOR/remarc-mcp.js\" \"$RES/remarc-mcp.js\"\ncp \"${SRCROOT}/../mcp/skill/SKILL.md\" \"$RES/remarc-skill.md\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8BC265582DEDD3F400F279A4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		8BC2657C2DEDD3F500F279A4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8BC2657D2DEDD3F500F279A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		8BC2657F2DEDD3F500F279A4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 8B90D1BC2DEE373300FBD189 /* Config */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
+			buildSettings = {
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_DISPLAY_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		8BC265802DEDD3F500F279A4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 8B90D1BC2DEE373300FBD189 /* Config */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_DISPLAY_NAME)";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		8BC265572DEDD3F400F279A4 /* Build configuration list for PBXProject "Remarc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8BC2657C2DEDD3F500F279A4 /* Debug */,
+				8BC2657D2DEDD3F500F279A4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8BC2657E2DEDD3F500F279A4 /* Build configuration list for PBXNativeTarget "Remarc" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8BC2657F2DEDD3F500F279A4 /* Debug */,
+				8BC265802DEDD3F500F279A4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8B90D1472DEDD44A00FBD189 /* RemarcFeature */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RemarcFeature;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 8BC265542DEDD3F400F279A4 /* Project object */;
+}

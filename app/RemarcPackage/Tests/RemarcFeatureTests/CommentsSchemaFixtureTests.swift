@@ -1,0 +1,87 @@
+import XCTest
+@testable import RemarcFeature
+
+/// Cross-language schema validation. The same `comments.sample.json` fixture is
+/// validated against `plugins/shared/comments-schema.json` in the plugin repo
+/// CI (TypeScript side). This test confirms the Swift `AppState` Codable struct
+/// decodes the same fixture. If both pass, app and plugin agree on the schema.
+///
+/// Catches the v1 plan bug where I had `c.text` vs `c.commentText`: the
+/// fixture's `commentText` field must round-trip through Swift's strict decoder.
+final class CommentsSchemaFixtureTests: XCTestCase {
+    func testCommentsSampleDecodesAgainstAppState() throws {
+        let url = try XCTUnwrap(
+            Bundle.module.url(forResource: "comments.sample", withExtension: "json", subdirectory: "Fixtures"),
+            "fixture not bundled — check Package.swift testTarget resources"
+        )
+        let data = try Data(contentsOf: url)
+        let state = try JSONDecoder().decode(AppState.self, from: data)
+
+        XCTAssertGreaterThan(state.comments.count, 0, "fixture has comments")
+        XCTAssertGreaterThan(state.sessions.count, 0, "fixture has sessions")
+
+        // Pin the field name that v1 of the migration plan got wrong: confirm
+        // every fixture comment has the `commentText` field populated. If this
+        // assertion breaks, the schema in plugins/shared/comments-schema.json
+        // must be updated to match whatever field was renamed.
+        XCTAssertTrue(
+            state.comments.allSatisfy { !$0.commentText.isEmpty },
+            "every comment must have non-empty commentText"
+        )
+    }
+
+    /// An origin this build has never heard of must not brick the document.
+    ///
+    /// `SessionOrigin` was a closed `String` enum, so decoding threw on any
+    /// unknown value - and because sessions are decoded as part of one document,
+    /// a single unrecognised origin made the whole of `comments.json` unreadable.
+    /// Every durable save then failed and the app could not write at all.
+    /// Measured on device: a branch open across the addition of `codex` was
+    /// bricked by a file its own newer build had written.
+    func testAnUnknownSessionOriginDoesNotMakeTheDocumentUnreadable() throws {
+        let json = """
+        {"sessions":[
+           {"id":"\(UUID().uuidString)","name":"future","createdAt":0,
+            "isDeleted":false,"isAutoDismissed":false,"origin":"teleportation"}],
+         "comments":[],"totalCommentsCreated":0}
+        """.data(using: .utf8)!
+
+        let state = try JSONDecoder().decode(AppState.self, from: json)
+
+        XCTAssertEqual(state.sessions.count, 1, "one unknown origin must not take the document down")
+        // Unknown reads as `.manual` for behaviour, which is the safe default.
+        // The original string is kept separately - see the round-trip below.
+        XCTAssertEqual(state.sessions[0].origin, .manual)
+    }
+
+    /// And it must survive a save, rather than being rewritten to whatever this
+    /// build decided it meant. An older app passing through a newer file has to
+    /// leave the origin exactly as it found it, or it quietly relabels someone
+    /// else's session.
+    func testAnUnknownOriginRoundTripsUnchanged() throws {
+        let json = """
+        {"id":"\(UUID().uuidString)","name":"future","createdAt":0,
+         "isDeleted":false,"isAutoDismissed":false,"origin":"teleportation"}
+        """.data(using: .utf8)!
+
+        let session = try JSONDecoder().decode(Session.self, from: json)
+        let reencoded = try JSONSerialization.jsonObject(
+            with: try JSONEncoder().encode(session)) as? [String: Any]
+
+        XCTAssertEqual(reencoded?["origin"] as? String, "teleportation",
+                       "an origin this build does not know must be written back untouched")
+    }
+
+    func testAKnownOriginStillEncodesAsItsOwnRawValue() throws {
+        // These strings are the on-disk format. Changing one orphans every
+        // session already written with it.
+        XCTAssertEqual(SessionOrigin.manual.rawValue, "manual")
+        XCTAssertEqual(SessionOrigin.claudeCode.rawValue, "claudeCode")
+        XCTAssertEqual(SessionOrigin.codex.rawValue, "codex")
+
+        let session = Session(name: "s", origin: .codex)
+        let reencoded = try JSONSerialization.jsonObject(
+            with: try JSONEncoder().encode(session)) as? [String: Any]
+        XCTAssertEqual(reencoded?["origin"] as? String, "codex")
+    }
+}

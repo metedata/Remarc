@@ -1,0 +1,11 @@
+# Gitleaks configuration for the Remarc repo.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secrets"
+paths = [
+  # Webhook signing tests use whsec_dGVzdHNlY3JldA== - base64 of the literal
+  # string "testsecret", a deliberate fixture, not a credential.
+  '''app/RemarcPackage/Tests/RemarcFeatureTests/WebhookTests\.swift''',
+]

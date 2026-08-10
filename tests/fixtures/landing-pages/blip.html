@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BLIP - Uptime Monitoring That Screams First</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23FFE800'/><rect x='14' y='14' width='72' height='72' fill='%23000'/><circle cx='50' cy='50' r='16' fill='%2300E572'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #FFE800;
+    --black: #000000;
+    --white: #FFFFFF;
+    --blue: #2B6CFF;
+    --red: #FF4911;
+    --green: #00E572;
+    --shadow: 6px 6px 0 var(--black);
+    --shadow-lg: 10px 10px 0 var(--black);
+    --display: "Archivo Black", "Arial Black", sans-serif;
+    --mono: "IBM Plex Mono", "Courier New", monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--yellow);
+    color: var(--black);
+    font-family: var(--mono);
+    font-size: 1rem;
+    line-height: 1.6;
+    overflow-x: hidden;
+    background-image:
+      linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  ::selection { background: var(--black); color: var(--yellow); }
+
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+  h1, h2, h3 { font-family: var(--display); text-transform: uppercase; line-height: 1.02; letter-spacing: -0.01em; }
+
+  /* ---------- Ticker ---------- */
+  .ticker {
+    background: var(--black);
+    color: var(--yellow);
+    border-bottom: 3px solid var(--black);
+    overflow: hidden;
+    white-space: nowrap;
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .ticker-track {
+    display: inline-block;
+    padding: 10px 0;
+    animation: tick 22s linear infinite;
+  }
+  .ticker-track span { margin: 0 18px; }
+  .ticker-track .star { color: var(--green); }
+  @keyframes tick {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ---------- Nav ---------- */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--yellow);
+    border-bottom: 3px solid var(--black);
+  }
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: 1.7rem;
+    text-decoration: none;
+    color: var(--black);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo .dot {
+    width: 18px; height: 18px;
+    background: var(--green);
+    border: 3px solid var(--black);
+    border-radius: 50%;
+    animation: blink 1.6s steps(1) infinite;
+  }
+  @keyframes blink { 50% { background: var(--red); } }
+
+  .nav-links { display: flex; gap: 12px; align-items: center; }
+  .nav-links > a:not(.btn) {
+    text-decoration: none;
+    color: var(--black);
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border: 3px solid transparent;
+    transition: border-color 0.08s linear, background 0.08s linear;
+  }
+  .nav-links > a:not(.btn):hover { border-color: var(--black); background: var(--white); }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-block;
+    font-family: var(--display);
+    font-size: 1rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--black);
+    background: var(--white);
+    border: 3px solid var(--black);
+    padding: 14px 26px;
+    box-shadow: var(--shadow);
+    transition: transform 0.08s linear, box-shadow 0.08s linear, background 0.08s linear;
+    cursor: pointer;
+  }
+  .btn:hover { transform: translate(-3px, -3px); box-shadow: 9px 9px 0 var(--black); }
+  .btn:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0 var(--black); }
+
+  .btn-green { background: var(--green); }
+  .btn-green:hover { background: var(--green); }
+  .btn-blue { background: var(--blue); color: var(--white); }
+  .btn-sm { padding: 10px 18px; font-size: 0.85rem; box-shadow: 4px 4px 0 var(--black); }
+  .btn-sm:hover { box-shadow: 6px 6px 0 var(--black); }
+  .btn-sm:active { box-shadow: 1px 1px 0 var(--black); }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 84px 0 72px; position: relative; }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .kicker-chip {
+    display: inline-block;
+    background: var(--black);
+    color: var(--yellow);
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    margin-bottom: 26px;
+    transform: rotate(-1.5deg);
+  }
+
+  .hero h1 {
+    font-size: clamp(2.6rem, 6vw, 4.6rem);
+    margin-bottom: 24px;
+  }
+  .hero h1 .flash { color: var(--red); text-shadow: 3px 3px 0 var(--black); }
+  .hero h1 .box {
+    background: var(--black);
+    color: var(--green);
+    padding: 0 12px;
+    display: inline-block;
+    transform: rotate(-1deg);
+  }
+
+  .hero p.sub { font-size: 1.08rem; max-width: 46ch; margin-bottom: 34px; font-weight: 500; }
+  .hero p.sub strong { background: var(--white); padding: 1px 6px; border: 2px solid var(--black); }
+
+  .hero-ctas { display: flex; gap: 16px; flex-wrap: wrap; }
+
+  .hero-meta { margin-top: 26px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .hero-meta em { font-style: normal; color: var(--red); }
+
+  /* Status card mock */
+  .status-card {
+    background: var(--white);
+    border: 3px solid var(--black);
+    box-shadow: var(--shadow-lg);
+    padding: 24px;
+    transform: rotate(1.2deg);
+    position: relative;
+  }
+  .status-card .card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--black);
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+  }
+  .live-pill {
+    background: var(--green);
+    border: 2px solid var(--black);
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    animation: pulse-pill 2s ease-in-out infinite;
+  }
+  @keyframes pulse-pill { 50% { transform: scale(1.08); } }
+
+  .monitor-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 2px dashed rgba(0,0,0,0.25);
+    font-size: 0.88rem;
+    font-weight: 500;
+  }
+  .monitor-row:last-of-type { border-bottom: none; }
+  .monitor-row .st { width: 14px; height: 14px; border: 2px solid var(--black); flex-shrink: 0; }
+  .st.up { background: var(--green); }
+  .st.down { background: var(--red); animation: blink 0.9s steps(1) infinite; }
+  .monitor-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .monitor-row .ms { font-weight: 700; font-size: 0.78rem; }
+  .monitor-row .ms.bad { color: var(--red); }
+
+  .upbars { display: flex; gap: 3px; margin-top: 16px; }
+  .upbars i {
+    flex: 1; height: 26px;
+    background: var(--green);
+    border: 2px solid var(--black);
+  }
+  .upbars i.warn { background: var(--yellow); }
+  .upbars i.dead { background: var(--red); }
+
+  .sticker {
+    position: absolute;
+    top: -22px;
+    right: -18px;
+    background: var(--blue);
+    color: var(--white);
+    font-family: var(--display);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    border: 3px solid var(--black);
+    transform: rotate(6deg);
+    box-shadow: 4px 4px 0 var(--black);
+  }
+
+  /* ---------- Sections ---------- */
+  section { padding: 80px 0; }
+  .band-white { background: var(--white); border-top: 3px solid var(--black); border-bottom: 3px solid var(--black); }
+
+  .sec-title { font-size: clamp(1.9rem, 4.5vw, 3rem); margin-bottom: 12px; }
+  .sec-sub { font-weight: 500; margin-bottom: 48px; max-width: 60ch; }
+  .sec-sub .hl { background: var(--yellow); border: 2px solid var(--black); padding: 0 6px; font-weight: 700; }
+
+  /* Features */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 26px;
+  }
+  .feat {
+    background: var(--yellow);
+    border: 3px solid var(--black);
+    box-shadow: var(--shadow);
+    padding: 26px 24px;
+    transition: transform 0.08s linear, box-shadow 0.08s linear;
+  }
+  .feat:hover { transform: translate(-4px, -4px); box-shadow: 10px 10px 0 var(--black); }
+  .feat:nth-child(2) { background: var(--white); }
+  .feat:nth-child(4) { background: var(--white); }
+  .feat:nth-child(6) { background: var(--white); }
+
+  .feat .ico {
+    width: 46px; height: 46px;
+    border: 3px solid var(--black);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: var(--white);
+    margin-bottom: 18px;
+  }
+  .feat:nth-child(2) .ico, .feat:nth-child(4) .ico, .feat:nth-child(6) .ico { background: var(--yellow); }
+
+  .feat h3 { font-size: 1.05rem; margin-bottom: 10px; }
+  .feat p { font-size: 0.9rem; font-weight: 500; }
+
+  /* Logos strip */
+  .logos {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .logos span {
+    font-family: var(--display);
+    font-size: 1.15rem;
+    text-transform: uppercase;
+    opacity: 0.85;
+    transition: opacity 0.08s linear, transform 0.08s linear;
+  }
+  .logos span:hover { opacity: 1; transform: rotate(-2deg) scale(1.05); }
+  .logos-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 26px;
+  }
+
+  /* ---------- Pricing ---------- */
+  .plans {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    align-items: stretch;
+  }
+  .plan {
+    background: var(--white);
+    border: 3px solid var(--black);
+    box-shadow: var(--shadow);
+    padding: 30px 26px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.08s linear, box-shadow 0.08s linear;
+  }
+  .plan:hover { transform: translate(-4px, -4px); box-shadow: 10px 10px 0 var(--black); }
+  .plan.hot {
+    background: var(--blue);
+    color: var(--white);
+    transform: rotate(-1.4deg);
+    position: relative;
+  }
+  .plan.hot:hover { transform: rotate(-1.4deg) translate(-4px, -4px); }
+  .plan.hot .flag {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%) rotate(2deg);
+    background: var(--red);
+    color: var(--white);
+    font-family: var(--display);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border: 3px solid var(--black);
+    white-space: nowrap;
+  }
+
+  .plan h3 { font-size: 1.2rem; margin-bottom: 6px; }
+  .plan .price { font-family: var(--display); font-size: 3rem; margin: 10px 0 2px; }
+  .plan .per { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 20px; opacity: 0.8; }
+
+  .plan ul { list-style: none; flex: 1; margin-bottom: 24px; }
+  .plan li { padding: 8px 0; font-size: 0.9rem; font-weight: 500; border-bottom: 2px dashed rgba(0,0,0,0.25); }
+  .plan.hot li { border-bottom-color: rgba(255,255,255,0.35); }
+  .plan li::before { content: ">> "; font-weight: 700; }
+
+  .plan .btn { text-align: center; }
+
+  /* ---------- Big CTA ---------- */
+  .bigcta {
+    background: var(--black);
+    color: var(--yellow);
+    text-align: center;
+    padding: 96px 0;
+    border-top: 3px solid var(--black);
+  }
+  .bigcta h2 {
+    font-size: clamp(2.2rem, 5.5vw, 4rem);
+    max-width: 20ch;
+    margin: 0 auto 18px;
+  }
+  .bigcta h2 .strike { color: var(--red); text-decoration: line-through; text-decoration-thickness: 6px; }
+  .bigcta p { font-weight: 500; margin-bottom: 40px; color: var(--white); }
+  .bigcta .btn { font-size: 1.15rem; padding: 18px 36px; box-shadow: 8px 8px 0 var(--yellow); }
+  .bigcta .btn:hover { box-shadow: 12px 12px 0 var(--yellow); }
+  .bigcta .btn:active { box-shadow: 2px 2px 0 var(--yellow); }
+
+  /* ---------- Footer ---------- */
+  footer {
+    background: var(--black);
+    color: var(--white);
+    padding: 30px 0;
+    border-top: 3px solid var(--yellow);
+  }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 0.82rem;
+    font-weight: 500;
+    text-transform: uppercase;
+  }
+  .foot a { color: var(--yellow); text-decoration: none; font-weight: 700; }
+  .foot a:hover { text-decoration: underline; text-decoration-thickness: 3px; }
+  .foot .l { display: flex; gap: 22px; flex-wrap: wrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 960px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .features { grid-template-columns: 1fr 1fr; }
+    .plans { grid-template-columns: 1fr; }
+    .plan.hot { transform: none; }
+    .nav-links > a:not(.btn) { display: none; }
+    .sticker { right: 4px; }
+  }
+  @media (max-width: 620px) {
+    .features { grid-template-columns: 1fr; }
+    section { padding: 60px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    <span>Uptime 99.99%</span><span class="star">&#9632;</span>
+    <span>Checks every 30 seconds</span><span class="star">&#9632;</span>
+    <span>12 regions</span><span class="star">&#9632;</span>
+    <span>Zero YAML</span><span class="star">&#9632;</span>
+    <span>Alerts in &lt;60s</span><span class="star">&#9632;</span>
+    <span>Uptime 99.99%</span><span class="star">&#9632;</span>
+    <span>Checks every 30 seconds</span><span class="star">&#9632;</span>
+    <span>12 regions</span><span class="star">&#9632;</span>
+    <span>Zero YAML</span><span class="star">&#9632;</span>
+    <span>Alerts in &lt;60s</span><span class="star">&#9632;</span>
+  </div>
+</div>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="#"><span class="dot" aria-hidden="true"></span>BLIP</a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#">Docs</a>
+      <a class="btn btn-sm btn-green" href="#pricing">Start free</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="kicker-chip">Uptime + API monitoring</span>
+        <h1>Your API just <span class="flash">died.</span><br>Blip told you <span class="box">47 sec</span> ago.</h1>
+        <p class="sub">Dead-simple monitoring for HTTP, cron jobs, and SSL. Checks every 30 seconds from 12 regions, with alerts that land <strong>before the angry tweets do.</strong></p>
+        <div class="hero-ctas">
+          <a class="btn btn-green" href="#pricing">Start monitoring - free</a>
+          <a class="btn" href="#features">See how it works</a>
+        </div>
+        <p class="hero-meta">No credit card. No YAML. Setup in <em>90 seconds.</em></p>
+      </div>
+      <div class="status-card" role="img" aria-label="Example Blip dashboard showing monitor statuses">
+        <div class="sticker">New: Slack alerts</div>
+        <div class="card-head">
+          <span>status.acme.dev</span>
+          <span class="live-pill">&#9679; Live</span>
+        </div>
+        <div class="monitor-row"><span class="st up"></span><span class="name">api.acme.dev/health</span><span class="ms">182ms</span></div>
+        <div class="monitor-row"><span class="st up"></span><span class="name">checkout.acme.dev</span><span class="ms">96ms</span></div>
+        <div class="monitor-row"><span class="st down"></span><span class="name">legacy.acme.dev</span><span class="ms bad">TIMEOUT</span></div>
+        <div class="monitor-row"><span class="st up"></span><span class="name">cron: nightly-backup</span><span class="ms">OK</span></div>
+        <div class="upbars" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i class="warn"></i><i></i><i></i><i></i><i></i><i class="dead"></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band-white" id="features">
+    <div class="wrap">
+      <h2 class="sec-title">Six ways Blip screams</h2>
+      <p class="sec-sub">Everything you need to know your stack is alive. <span class="hl">Nothing you have to babysit.</span></p>
+      <div class="features">
+        <div class="feat">
+          <div class="ico" aria-hidden="true">30</div>
+          <h3>30-second checks</h3>
+          <p>Most tools poll every 5 minutes. A lot can burn down in 5 minutes. We knock every 30 seconds.</p>
+        </div>
+        <div class="feat">
+          <div class="ico" aria-hidden="true">12</div>
+          <h3>12 global regions</h3>
+          <p>Down in Frankfurt but fine in Oregon? You will know exactly which region is on fire, instantly.</p>
+        </div>
+        <div class="feat">
+          <div class="ico" aria-hidden="true">!</div>
+          <h3>Alerts that route</h3>
+          <p>Slack, SMS, email, webhooks, PagerDuty. Escalate to a human when the first human sleeps through it.</p>
+        </div>
+        <div class="feat">
+          <div class="ico" aria-hidden="true">&#128274;</div>
+          <h3>SSL expiry watch</h3>
+          <p>Certificates love expiring on Saturday night. Get warned 30, 14, and 7 days out. Never again.</p>
+        </div>
+        <div class="feat">
+          <div class="ico" aria-hidden="true">&#8635;</div>
+          <h3>Cron monitoring</h3>
+          <p>Your nightly job pings us when it runs. If the ping never comes, we wake you up. Simple as that.</p>
+        </div>
+        <div class="feat">
+          <div class="ico" aria-hidden="true">&#9633;</div>
+          <h3>Public status pages</h3>
+          <p>A clean status page on your own domain, updated automatically. Support tickets drop by half.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <p class="logos-label">Keeping watch for teams at</p>
+      <div class="logos" aria-label="Customer logos">
+        <span>Crateful</span>
+        <span>Mailmoth</span>
+        <span>Deskpad</span>
+        <span>Fernwork</span>
+        <span>Loopstack</span>
+        <span>Quill+Co</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="band-white" id="pricing">
+    <div class="wrap">
+      <h2 class="sec-title">Pricing with no fine print</h2>
+      <p class="sec-sub">Every plan gets 30-second checks, all 12 regions, and every alert channel. <span class="hl">You only pay for scale.</span></p>
+      <div class="plans">
+        <div class="plan">
+          <h3>Hobby</h3>
+          <p class="price">$0</p>
+          <p class="per">forever</p>
+          <ul>
+            <li>10 monitors</li>
+            <li>1 status page</li>
+            <li>Slack + email alerts</li>
+            <li>7-day history</li>
+          </ul>
+          <a class="btn" href="#">Start free</a>
+        </div>
+        <div class="plan hot">
+          <span class="flag">Most teams pick this</span>
+          <h3>Startup</h3>
+          <p class="price">$9</p>
+          <p class="per">per month</p>
+          <ul>
+            <li>50 monitors</li>
+            <li>Status page on your domain</li>
+            <li>SMS + escalation chains</li>
+            <li>1-year history</li>
+          </ul>
+          <a class="btn btn-green" href="#">Grab Startup</a>
+        </div>
+        <div class="plan">
+          <h3>Scale</h3>
+          <p class="price">$29</p>
+          <p class="per">per month</p>
+          <ul>
+            <li>250 monitors</li>
+            <li>5 teammates</li>
+            <li>Full API + Terraform</li>
+            <li>Unlimited history</li>
+          </ul>
+          <a class="btn" href="#">Go big</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bigcta">
+    <div class="wrap">
+      <h2>Stop finding out <span class="strike">from customers</span></h2>
+      <p>Set up your first monitor in 90 seconds. Free for your first 10.</p>
+      <a class="btn btn-green" href="#pricing">Start monitoring now</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>&#9632; BLIP &middot; Made loud in Berlin</span>
+    <nav class="l">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#">Docs</a>
+      <a href="#">Status</a>
+    </nav>
+  </div>
+</footer>
+
+</body>
+</html>

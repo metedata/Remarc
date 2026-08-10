@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudmilk - Skincare That Whispers</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23FFD9CE'/><stop offset='1' stop-color='%23D8C7FF'/></linearGradient></defs><path d='M50 8 C72 8 92 26 92 50 C92 76 74 92 50 92 C24 92 8 74 8 50 C8 24 28 8 50 8 Z' fill='url(%23g)'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Karla:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --blush: #FFE4DC;
+    --lavender: #E6DBFF;
+    --mint: #DCF3E8;
+    --butter: #FFF3D6;
+    --cream: #FFFBF7;
+    --ink: #4A4059;
+    --ink-soft: #7C7290;
+    --rose: #E8A090;
+    --rose-deep: #D9836F;
+    --display: "Quicksand", "Trebuchet MS", sans-serif;
+    --body: "Karla", "Segoe UI", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--body);
+    color: var(--ink);
+    font-size: 1.06rem;
+    line-height: 1.7;
+    background: linear-gradient(160deg, var(--blush), var(--lavender) 34%, var(--mint) 68%, var(--butter));
+    background-size: 220% 220%;
+    animation: wash 26s ease-in-out infinite alternate;
+    overflow-x: hidden;
+  }
+  @keyframes wash {
+    from { background-position: 0% 0%; }
+    to { background-position: 100% 100%; }
+  }
+
+  ::selection { background: var(--ink); color: var(--cream); }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px; }
+
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; }
+
+  /* ---------- Floating blobs ---------- */
+  .blob {
+    position: absolute;
+    border-radius: 62% 38% 55% 45% / 48% 60% 40% 52%;
+    filter: blur(2px);
+    opacity: 0.55;
+    pointer-events: none;
+    animation: floaty 9s ease-in-out infinite alternate;
+    z-index: 0;
+  }
+  @keyframes floaty {
+    from { transform: translateY(-14px) rotate(-4deg); }
+    to { transform: translateY(16px) rotate(5deg); }
+  }
+
+  /* ---------- Nav ---------- */
+  header { position: sticky; top: 16px; z-index: 100; padding: 0 20px; }
+  .nav {
+    max-width: 1020px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 251, 247, 0.78);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(74, 64, 89, 0.08);
+    border-radius: 999px;
+    padding: 12px 14px 12px 26px;
+    box-shadow: 0 14px 44px -22px rgba(74, 64, 89, 0.28);
+  }
+  .logo {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.3rem;
+    color: var(--ink);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .logo .puff {
+    width: 22px; height: 22px;
+    border-radius: 62% 38% 55% 45% / 48% 60% 40% 52%;
+    background: linear-gradient(135deg, var(--rose), #B79BEB);
+    animation: floaty 5s ease-in-out infinite alternate;
+  }
+
+  .nav-links { display: flex; align-items: center; gap: 8px; }
+  .nav-links a:not(.btn) {
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 8px 16px;
+    border-radius: 999px;
+    transition: background 0.25s ease, color 0.25s ease;
+  }
+  .nav-links a:not(.btn):hover { background: rgba(74, 64, 89, 0.07); color: var(--ink); }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-block;
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    padding: 14px 32px;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--cream);
+    border: none;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, background 0.25s ease;
+    box-shadow: 0 12px 30px -14px rgba(74, 64, 89, 0.5);
+  }
+  .btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 20px 44px -16px rgba(74, 64, 89, 0.55); background: #5A4E6E; }
+  .btn:active { transform: translateY(0) scale(0.97); box-shadow: 0 6px 16px -10px rgba(74, 64, 89, 0.5); }
+
+  .btn-soft {
+    background: rgba(255, 251, 247, 0.9);
+    color: var(--ink);
+    box-shadow: 0 12px 30px -16px rgba(74, 64, 89, 0.35);
+  }
+  .btn-soft:hover { background: var(--cream); }
+  .btn-sm { padding: 10px 22px; font-size: 0.92rem; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    text-align: center;
+    padding: 120px 0 110px;
+  }
+  .hero .b1 { width: 300px; height: 300px; background: var(--cream); top: 6%; left: -80px; }
+  .hero .b2 { width: 220px; height: 220px; background: var(--rose); opacity: 0.25; top: 18%; right: -50px; animation-delay: -3s; }
+  .hero .b3 { width: 150px; height: 150px; background: #B79BEB; opacity: 0.22; bottom: 4%; left: 12%; animation-delay: -6s; }
+
+  .hero-inner { position: relative; z-index: 2; }
+
+  .pill-tag {
+    display: inline-block;
+    background: rgba(255, 251, 247, 0.8);
+    border: 1px solid rgba(74, 64, 89, 0.1);
+    color: var(--ink-soft);
+    font-weight: 500;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border-radius: 999px;
+    margin-bottom: 30px;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.9rem, 7.5vw, 5.4rem);
+    margin-bottom: 26px;
+    font-weight: 700;
+  }
+  .hero h1 .soft {
+    background: linear-gradient(110deg, var(--rose-deep), #9E7FDB);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero .lede {
+    max-width: 46ch;
+    margin: 0 auto 42px;
+    color: var(--ink-soft);
+    font-size: 1.18rem;
+  }
+
+  .hero-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+  .hero-trust {
+    margin-top: 48px;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--ink-soft);
+  }
+  .hero-trust span::before { content: "\2713\00a0\00a0"; color: var(--rose-deep); font-weight: 700; }
+
+  /* ---------- Cards base ---------- */
+  .card {
+    background: rgba(255, 251, 247, 0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(74, 64, 89, 0.07);
+    border-radius: 32px;
+    box-shadow: 0 20px 50px -30px rgba(74, 64, 89, 0.35);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.35s ease;
+  }
+  .card:hover { transform: translateY(-8px); box-shadow: 0 34px 70px -34px rgba(74, 64, 89, 0.45); }
+
+  /* ---------- Sections ---------- */
+  section { padding: 90px 0; position: relative; }
+
+  .sec-head { text-align: center; margin-bottom: 60px; }
+  .sec-head .mini {
+    color: var(--rose-deep);
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 14px;
+  }
+  .sec-head h2 { font-size: clamp(2rem, 5vw, 3.1rem); }
+  .sec-head p { color: var(--ink-soft); max-width: 52ch; margin: 18px auto 0; }
+
+  /* ---------- Products ---------- */
+  .products { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+
+  .product { padding: 38px 30px 34px; text-align: center; }
+
+  .jar {
+    width: 110px;
+    height: 110px;
+    margin: 0 auto 26px;
+    border-radius: 62% 38% 55% 45% / 48% 60% 40% 52%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: rgba(74, 64, 89, 0.75);
+    animation: floaty 7s ease-in-out infinite alternate;
+  }
+  .product:nth-child(2) .jar { animation-delay: -2.4s; }
+  .product:nth-child(3) .jar { animation-delay: -4.8s; }
+  .jar-cream { background: linear-gradient(140deg, #FFD9CE, #FFC7B8); }
+  .jar-mist { background: linear-gradient(140deg, #E0D2FF, #C9B4F5); }
+  .jar-dew { background: linear-gradient(140deg, #CFF0E0, #B4E4CE); }
+
+  .product .use {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin-bottom: 10px;
+  }
+  .product h3 { font-size: 1.45rem; margin-bottom: 12px; }
+  .product p.desc { color: var(--ink-soft); font-size: 0.97rem; margin-bottom: 22px; }
+  .product .price { font-family: var(--display); font-weight: 700; font-size: 1.25rem; margin-bottom: 18px; }
+  .product .price small { color: var(--ink-soft); font-weight: 500; font-size: 0.85rem; }
+
+  /* ---------- Ingredients ---------- */
+  .ing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .ing { padding: 32px 28px; text-align: left; }
+  .ing .dot {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+  }
+  .ing:nth-child(1) .dot { background: var(--butter); }
+  .ing:nth-child(2) .dot { background: var(--mint); }
+  .ing:nth-child(3) .dot { background: var(--lavender); }
+  .ing h3 { font-size: 1.2rem; margin-bottom: 10px; }
+  .ing p { color: var(--ink-soft); font-size: 0.95rem; }
+
+  .no-list {
+    margin-top: 44px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+  }
+  .no-list strong { color: var(--ink); }
+
+  /* ---------- Routine ---------- */
+  .routine { display: flex; justify-content: center; gap: 0; align-items: stretch; flex-wrap: wrap; }
+  .r-step {
+    flex: 1;
+    min-width: 240px;
+    max-width: 320px;
+    text-align: center;
+    padding: 20px 26px;
+    position: relative;
+  }
+  .r-step .n {
+    width: 56px; height: 56px;
+    margin: 0 auto 20px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 1px solid rgba(74, 64, 89, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--rose-deep);
+    box-shadow: 0 10px 24px -14px rgba(74, 64, 89, 0.4);
+  }
+  .r-step h3 { font-size: 1.15rem; margin-bottom: 8px; }
+  .r-step p { color: var(--ink-soft); font-size: 0.93rem; }
+  .r-step + .r-step::before {
+    content: "\2192";
+    position: absolute;
+    left: -10px;
+    top: 34px;
+    color: var(--ink-soft);
+    opacity: 0.5;
+    font-size: 1.3rem;
+  }
+
+  /* ---------- Reviews ---------- */
+  .reviews { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .review { padding: 30px 28px; }
+  .stars { color: var(--rose-deep); letter-spacing: 0.2em; margin-bottom: 14px; font-size: 0.95rem; }
+  .review p { font-size: 0.98rem; margin-bottom: 18px; }
+  .review cite {
+    font-style: normal;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Signup ---------- */
+  .signup { text-align: center; }
+  .signup-card {
+    max-width: 620px;
+    margin: 0 auto;
+    padding: 60px 44px;
+    position: relative;
+    overflow: hidden;
+  }
+  .signup-card:hover { transform: none; }
+  .signup-card .b4 { width: 190px; height: 190px; background: var(--blush); top: -60px; right: -60px; opacity: 0.8; }
+  .signup-card .b5 { width: 150px; height: 150px; background: var(--mint); bottom: -50px; left: -40px; opacity: 0.8; animation-delay: -4s; }
+  .signup-card h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); margin-bottom: 14px; position: relative; }
+  .signup-card p { color: var(--ink-soft); margin-bottom: 30px; position: relative; }
+
+  .field {
+    position: relative;
+    display: flex;
+    gap: 10px;
+    max-width: 430px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .field input {
+    flex: 1;
+    min-width: 220px;
+    font-family: var(--body);
+    font-size: 1rem;
+    padding: 14px 24px;
+    border-radius: 999px;
+    border: 1px solid rgba(74, 64, 89, 0.15);
+    background: var(--cream);
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .field input::placeholder { color: var(--ink-soft); opacity: 0.7; }
+  .field input:focus { border-color: var(--rose-deep); box-shadow: 0 0 0 4px rgba(217, 131, 111, 0.15); }
+
+  .signup .tiny { margin-top: 18px; font-size: 0.82rem; color: var(--ink-soft); position: relative; }
+
+  /* ---------- Footer ---------- */
+  footer { padding: 50px 0 60px; }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+  }
+  .foot nav { display: flex; gap: 22px; }
+  .foot a { color: var(--ink-soft); text-decoration: none; transition: color 0.25s ease; }
+  .foot a:hover { color: var(--ink); }
+
+  /* ---------- Reveal (only when JS runs) ---------- */
+  html.js .rv { opacity: 0; transform: translateY(26px) scale(0.985); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
+  html.js .rv.in { opacity: 1; transform: none; }
+  .rv.d1 { transition-delay: 0.12s; }
+  .rv.d2 { transition-delay: 0.24s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .rv { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 920px) {
+    .products, .ing-grid, .reviews { grid-template-columns: 1fr; }
+    .nav-links a:not(.btn) { display: none; }
+    section { padding: 66px 0; }
+    .hero { padding: 90px 0 70px; }
+    .r-step + .r-step::before { display: none; }
+  }
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add("js");</script>
+
+<header>
+  <nav class="nav">
+    <a class="logo" href="#"><span class="puff" aria-hidden="true"></span>cloudmilk</a>
+    <div class="nav-links">
+      <a href="#shop">Shop</a>
+      <a href="#inside">Inside</a>
+      <a href="#ritual">Ritual</a>
+      <a class="btn btn-sm" href="#shop">Shop the trio</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="blob b1" aria-hidden="true"></div>
+    <div class="blob b2" aria-hidden="true"></div>
+    <div class="blob b3" aria-hidden="true"></div>
+    <div class="wrap hero-inner">
+      <span class="pill-tag rv">For sensitive, overwhelmed skin</span>
+      <h1 class="rv d1">Skincare that <span class="soft">whispers.</span></h1>
+      <p class="lede rv d2">Three quiet essentials for skin that gets overwhelmed easily. No fragrance, no acid arms race, no 12-step homework. Just soft, calm, done.</p>
+      <div class="hero-ctas rv d2">
+        <a class="btn" href="#shop">Shop the trio &middot; $52</a>
+        <a class="btn btn-soft" href="#inside">What's inside</a>
+      </div>
+      <div class="hero-trust rv d2">
+        <span>Fragrance-free</span>
+        <span>Dermatologist tested</span>
+        <span>Recyclable everything</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="shop">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="mini">The whole shelf</span>
+        <h2>Three products. That's the line.</h2>
+        <p>We spent four years making three things gentle enough to use together, daily, forever. Then we stopped.</p>
+      </div>
+      <div class="products">
+        <article class="card product rv">
+          <div class="jar jar-cream" aria-hidden="true">cc</div>
+          <span class="use">Morning + night</span>
+          <h3>Cloud Cream</h3>
+          <p class="desc">A whipped moisturizer with ceramides and oat. Sinks in like it was never there. Stays like it was.</p>
+          <p class="price">$24 <small>/ 50 ml</small></p>
+          <a class="btn btn-sm" href="#">Add to bag</a>
+        </article>
+        <article class="card product rv d1">
+          <div class="jar jar-mist" aria-hidden="true">mm</div>
+          <span class="use">Whenever, honestly</span>
+          <h3>Milk Mist</h3>
+          <p class="desc">A calming toner mist with panthenol. For after cleansing, after sun, after that meeting.</p>
+          <p class="price">$18 <small>/ 100 ml</small></p>
+          <a class="btn btn-sm" href="#">Add to bag</a>
+        </article>
+        <article class="card product rv d2">
+          <div class="jar jar-dew" aria-hidden="true">dd</div>
+          <span class="use">Night, mostly</span>
+          <h3>Dew Drops</h3>
+          <p class="desc">A hydrating serum with three weights of hyaluronic acid. The only "acid" we will ever sell you.</p>
+          <p class="price">$26 <small>/ 30 ml</small></p>
+          <a class="btn btn-sm" href="#">Add to bag</a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="inside">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="mini">Inside the jar</span>
+        <h2>Gentle by design, not by dilution</h2>
+      </div>
+      <div class="ing-grid">
+        <div class="card ing rv">
+          <div class="dot" aria-hidden="true">&#127806;</div>
+          <h3>Colloidal oat</h3>
+          <p>The ingredient pediatricians reach for first. Calms redness and quiets the itch reflex before it starts.</p>
+        </div>
+        <div class="card ing rv d1">
+          <div class="dot" aria-hidden="true">&#128167;</div>
+          <h3>Squalane</h3>
+          <p>A featherweight plant lipid that mirrors your skin's own oils. Moisture without the film.</p>
+        </div>
+        <div class="card ing rv d2">
+          <div class="dot" aria-hidden="true">&#129704;</div>
+          <h3>Ceramides NP + AP</h3>
+          <p>The mortar between your skin cells. We restock it so your barrier can do the defending.</p>
+        </div>
+      </div>
+      <p class="no-list rv"><strong>Never:</strong> fragrance, essential oils, drying alcohols, or exfoliating acids. Your barrier is busy enough.</p>
+    </div>
+  </section>
+
+  <section id="ritual">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="mini">The ritual</span>
+        <h2>Ninety seconds, twice a day</h2>
+      </div>
+      <div class="routine rv">
+        <div class="r-step">
+          <div class="n">1</div>
+          <h3>Mist</h3>
+          <p>Two spritzes of Milk Mist on damp, just-cleansed skin.</p>
+        </div>
+        <div class="r-step">
+          <div class="n">2</div>
+          <h3>Drop</h3>
+          <p>Press in three Dew Drops while skin is still dewy.</p>
+        </div>
+        <div class="r-step">
+          <div class="n">3</div>
+          <h3>Cloud</h3>
+          <p>Seal with a pea of Cloud Cream. Go live your life.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="mini">Soft reviews</span>
+        <h2>From other overwhelmed faces</h2>
+      </div>
+      <div class="reviews">
+        <blockquote class="card review rv">
+          <div class="stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p>My rosacea flare-ups went from weekly to almost never. This is the first routine I have kept for a full year.</p>
+          <cite>June, 34 - reactive skin</cite>
+        </blockquote>
+        <blockquote class="card review rv d1">
+          <div class="stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p>I gave up a 9-step routine for this and my skin has honestly never looked calmer. My bathroom shelf thanks me.</p>
+          <cite>Priya, 28 - recovering maximalist</cite>
+        </blockquote>
+        <blockquote class="card review rv d2">
+          <div class="stars" aria-label="5 out of 5 stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+          <p>Bought it for my teenager's eczema, stole it for myself. We now order two of everything.</p>
+          <cite>Marta, 47 - shared shelf</cite>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <section class="signup">
+    <div class="wrap">
+      <div class="card signup-card rv">
+        <div class="blob b4" aria-hidden="true"></div>
+        <div class="blob b5" aria-hidden="true"></div>
+        <h2>Join the soft launch</h2>
+        <p>Early access to restocks, one gentle email a month, and 10% off your first trio. No noise, promise.</p>
+        <form class="field" onsubmit="return false;">
+          <input type="email" placeholder="you@softmail.com" aria-label="Email address">
+          <button class="btn" type="submit">Count me in</button>
+        </form>
+        <p class="tiny">Unsubscribe anytime. We will be sad, but quietly.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>&copy; cloudmilk - made slowly in Copenhagen</span>
+    <nav>
+      <a href="#shop">Shop</a>
+      <a href="#inside">Ingredients</a>
+      <a href="#">FAQ</a>
+      <a href="#">Contact</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    }
+  }, { threshold: 0.15 });
+  document.querySelectorAll(".rv").forEach((el) => io.observe(el));
+</script>
+
+</body>
+</html>

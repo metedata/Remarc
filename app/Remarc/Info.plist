@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>SUFeedURL</key>
+    <string>https://gist.githubusercontent.com/metedata/0bbb8342e141a8c41a9f1c0bfaab8f81/raw/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>a7nij+uhm+Gm06h2+yksvQvsbn+DHJAvvl1unS1u5s8=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Remarc uses the microphone to transcribe your voice critiques into comments.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Remarc uses speech recognition to transcribe your voice critiques into comments.</string>
+</dict>
+</plist>

@@ -1,0 +1,45 @@
+---
+// Override of Starlight's SiteTitle: the header logo links to the main
+// remarc.app site instead of the docs root (per Mete's call, 2026-08-08).
+// Markup and styles mirror @astrojs/starlight/components/SiteTitle.astro.
+import logoDark from '../assets/logo-dark.svg';
+import logoLight from '../assets/logo-light.svg';
+---
+
+<a href="https://remarc.app" class="site-title sl-flex">
+	<img
+		class="light:sl-hidden print:hidden"
+		alt="Remarc"
+		src={logoDark.src}
+		width={logoDark.width}
+		height={logoDark.height}
+	/>
+	<img
+		class="dark:sl-hidden print:block"
+		alt="Remarc"
+		src={logoLight.src}
+		width={logoLight.width}
+		height={logoLight.height}
+	/>
+	<span class="sr-only" translate="no">Remarc</span>
+</a>
+
+<style>
+	.site-title {
+		align-items: center;
+		gap: var(--sl-nav-gap);
+		font-size: var(--sl-text-h4);
+		font-weight: 600;
+		color: var(--sl-color-text-accent);
+		text-decoration: none;
+		white-space: nowrap;
+		min-width: 0;
+	}
+	img {
+		height: calc(var(--sl-nav-height) - 2 * var(--sl-nav-pad-y));
+		width: auto;
+		max-width: 100%;
+		object-fit: contain;
+		object-position: 0 50%;
+	}
+</style>

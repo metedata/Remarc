@@ -1,0 +1,43 @@
+---
+title: Data, privacy & updates
+description: Where Remarc stores comments and screenshots, exactly what touches the network, and how signed automatic updates work.
+---
+
+Everything Remarc captures stays on your Mac. There is no account, no sign-in, and no server holding your comments.
+
+## Where your data lives
+
+Remarc stores all data in `~/Library/Application Support/Remarc/`:
+
+- `comments.json` holds your sessions and comments.
+- Screenshots and image attachments are stored as files in the same folder and referenced by comments.
+
+Agents read and update comments through MCP (Model Context Protocol) tools rather than editing the file directly. See the [agents overview](/agents/overview/).
+
+## Voice stays on-device
+
+All three [transcription engines](/voice/transcription-engines/) (Apple Speech, WhisperKit, Parakeet) run entirely on your Mac. Audio is never uploaded, and transcription works offline once a model is downloaded.
+
+## What does touch the network
+
+Nothing you capture leaves your Mac unless you explicitly set that up. Remarc's network activity is limited to:
+
+- Update checks, described under Updates below.
+- Transcription model downloads: choosing the WhisperKit or Parakeet engine downloads the model in-app. Apple Speech needs no download.
+- [Webhooks](/agents/webhooks/) you configure: each one sends the comment events you subscribed to, to the URL you entered. Remarc sends nothing unless you add one.
+- Send Feedback: sends only what you write, only when you send it.
+- Agent plugin installs: installing the Claude Code or Codex integration runs that harness's own CLI, which downloads the plugin from GitHub.
+
+The [Chrome extension](/chrome-extension/) talks to the app over a local WebSocket on `127.0.0.1:9274`. That connection never leaves your machine.
+
+## Retention
+
+The retention pickers in [Settings](/reference/settings/) prune data automatically: comment history, stored images, and dictation transcriptions each have their own setting and schedule. Deleting a comment moves it to History first, where it can be restored until retention removes it.
+
+## Updates
+
+Remarc updates itself through Sparkle, with automatic checks enabled by default and nothing to configure. Updates are signed and notarized. To check manually, use the "Check for Updates..." button in Settings > About.
+
+## Open source
+
+Remarc's source code is public at [github.com/metedata/Remarc](https://github.com/metedata/Remarc), so you can verify all of the above yourself.

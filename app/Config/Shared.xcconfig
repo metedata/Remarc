@@ -1,0 +1,44 @@
+// Shared.xcconfig
+// Shared configuration for Remarc
+
+// ==========================================
+// Project Identity
+// ==========================================
+PRODUCT_NAME = Remarc
+PRODUCT_DISPLAY_NAME = Remarc
+PRODUCT_BUNDLE_IDENTIFIER = com.metepolat.Remarc
+MARKETING_VERSION = 0.5.1
+CURRENT_PROJECT_VERSION = 12
+
+// ==========================================
+// Platform Configuration
+// ==========================================
+MACOSX_DEPLOYMENT_TARGET = 14.0
+
+// ==========================================
+// Info PLIST
+// ==========================================
+GENERATE_INFOPLIST_FILE = YES
+INFOPLIST_FILE = Remarc/Info.plist
+INFOPLIST_KEY_LSUIElement = YES
+
+// ==========================================
+// App Icon
+// ==========================================
+ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon
+
+// ==========================================
+// Runpath Search Paths (for embedded frameworks like Sparkle)
+// ==========================================
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/../Frameworks
+
+// ==========================================
+// Code Signing
+// ==========================================
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM = 8HG333G2BW
+
+// ==========================================
+// Entitlements
+// ==========================================
+CODE_SIGN_ENTITLEMENTS = Config/Remarc.entitlements

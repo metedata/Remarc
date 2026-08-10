@@ -1,0 +1,29 @@
+/* Remarc brand accents (docs/brand-kit.md: Soft Indigo).
+   Dark uses the brand primary #6366F1; light uses indigo-700 #4338CA
+   per DESIGN.md so links keep contrast on white. */
+
+/* Dark mode colors. */
+:root {
+	--sl-color-accent-low: #26265e;
+	--sl-color-accent: #6366f1;
+	--sl-color-accent-high: #c7d2fe;
+}
+
+/* Light mode colors. */
+:root[data-theme='light'] {
+	--sl-color-accent-low: #e0e7ff;
+	--sl-color-accent: #4338ca;
+	--sl-color-accent-high: #312e81;
+}
+
+/* Breathing room: airier vertical rhythm, no layout changes.
+   Starlight defaults: --sl-content-gap-y 1rem, headings 1.5em. */
+:root {
+	--sl-content-gap-y: 1.35rem;
+}
+
+.sl-markdown-content
+	:not(h1, h2, h3, h4, h5, h6)
+	+ :is(h2, h3):not(:where(.not-content *)) {
+	margin-top: 2.25em;
+}

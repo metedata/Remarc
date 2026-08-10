@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ember &amp; Oak - Small-Batch Coffee, Delivered</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='42' fill='%23221712'/><circle cx='50' cy='50' r='18' fill='%23B0653A'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parchment: #F5EFE4;
+    --parchment-deep: #EDE4D3;
+    --espresso: #221712;
+    --espresso-soft: #4A382C;
+    --copper: #B0653A;
+    --copper-deep: #8E4C27;
+    --rule: rgba(34, 23, 18, 0.18);
+    --serif-display: "Fraunces", Georgia, serif;
+    --serif-body: "EB Garamond", Georgia, serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--parchment);
+    color: var(--espresso);
+    font-family: var(--serif-body);
+    font-size: 1.1875rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Paper grain */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+
+  ::selection { background: var(--copper); color: var(--parchment); }
+
+  a { color: inherit; }
+
+  /* ---------- Header ---------- */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(245, 239, 228, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 0;
+  }
+
+  .wordmark {
+    font-family: var(--serif-display);
+    font-size: 1.45rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+  }
+  .wordmark em { color: var(--copper); font-style: italic; }
+
+  .nav-links {
+    display: flex;
+    gap: 36px;
+    align-items: center;
+  }
+
+  .nav-links a:not(.btn) {
+    font-family: var(--serif-body);
+    font-size: 1rem;
+    text-decoration: none;
+    position: relative;
+    padding-bottom: 2px;
+  }
+  .nav-links a:not(.btn)::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%;
+    height: 1px;
+    background: var(--copper);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .nav-links a:not(.btn):hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-block;
+    font-family: var(--serif-display);
+    font-size: 1.02rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    padding: 13px 30px;
+    border-radius: 999px;
+    border: 1px solid var(--espresso);
+    transition: background 0.3s ease, color 0.3s ease, transform 0.15s ease, box-shadow 0.3s ease;
+    cursor: pointer;
+  }
+
+  .btn-solid {
+    background: var(--espresso);
+    color: var(--parchment);
+  }
+  .btn-solid:hover {
+    background: var(--copper-deep);
+    border-color: var(--copper-deep);
+    box-shadow: 0 10px 30px -12px rgba(142, 76, 39, 0.55);
+  }
+  .btn-solid:active { transform: scale(0.97); box-shadow: none; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--espresso);
+  }
+  .btn-ghost:hover { background: var(--espresso); color: var(--parchment); }
+  .btn-ghost:active { transform: scale(0.97); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    text-align: center;
+    padding: 110px 0 90px;
+    position: relative;
+  }
+
+  .eyebrow {
+    font-family: var(--serif-body);
+    font-size: 0.85rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--copper-deep);
+    margin-bottom: 34px;
+  }
+
+  .hero h1 {
+    font-family: var(--serif-display);
+    font-size: clamp(3rem, 8.5vw, 6.2rem);
+    font-weight: 400;
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+    max-width: 15ch;
+    margin: 0 auto 30px;
+  }
+  .hero h1 em {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--copper);
+  }
+
+  .hero p.lede {
+    max-width: 52ch;
+    margin: 0 auto 44px;
+    font-size: 1.28rem;
+    color: var(--espresso-soft);
+  }
+
+  .hero-ctas { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+  .hero-rule {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 96px;
+    color: var(--copper-deep);
+  }
+  .hero-rule::before, .hero-rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule);
+  }
+  .hero-rule span {
+    font-size: 0.8rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  /* Giant ampersand watermark */
+  .amp {
+    position: absolute;
+    top: 44%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--serif-display);
+    font-style: italic;
+    font-size: clamp(20rem, 48vw, 34rem);
+    color: rgba(176, 101, 58, 0.07);
+    pointer-events: none;
+    user-select: none;
+    line-height: 1;
+    z-index: -1;
+  }
+
+  /* ---------- Section scaffolding ---------- */
+  section { padding: 96px 0; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 64px;
+    border-top: 1px solid var(--rule);
+    padding-top: 28px;
+  }
+
+  .section-head h2 {
+    font-family: var(--serif-display);
+    font-size: clamp(2rem, 4.5vw, 3.1rem);
+    font-weight: 400;
+    line-height: 1.1;
+  }
+  .section-head h2 em { font-style: italic; color: var(--copper); }
+
+  .section-head .kicker {
+    font-size: 0.8rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--copper-deep);
+    white-space: nowrap;
+  }
+
+  /* ---------- Roasts ---------- */
+  .roasts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+  }
+
+  .roast-card {
+    background: var(--parchment-deep);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 40px 32px 36px;
+    text-align: center;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease;
+  }
+  .roast-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 24px 50px -30px rgba(34, 23, 18, 0.4);
+  }
+
+  .orb {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    margin: 0 auto 30px;
+    position: relative;
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .roast-card:hover .orb { transform: scale(1.06) rotate(8deg); }
+  .orb::after {
+    content: "";
+    position: absolute;
+    top: 14%;
+    left: 18%;
+    width: 30%;
+    height: 22%;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.35);
+    filter: blur(4px);
+  }
+
+  .orb-ember { background: radial-gradient(circle at 32% 28%, #5A3323, #221712 68%); }
+  .orb-oak { background: radial-gradient(circle at 32% 28%, #B0653A, #6B3E22 70%); }
+  .orb-light { background: radial-gradient(circle at 32% 28%, #E4B98B, #B0784A 72%); }
+
+  .roast-card .no {
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    color: var(--copper-deep);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .roast-card h3 {
+    font-family: var(--serif-display);
+    font-size: 1.7rem;
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+
+  .roast-card .notes {
+    font-style: italic;
+    color: var(--espresso-soft);
+    font-size: 1.05rem;
+  }
+
+  .roast-card .origin {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
+    font-size: 0.92rem;
+    letter-spacing: 0.06em;
+    color: var(--copper-deep);
+  }
+
+  /* ---------- Process ---------- */
+  .process { border-top: 1px solid var(--rule); }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 48px; }
+
+  .step .num {
+    font-family: var(--serif-display);
+    font-style: italic;
+    font-weight: 300;
+    font-size: 3.4rem;
+    color: var(--copper);
+    line-height: 1;
+    display: block;
+    margin-bottom: 22px;
+  }
+
+  .step h3 {
+    font-family: var(--serif-display);
+    font-weight: 500;
+    font-size: 1.4rem;
+    margin-bottom: 12px;
+  }
+
+  .step p { color: var(--espresso-soft); font-size: 1.08rem; }
+
+  /* ---------- Quote ---------- */
+  .quote {
+    background: var(--espresso);
+    color: var(--parchment);
+    text-align: center;
+    padding: 120px 0;
+  }
+
+  .quote blockquote {
+    font-family: var(--serif-display);
+    font-weight: 300;
+    font-style: italic;
+    font-size: clamp(1.7rem, 4vw, 2.9rem);
+    line-height: 1.3;
+    max-width: 24ch;
+    margin: 0 auto 34px;
+  }
+  .quote blockquote .hl { color: #D89A6E; }
+
+  .quote cite {
+    font-family: var(--serif-body);
+    font-style: normal;
+    font-size: 0.85rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(245, 239, 228, 0.6);
+  }
+
+  .quote .mark {
+    font-family: var(--serif-display);
+    font-size: 5rem;
+    line-height: 0.5;
+    color: var(--copper);
+    display: block;
+    margin-bottom: 30px;
+  }
+
+  /* ---------- Pricing ---------- */
+  .plans {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  .plan {
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 46px 42px;
+    background: var(--parchment);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s ease, border-color 0.3s ease;
+  }
+  .plan:hover {
+    transform: translateY(-6px);
+    border-color: var(--copper);
+    box-shadow: 0 30px 60px -34px rgba(34, 23, 18, 0.45);
+  }
+
+  .plan.featured { background: var(--parchment-deep); border-color: var(--copper); }
+
+  .plan .tag {
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--copper-deep);
+    margin-bottom: 16px;
+  }
+
+  .plan h3 {
+    font-family: var(--serif-display);
+    font-size: 1.9rem;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .plan .price {
+    font-family: var(--serif-display);
+    font-size: 3rem;
+    font-weight: 300;
+    margin: 18px 0 6px;
+  }
+  .plan .price span { font-size: 1.1rem; font-style: italic; color: var(--espresso-soft); }
+
+  .plan ul {
+    list-style: none;
+    margin: 26px 0 34px;
+    flex: 1;
+  }
+  .plan li {
+    padding: 10px 0;
+    border-top: 1px solid var(--rule);
+    font-size: 1.05rem;
+    color: var(--espresso-soft);
+  }
+  .plan li::before { content: "\2014\00a0"; color: var(--copper); }
+
+  .fine {
+    text-align: center;
+    margin-top: 40px;
+    font-style: italic;
+    color: var(--espresso-soft);
+    font-size: 1rem;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--rule);
+    padding: 56px 0 48px;
+  }
+
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .foot .wordmark { font-size: 1.2rem; }
+
+  .foot p {
+    font-size: 0.9rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--espresso-soft);
+  }
+
+  .foot nav { display: flex; gap: 26px; }
+  .foot nav a {
+    font-size: 0.95rem;
+    text-decoration: none;
+    color: var(--espresso-soft);
+    transition: color 0.25s ease;
+  }
+  .foot nav a:hover { color: var(--copper-deep); }
+
+  /* ---------- Reveal animation (only when JS runs) ---------- */
+  html.js .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  html.js .reveal.in { opacity: 1; transform: none; }
+  .reveal.d1 { transition-delay: 0.12s; }
+  .reveal.d2 { transition-delay: 0.24s; }
+  .reveal.d3 { transition-delay: 0.36s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px) {
+    .roasts, .steps { grid-template-columns: 1fr; }
+    .plans { grid-template-columns: 1fr; }
+    .nav-links a:not(.btn) { display: none; }
+    section { padding: 72px 0; }
+    .hero { padding: 80px 0 64px; }
+    .section-head { flex-direction: column; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add("js");</script>
+
+<header>
+  <div class="wrap nav">
+    <a class="wordmark" href="#">Ember <em>&amp;</em> Oak</a>
+    <nav class="nav-links">
+      <a href="#roasts">Roasts</a>
+      <a href="#process">Process</a>
+      <a href="#plans">Subscriptions</a>
+      <a class="btn btn-solid" href="#plans">Begin a subscription</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div class="amp" aria-hidden="true">&amp;</div>
+    <p class="eyebrow reveal">Small-batch coffee, roasted to order in Hudson, NY</p>
+    <h1 class="reveal d1">The morning, <em>considered.</em></h1>
+    <p class="lede reveal d2">Two bags a month from farms we can name, roasted seventy-two hours before they reach your door. No blends. No mystery. Just coffee with a memory.</p>
+    <div class="hero-ctas reveal d3">
+      <a class="btn btn-solid" href="#plans">Begin a subscription</a>
+      <a class="btn btn-ghost" href="#roasts">Explore the roasts</a>
+    </div>
+    <div class="hero-rule reveal d3"><span>Est. 2019 &middot; Roastery No. 4</span></div>
+  </div>
+
+  <section id="roasts">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Three roasts, <em>one obsession.</em></h2>
+        <span class="kicker">The collection</span>
+      </div>
+      <div class="roasts">
+        <article class="roast-card reveal">
+          <div class="orb orb-ember" aria-hidden="true"></div>
+          <span class="no">No. 01 &middot; Dark</span>
+          <h3>The Ember</h3>
+          <p class="notes">Cocoa, smoked cedar, black cherry</p>
+          <p class="origin">Huila, Colombia</p>
+        </article>
+        <article class="roast-card reveal d1">
+          <div class="orb orb-oak" aria-hidden="true"></div>
+          <span class="no">No. 02 &middot; Medium</span>
+          <h3>The Oak</h3>
+          <p class="notes">Toasted hazelnut, orange peel, raw honey</p>
+          <p class="origin">Antigua, Guatemala</p>
+        </article>
+        <article class="roast-card reveal d2">
+          <div class="orb orb-light" aria-hidden="true"></div>
+          <span class="no">No. 03 &middot; Light</span>
+          <h3>First Light</h3>
+          <p class="notes">Jasmine, white peach, lemongrass</p>
+          <p class="origin">Guji, Ethiopia</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="process" class="process">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>From a hillside <em>to your kitchen.</em></h2>
+        <span class="kicker">How it works</span>
+      </div>
+      <div class="steps">
+        <div class="step reveal">
+          <span class="num">01</span>
+          <h3>Sourced by name</h3>
+          <p>We buy from eleven farms we visit every year, and we pay them roughly double the commodity rate. Their names are on every bag.</p>
+        </div>
+        <div class="step reveal d1">
+          <span class="num">02</span>
+          <h3>Roasted to the hour</h3>
+          <p>Your beans are roasted only after you order, then rested exactly as long as the roast requires. The date is stamped by hand.</p>
+        </div>
+        <div class="step reveal d2">
+          <span class="num">03</span>
+          <h3>At your door</h3>
+          <p>Shipped the same week in compostable packaging, arriving at peak flavor. Skip a month or swap roasts in one click.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="quote">
+    <div class="wrap reveal">
+      <span class="mark" aria-hidden="true">&ldquo;</span>
+      <blockquote>It <span class="hl">ruined hotel coffee</span> for me, and I travel for a living.</blockquote>
+      <cite>Mara T. &middot; Subscriber since 2023</cite>
+    </div>
+  </section>
+
+  <section id="plans">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <h2>Choose your <em>ritual.</em></h2>
+        <span class="kicker">Subscriptions</span>
+      </div>
+      <div class="plans">
+        <div class="plan reveal">
+          <p class="tag">Most popular</p>
+          <h3>The Standing Order</h3>
+          <p class="price">$24<span> / month</span></p>
+          <ul>
+            <li>Two 250g bags, monthly</li>
+            <li>Any roast, or roaster's choice</li>
+            <li>Tasting card with every delivery</li>
+            <li>Pause or swap anytime</li>
+          </ul>
+          <a class="btn btn-solid" href="#">Start with this</a>
+        </div>
+        <div class="plan featured reveal d1">
+          <p class="tag">For the devoted</p>
+          <h3>The Cellar</h3>
+          <p class="price">$38<span> / month</span></p>
+          <ul>
+            <li>Three 250g bags, monthly</li>
+            <li>First access to rare micro-lots</li>
+            <li>Annual roastery dinner invitation</li>
+            <li>Pause or swap anytime</li>
+          </ul>
+          <a class="btn btn-ghost" href="#">Join The Cellar</a>
+        </div>
+      </div>
+      <p class="fine">Shipping included. Cancel whenever you like - the coffee should be the only thing holding you.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <a class="wordmark" href="#">Ember <em>&amp;</em> Oak</a>
+    <nav>
+      <a href="#roasts">Roasts</a>
+      <a href="#process">Process</a>
+      <a href="#plans">Subscriptions</a>
+    </nav>
+    <p>Roasted in Hudson, NY</p>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    }
+  }, { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+</script>
+
+</body>
+</html>

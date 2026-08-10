@@ -1,0 +1,61 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspacedata
+!app/Remarc.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+
+# SPM
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Logs
+*.log
+
+# Secrets
+*.p12
+*.p8
+*.provisionprofile
+*.pem
+*.key
+*.keychain
+.npmrc
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+mcp/dist/
+
+# Claude Code / marketing-skills personal tooling
+.claude/settings.local.json
+skills-lock.json
+.agents/skills/
+.agents/product-marketing-context.md
+
+# Internal/historical docs (kept locally, not tracked)
+docs/internal/
+
+# Screenshots
+tests/screenshots/*.png
+tests/screenshots/*.jpg
+!tests/screenshots/.gitkeep
+
+# Large media
+assets/launch-assets/remarc-early-tester-demo.mp4
+
+# Worktrees
+.worktrees/
+
+# Wrangler
+.wrangler/
+.superpowers/

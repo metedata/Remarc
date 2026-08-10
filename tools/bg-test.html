@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Background Test</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: #ffffff;
+    transition: background 0.2s ease;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  #bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 10px;
+  }
+  .swatch {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 2px solid rgba(255,255,255,0.3);
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.active { border-color: white; transform: scale(1.15); }
+</style>
+</head>
+<body>
+<div id="bar"></div>
+<script>
+const colors = [
+  { bg: '#ffffff', label: 'White' },
+  { bg: '#f5f5f5', label: 'Light Gray' },
+  { bg: '#1e1e1e', label: 'Dark Gray' },
+  { bg: '#000000', label: 'Black' },
+  { bg: '#1a1b2e', label: 'Navy' },
+  { bg: '#2d1b4e', label: 'Purple' },
+  { bg: '#0f3d3e', label: 'Teal' },
+  { bg: '#3b82f6', label: 'Blue' },
+  { bg: '#ef4444', label: 'Red' },
+  { bg: '#f59e0b', label: 'Amber' },
+  { bg: '#8b5cf6', label: 'Violet' },
+  { bg: '#10b981', label: 'Green' },
+];
+
+const bar = document.getElementById('bar');
+colors.forEach((c, i) => {
+  const el = document.createElement('div');
+  el.className = 'swatch' + (i === 0 ? ' active' : '');
+  el.style.background = c.bg;
+  el.title = c.label;
+  el.onclick = () => {
+    document.body.style.background = c.bg;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+  };
+  bar.appendChild(el);
+});
+</script>
+</body>
+</html>

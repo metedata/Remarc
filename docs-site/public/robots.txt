@@ -1,0 +1,27 @@
+# docs.remarc.app - all crawlers welcome, including AI assistants.
+User-agent: *
+Allow: /
+
+# Explicit allows so intent is unambiguous for AI crawlers.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+Sitemap: https://docs.remarc.app/sitemap-index.xml

@@ -1,0 +1,272 @@
+/* popup.css — Remarc Chrome Extension popup styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 240px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #e0e0e0;
+  background: #1a1a2e;
+  user-select: none;
+}
+
+/* --- Header --- */
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  gap: 8px;
+}
+
+.header-logo {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+/* --- Status Pill --- */
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-size: 11px;
+  color: #8888a0;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background: #22c55e;
+}
+
+.status-dot.blocked {
+  background: #f59e0b;
+}
+
+.status-dot.paused {
+  background: #8888a0;
+}
+
+/* --- Power Button --- */
+
+.power-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #8888a0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.power-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #c0c0d0;
+}
+
+.power-btn.paused {
+  color: #6366f1;
+}
+
+.power-btn.paused:hover {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+}
+
+/* --- Divider --- */
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 12px;
+}
+
+/* --- Action Buttons --- */
+
+.actions {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: #2a2a3e;
+  color: #e0e0e0;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, opacity 0.15s;
+  gap: 8px;
+}
+
+.action-btn:hover:not(:disabled) {
+  background: #3a3a52;
+}
+
+.action-btn:active:not(:disabled) {
+  background: #4a4a62;
+}
+
+.action-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.action-btn .btn-icon {
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #6366f1;
+  line-height: 1;
+}
+
+.action-btn:disabled .btn-icon {
+  color: #8888a0;
+}
+
+.action-btn .btn-label {
+  flex: 1;
+}
+
+.action-btn .btn-shortcut {
+  font-size: 10px;
+  color: #6668a0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: 0.5px;
+}
+
+/* --- Reconnect Hint --- */
+
+.reconnect-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: #8888a0;
+  gap: 8px;
+}
+
+.reconnect-text {
+  opacity: 0.7;
+  flex: 1;
+  line-height: 1.35;
+}
+
+.reconnect-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.reconnect-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+}
+
+.reconnect-btn:active {
+  background: rgba(99, 102, 241, 0.28);
+}
+
+/* Icon toggle: show reload by default, swap to settings icon when LNA-blocked */
+.reconnect-icon-settings { display: none; }
+.reconnect-hint.lna .reconnect-icon-reload { display: none; }
+.reconnect-hint.lna .reconnect-icon-settings { display: block; }
+
+/* LNA hint uses warning amber to distinguish from "just reload" */
+.reconnect-hint.lna {
+  color: #d4a06a;
+}
+.reconnect-hint.lna .reconnect-text {
+  opacity: 0.95;
+}
+.reconnect-hint.lna .reconnect-btn {
+  background: rgba(212, 160, 106, 0.14);
+  color: #d4a06a;
+}
+.reconnect-hint.lna .reconnect-btn:hover {
+  background: rgba(212, 160, 106, 0.24);
+  color: #e0b388;
+}
+.reconnect-hint.lna .reconnect-btn:active {
+  background: rgba(212, 160, 106, 0.32);
+}
+
+/* --- Footer / Settings Link --- */
+
+.footer {
+  padding: 6px 12px 10px;
+}
+
+.settings-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #8888a0;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+
+.settings-link:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #b0b0c8;
+}
+
+.settings-link:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.settings-link svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}

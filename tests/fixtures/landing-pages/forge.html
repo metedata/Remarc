@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FORGE - Strength Training, Computed</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230B0B0C'/><path d='M20 80 L50 15 L80 80 L62 80 L50 52 L38 80 Z' fill='%23CCFF00'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #0B0B0C;
+    --coal: #141416;
+    --steel: #1E1E22;
+    --smoke: #9A9AA2;
+    --white: #F4F4F1;
+    --volt: #CCFF00;
+    --volt-dim: rgba(204, 255, 0, 0.12);
+    --display: "Anton", "Arial Narrow", sans-serif;
+    --body: "Barlow", "Helvetica Neue", sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--void);
+    color: var(--white);
+    font-family: var(--body);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--volt); color: var(--void); }
+
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 28px; }
+
+  h1, h2, h3, .disp {
+    font-family: var(--display);
+    text-transform: uppercase;
+    line-height: 0.96;
+    letter-spacing: 0.01em;
+    font-weight: 400;
+  }
+
+  /* ---------- Nav ---------- */
+  header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: linear-gradient(rgba(11, 11, 12, 0.95), rgba(11, 11, 12, 0.85));
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(244, 244, 241, 0.08);
+  }
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 1.6rem;
+    color: var(--white);
+    text-decoration: none;
+    letter-spacing: 0.04em;
+  }
+  .logo span { color: var(--volt); }
+
+  .nav-links { display: flex; align-items: center; gap: 30px; }
+  .nav-links a:not(.btn) {
+    color: var(--smoke);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    transition: color 0.2s ease;
+  }
+  .nav-links a:not(.btn):hover { color: var(--volt); }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-block;
+    font-family: var(--display);
+    font-size: 1.02rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-decoration: none;
+    padding: 15px 34px;
+    background: var(--volt);
+    color: var(--void);
+    clip-path: polygon(8% 0, 100% 0, 100% 70%, 92% 100%, 0 100%, 0 30%);
+    transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease;
+  }
+  .btn:hover { transform: translateY(-2px) skewX(-2deg); filter: brightness(1.1); box-shadow: 0 12px 40px -10px rgba(204, 255, 0, 0.5); }
+  .btn:active { transform: translateY(1px) scale(0.97); filter: brightness(0.9); box-shadow: none; }
+
+  .btn-line {
+    background: transparent;
+    color: var(--white);
+    box-shadow: inset 0 0 0 2px rgba(244, 244, 241, 0.4);
+  }
+  .btn-line:hover { box-shadow: inset 0 0 0 2px var(--volt); color: var(--volt); }
+  .btn-line:active { box-shadow: inset 0 0 0 2px var(--volt); }
+
+  .btn-sm { padding: 11px 22px; font-size: 0.85rem; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    min-height: 100svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 140px 0 120px;
+    position: relative;
+    background:
+      radial-gradient(ellipse 60% 45% at 75% 20%, rgba(204, 255, 0, 0.09), transparent 65%),
+      repeating-linear-gradient(-55deg, transparent 0 90px, rgba(244, 244, 241, 0.018) 90px 92px),
+      var(--void);
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 90px;
+    background: var(--coal);
+    clip-path: polygon(0 100%, 100% 100%, 100% 0);
+  }
+
+  .hero .eyebrow {
+    color: var(--volt);
+    font-weight: 700;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .hero .eyebrow::before { content: ""; width: 44px; height: 2px; background: var(--volt); }
+
+  .hero h1 {
+    font-size: clamp(3.6rem, 11vw, 9rem);
+    margin-bottom: 30px;
+  }
+  .hero h1 .ghost {
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(244, 244, 241, 0.55);
+  }
+  .hero h1 .volt { color: var(--volt); font-style: italic; }
+
+  .hero .sub {
+    max-width: 52ch;
+    color: var(--smoke);
+    font-size: 1.18rem;
+    font-weight: 500;
+    margin-bottom: 42px;
+  }
+  .hero .sub strong { color: var(--white); }
+
+  .hero-ctas { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+  .hero-note { color: var(--smoke); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* ---------- Marquee ---------- */
+  .marquee {
+    background: var(--volt);
+    color: var(--void);
+    overflow: hidden;
+    white-space: nowrap;
+    transform: rotate(-1.2deg) scale(1.02);
+    position: relative;
+    z-index: 5;
+    margin-top: -34px;
+  }
+  .marquee-track {
+    display: inline-block;
+    font-family: var(--display);
+    font-size: 1.5rem;
+    text-transform: uppercase;
+    padding: 12px 0;
+    animation: slide 18s linear infinite;
+  }
+  .marquee-track span { margin: 0 26px; }
+  .marquee-track .o { color: transparent; -webkit-text-stroke: 1.5px var(--void); }
+  @keyframes slide { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ---------- Stats ---------- */
+  .stats { background: var(--coal); padding: 110px 0 90px; }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 40px;
+    text-align: center;
+  }
+  .stat .num {
+    font-family: var(--display);
+    font-size: clamp(3rem, 6.5vw, 5.2rem);
+    color: var(--white);
+    display: block;
+    line-height: 1;
+  }
+  .stat .num em { color: var(--volt); font-style: normal; }
+  .stat .lbl {
+    display: block;
+    margin-top: 14px;
+    color: var(--smoke);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.8rem;
+  }
+
+  /* ---------- Programs ---------- */
+  section.programs { padding: 110px 0; }
+
+  .sec-head { margin-bottom: 60px; }
+  .sec-head .tag {
+    color: var(--volt);
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    display: block;
+    margin-bottom: 16px;
+  }
+  .sec-head h2 { font-size: clamp(2.4rem, 6vw, 4.4rem); }
+  .sec-head h2 .ghost { color: transparent; -webkit-text-stroke: 1.5px rgba(244, 244, 241, 0.5); }
+
+  .programs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+
+  .program {
+    background: var(--steel);
+    border: 1px solid rgba(244, 244, 241, 0.08);
+    padding: 40px 30px 34px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.25s ease, border-color 0.25s ease;
+  }
+  .program::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: repeating-linear-gradient(-45deg, var(--volt) 0 12px, var(--void) 12px 24px);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .program:hover { transform: translateY(-8px); border-color: rgba(204, 255, 0, 0.5); }
+  .program:hover::before { opacity: 1; }
+
+  .program .idx {
+    font-family: var(--display);
+    font-size: 4.4rem;
+    color: transparent;
+    -webkit-text-stroke: 1.5px rgba(244, 244, 241, 0.22);
+    line-height: 1;
+    display: block;
+    margin-bottom: 24px;
+    transition: -webkit-text-stroke-color 0.25s ease;
+  }
+  .program:hover .idx { -webkit-text-stroke-color: var(--volt); }
+
+  .program h3 { font-size: 1.7rem; margin-bottom: 14px; }
+  .program p { color: var(--smoke); font-size: 0.98rem; margin-bottom: 22px; }
+
+  .program .meta {
+    display: flex;
+    gap: 16px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--volt);
+    border-top: 1px solid rgba(244, 244, 241, 0.1);
+    padding-top: 18px;
+  }
+
+  /* ---------- Method ---------- */
+  .method { background: var(--coal); padding: 110px 0; position: relative; }
+  .method::before {
+    content: "";
+    position: absolute;
+    top: -1px; left: 0; right: 0;
+    height: 70px;
+    background: var(--void);
+    clip-path: polygon(0 0, 100% 0, 0 100%);
+  }
+
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; padding-top: 40px; }
+
+  .method-list { display: flex; flex-direction: column; gap: 4px; }
+  .m-item {
+    display: flex;
+    gap: 22px;
+    padding: 26px 22px;
+    border-left: 3px solid rgba(244, 244, 241, 0.1);
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+  }
+  .m-item:hover { border-left-color: var(--volt); background: var(--volt-dim); transform: translateX(6px); }
+  .m-item .k {
+    font-family: var(--display);
+    font-size: 1.5rem;
+    color: var(--volt);
+    min-width: 52px;
+  }
+  .m-item h3 { font-size: 1.12rem; margin-bottom: 8px; letter-spacing: 0.04em; }
+  .m-item p { color: var(--smoke); font-size: 0.95rem; }
+
+  /* Phone mock */
+  .phone {
+    width: 300px;
+    margin: 0 auto;
+    background: var(--void);
+    border: 1px solid rgba(244, 244, 241, 0.15);
+    border-radius: 34px;
+    padding: 22px 20px 26px;
+    box-shadow: 0 40px 90px -40px rgba(204, 255, 0, 0.25), 0 30px 60px -30px rgba(0,0,0,0.8);
+    transform: rotate(2.5deg);
+    transition: transform 0.35s ease;
+  }
+  .phone:hover { transform: rotate(0deg) scale(1.02); }
+
+  .phone .p-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
+  .phone .p-head .t { font-family: var(--display); font-size: 1.05rem; text-transform: uppercase; }
+  .phone .p-head .wk { color: var(--volt); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+  .set-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    background: var(--steel);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+  }
+  .set-row .w { color: var(--smoke); font-weight: 500; }
+  .set-row.done { opacity: 0.45; text-decoration: line-through; }
+  .set-row.active { box-shadow: inset 0 0 0 2px var(--volt); }
+  .set-row.active .w { color: var(--volt); }
+
+  .p-timer {
+    margin-top: 16px;
+    text-align: center;
+    font-family: var(--display);
+    font-size: 2.6rem;
+    color: var(--volt);
+    letter-spacing: 0.05em;
+  }
+  .p-timer small {
+    display: block;
+    font-family: var(--body);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    color: var(--smoke);
+    margin-top: 4px;
+  }
+
+  /* ---------- Quotes ---------- */
+  .quotes { padding: 110px 0; }
+  .q-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .q {
+    background: var(--steel);
+    padding: 32px 28px;
+    border-top: 3px solid var(--volt);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .q:hover { transform: translateY(-6px); box-shadow: 0 24px 50px -30px rgba(204, 255, 0, 0.3); }
+  .q p { font-size: 1.05rem; font-weight: 500; margin-bottom: 20px; }
+  .q p em { color: var(--volt); font-style: normal; font-weight: 700; }
+  .q cite {
+    font-style: normal;
+    color: var(--smoke);
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+  }
+
+  /* ---------- Pricing CTA ---------- */
+  .join {
+    background: var(--volt);
+    color: var(--void);
+    padding: 110px 0;
+    clip-path: polygon(0 40px, 100% 0, 100% 100%, 0 100%);
+    text-align: center;
+  }
+  .join h2 { font-size: clamp(2.6rem, 7vw, 5.4rem); margin-bottom: 20px; }
+  .join h2 .ghost { color: transparent; -webkit-text-stroke: 2px var(--void); }
+  .join .price-line { font-weight: 600; font-size: 1.2rem; margin-bottom: 38px; }
+  .join .price-line strong { font-weight: 800; }
+  .join .btn { background: var(--void); color: var(--volt); font-size: 1.15rem; padding: 18px 40px; }
+  .join .btn:hover { box-shadow: 0 16px 40px -12px rgba(11, 11, 12, 0.6); }
+  .join .fine { margin-top: 22px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.7; }
+
+  /* ---------- Footer ---------- */
+  footer { padding: 40px 0; background: var(--void); }
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 18px;
+    color: var(--smoke);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .foot a { color: var(--smoke); text-decoration: none; transition: color 0.2s ease; }
+  .foot a:hover { color: var(--volt); }
+  .foot nav { display: flex; gap: 24px; }
+
+  /* ---------- Reveal (only when JS runs) ---------- */
+  html.js .rv { opacity: 0; transform: translateY(34px); transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
+  html.js .rv.in { opacity: 1; transform: none; }
+  .rv.d1 { transition-delay: 0.1s; }
+  .rv.d2 { transition-delay: 0.2s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+    .rv { opacity: 1; transform: none; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 980px) {
+    .stats-grid, .programs-grid, .q-grid { grid-template-columns: 1fr; }
+    .method-grid { grid-template-columns: 1fr; gap: 50px; }
+    .nav-links a:not(.btn) { display: none; }
+    .hero { min-height: auto; }
+  }
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add("js");</script>
+
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="#">FORGE<span>.</span></a>
+    <nav class="nav-links">
+      <a href="#programs">Programs</a>
+      <a href="#method">Method</a>
+      <a href="#join">Pricing</a>
+      <a class="btn btn-sm" href="#join">Start free</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Strength training, computed</p>
+      <h1>Earned.<br><span class="ghost">Never</span> <span class="volt">given.</span></h1>
+      <p class="sub">FORGE builds your program, tracks every rep, and moves the target the moment you are ready for more. <strong>No guesswork. No plateaus. No mercy.</strong></p>
+      <div class="hero-ctas">
+        <a class="btn" href="#join">Start 14 days free</a>
+        <a class="btn btn-line" href="#programs">See the programs</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Squat</span><span class="o">Press</span><span>Pull</span><span class="o">Hinge</span><span>Carry</span><span class="o">Repeat</span>
+      <span>Squat</span><span class="o">Press</span><span>Pull</span><span class="o">Hinge</span><span>Carry</span><span class="o">Repeat</span>
+      <span>Squat</span><span class="o">Press</span><span>Pull</span><span class="o">Hinge</span><span>Carry</span><span class="o">Repeat</span>
+    </div>
+  </div>
+
+  <section class="stats">
+    <div class="wrap stats-grid">
+      <div class="stat rv"><span class="num" data-count="4200000" data-suffix="M" data-divisor="1000000" data-decimals="1">4.2<em>M</em></span><span class="lbl">Workouts logged</span></div>
+      <div class="stat rv d1"><span class="num" data-count="312000" data-suffix="K" data-divisor="1000" data-decimals="0">312<em>K</em></span><span class="lbl">PRs set this year</span></div>
+      <div class="stat rv d2"><span class="num" data-count="92" data-suffix="%" data-divisor="1" data-decimals="0">92<em>%</em></span><span class="lbl">Still training at 6 months</span></div>
+    </div>
+  </section>
+
+  <section class="programs" id="programs">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="tag">Pick your poison</span>
+        <h2>Three paths. <span class="ghost">One rule:</span> heavier.</h2>
+      </div>
+      <div class="programs-grid">
+        <article class="program rv">
+          <span class="idx">01</span>
+          <h3>Hypertrophy</h3>
+          <p>Volume-driven blocks engineered for muscle. Progressive sets, tracked tempo, and deloads before you need them.</p>
+          <div class="meta"><span>4-6 days/wk</span><span>8-12 rep focus</span></div>
+        </article>
+        <article class="program rv d1">
+          <span class="idx">02</span>
+          <h3>Strength</h3>
+          <p>Squat, bench, deadlift, press. Wave-loaded percentages that adapt to every session RPE you log. Watch the total climb.</p>
+          <div class="meta"><span>3-4 days/wk</span><span>Big 4 lifts</span></div>
+        </article>
+        <article class="program rv d2">
+          <span class="idx">03</span>
+          <h3>Engine</h3>
+          <p>Conditioning that serves the barbell instead of stealing from it. Intervals, sleds, and carries with heart-rate targets.</p>
+          <div class="meta"><span>2-3 days/wk</span><span>Zone 2 + sprints</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="method" id="method">
+    <div class="wrap method-grid">
+      <div>
+        <div class="sec-head rv">
+          <span class="tag">The method</span>
+          <h2>Your coach is <span class="ghost">an algorithm</span> with opinions.</h2>
+        </div>
+        <div class="method-list">
+          <div class="m-item rv">
+            <span class="k">A</span>
+            <div>
+              <h3>Progressive overload, computed</h3>
+              <p>Hit your reps and the load moves up next session. Miss, and FORGE adjusts the wave instead of your ego.</p>
+            </div>
+          </div>
+          <div class="m-item rv d1">
+            <span class="k">B</span>
+            <div>
+              <h3>Log a set in two taps</h3>
+              <p>Plate math, rest timer, and last session's numbers on one screen. Nothing between you and the next set.</p>
+            </div>
+          </div>
+          <div class="m-item rv d2">
+            <span class="k">C</span>
+            <div>
+              <h3>Form checks from real coaches</h3>
+              <p>Film a heavy single, get frame-by-frame feedback from a certified coach within 24 hours. Included, not upsold.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="rv d1">
+        <div class="phone" role="img" aria-label="FORGE app screen showing a bench press session in progress">
+          <div class="p-head">
+            <span class="t">Bench Press</span>
+            <span class="wk">Week 5 &middot; Wave 2</span>
+          </div>
+          <div class="set-row done"><span>Set 1 &times; 5</span><span class="w">80 kg</span></div>
+          <div class="set-row done"><span>Set 2 &times; 5</span><span class="w">85 kg</span></div>
+          <div class="set-row active"><span>Set 3 &times; 3</span><span class="w">92.5 kg</span></div>
+          <div class="set-row"><span>Set 4 &times; AMRAP</span><span class="w">87.5 kg</span></div>
+          <div class="p-timer">01:47<small>Rest remaining</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="quotes">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="tag">Receipts</span>
+        <h2>Heard in the <span class="ghost">chalk bucket</span></h2>
+      </div>
+      <div class="q-grid">
+        <blockquote class="q rv">
+          <p>Deadlift went from 140 to <em>190 kg in eight months.</em> I just did what the app said.</p>
+          <cite>Deniz K. &middot; Strength, W34</cite>
+        </blockquote>
+        <blockquote class="q rv d1">
+          <p>The form checks alone are worth it. A coach caught my hip shift <em>before my knee did.</em></p>
+          <cite>Priya R. &middot; Hypertrophy, W21</cite>
+        </blockquote>
+        <blockquote class="q rv d2">
+          <p>First app that survived contact with a real gym. Two taps mid-set, <em>done.</em></p>
+          <cite>Tom&aacute;s V. &middot; Engine, W12</cite>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <section class="join" id="join">
+    <div class="wrap">
+      <h2 class="rv">Show up. <span class="ghost">We load</span> the bar.</h2>
+      <p class="price-line rv">14 days free, then <strong>$9.99/month</strong> or $79/year. Every program, every form check, included.</p>
+      <a class="btn rv" href="#">Start training free</a>
+      <p class="fine rv">Cancel anytime. Your logs are yours, export included.</p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <span>FORGE &middot; Lift heavy, live long</span>
+    <nav>
+      <a href="#programs">Programs</a>
+      <a href="#method">Method</a>
+      <a href="#join">Pricing</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      e.target.classList.add("in");
+      io.unobserve(e.target);
+      const num = e.target.querySelector?.("[data-count]") || (e.target.matches?.("[data-count]") ? e.target : null);
+      if (num) animateCount(num);
+    }
+  }, { threshold: 0.2 });
+  document.querySelectorAll(".rv").forEach((el) => io.observe(el));
+
+  function animateCount(el) {
+    const target = parseFloat(el.dataset.count);
+    const divisor = parseFloat(el.dataset.divisor) || 1;
+    const decimals = parseInt(el.dataset.decimals) || 0;
+    const suffix = el.dataset.suffix || "";
+    const dur = 1600;
+    const t0 = performance.now();
+    function frame(t) {
+      const p = Math.min((t - t0) / dur, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = (target * eased) / divisor;
+      el.innerHTML = val.toFixed(decimals) + "<em>" + suffix + "</em>";
+      if (p < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+</script>
+
+</body>
+</html>

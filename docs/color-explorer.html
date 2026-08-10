@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remarc — Color System Explorer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --page-bg: #0F0F12;
+  --page-text: #E4E4E8;
+  --page-muted: #8888A0;
+  --card-bg: #1A1A22;
+  --card-border: #2A2A35;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  background: var(--page-bg);
+  color: var(--page-text);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Header ───────────────────────────────────── */
+
+header {
+  padding: 40px 40px 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.header-text h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #FFFFFF;
+}
+
+.header-text p {
+  color: var(--page-muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Toggle ───────────────────────────────────── */
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: #25252F;
+  border-radius: 20px;
+  padding: 3px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.mode-btn {
+  padding: 6px 16px;
+  border-radius: 17px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--page-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+.mode-btn.active {
+  background: #3A3A48;
+  color: #FFFFFF;
+}
+
+/* ── Directions Grid ──────────────────────────── */
+
+.directions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  padding: 32px 40px 60px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.direction {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* ── Direction Header ─────────────────────────── */
+
+.direction-info {
+  padding: 24px 24px 0;
+}
+
+.direction-name {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+  color: #FFFFFF;
+  margin-bottom: 8px;
+}
+
+.direction-rationale {
+  font-size: 13px;
+  color: var(--page-muted);
+  line-height: 1.55;
+}
+
+/* ── Swatch Sections ──────────────────────────── */
+
+.swatch-section {
+  padding: 20px 24px 0;
+}
+
+.swatch-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #5A5A6E;
+  margin-bottom: 10px;
+}
+
+.swatch-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  position: relative;
+}
+
+.swatch-color {
+  width: 56px;
+  height: 40px;
+  border-radius: var(--radius-xs);
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.swatch-color:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.swatch .color-picker {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.swatch-role {
+  font-size: 10px;
+  color: #6A6A7E;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.swatch-hex {
+  font-size: 10px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #5A5A6E;
+}
+
+/* Surface swatches — wider */
+.swatch-row.surfaces .swatch-color {
+  width: 72px;
+}
+
+/* Semantic swatches — circular */
+.swatch-row.semantic .swatch-color {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+/* ── Mock UI ──────────────────────────────────── */
+
+.preview-section {
+  padding: 20px 24px 24px;
+}
+
+.preview-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #5A5A6E;
+  margin-bottom: 12px;
+}
+
+.mock-window {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 1px 3px rgba(0,0,0,0.2);
+  font-size: 12px;
+}
+
+.mock-titlebar {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  position: relative;
+  border-bottom: 1px solid var(--mock-border);
+  background: var(--mock-surface);
+}
+
+.traffic-lights {
+  display: flex;
+  gap: 7px;
+}
+
+.tl {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.tl.red { background: #FF5F57; }
+.tl.yellow { background: #FEBC2E; }
+.tl.green { background: #28C840; }
+
+.mock-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mock-text-secondary);
+}
+
+.mock-body {
+  display: flex;
+  height: 260px;
+}
+
+.mock-sidebar {
+  width: 130px;
+  padding: 12px 10px;
+  background: var(--mock-surface);
+  border-right: 1px solid var(--mock-border);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-item {
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--mock-text-secondary);
+  cursor: default;
+  font-weight: 450;
+}
+
+.sidebar-item.active {
+  background: var(--mock-active-bg);
+  color: var(--mock-primary);
+  font-weight: 550;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: var(--mock-border);
+  margin: 6px 10px;
+}
+
+.sidebar-category {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--mock-text-muted);
+  padding: 4px 10px 2px;
+}
+
+.mock-content {
+  flex: 1;
+  background: var(--mock-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mock-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--mock-border);
+}
+
+.toolbar-tab {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--mock-text-muted);
+  cursor: default;
+  font-weight: 450;
+}
+
+.toolbar-tab.active {
+  background: var(--mock-accent-subtle);
+  color: var(--mock-accent);
+  font-weight: 550;
+}
+
+.mock-cards {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mock-card {
+  background: var(--mock-surface-elevated);
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--mock-border);
+}
+
+.card-source {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--mock-accent);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-selection {
+  font-size: 11px;
+  color: var(--mock-text-secondary);
+  border-left: 2px solid var(--mock-primary);
+  padding-left: 8px;
+  margin-bottom: 8px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+.card-comment {
+  font-size: 11.5px;
+  color: var(--mock-text);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.card-meta {
+  font-size: 10px;
+  color: var(--mock-text-muted);
+}
+
+/* Semantic badge row in mock */
+.mock-status-row {
+  display: flex;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+
+.status-badge {
+  font-size: 10px;
+  font-weight: 550;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* ── Hint ─────────────────────────────────────── */
+
+.hint {
+  text-align: center;
+  padding: 20px 40px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.hint p {
+  font-size: 12px;
+  color: #4A4A5A;
+}
+
+/* ── Responsive ───────────────────────────────── */
+
+@media (max-width: 900px) {
+  .directions {
+    grid-template-columns: 1fr !important;
+    max-width: 520px !important;
+  }
+}
+
+@media (min-width: 1301px) and (max-width: 1600px) {
+  .directions {
+    padding: 32px 24px 60px;
+    gap: 16px;
+  }
+  .direction-info, .swatch-section, .preview-section {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-text">
+    <h1>Remarc Color System</h1>
+    <p>Explore 3 palette directions — click any swatch to customize</p>
+  </div>
+  <div class="mode-toggle">
+    <button class="mode-btn" data-mode="light" onclick="setMode('light')">Light</button>
+    <button class="mode-btn" data-mode="dark" onclick="setMode('dark')">Dark</button>
+    <button class="mode-btn active" data-mode="compare" onclick="setMode('compare')">Compare</button>
+  </div>
+</header>
+
+<main class="directions" id="directions"></main>
+
+<div class="hint">
+  <p>Click any color swatch to open a picker and see changes live in the preview.</p>
+</div>
+
+<script>
+// ── Palette Data ────────────────────────────────────────────────────────────
+
+const palettes = {
+  d1: {
+    name: 'Refined Teal',
+    rationale: 'Evolves Remarc\'s existing cyan identity into a muted, sophisticated teal. The reduced saturation feels refined alongside macOS vibrancy while maintaining the brand\'s characteristic cool energy. Think deep ocean, not neon sign.',
+    light: {
+      primary: '#0F766E',
+      secondary: '#5E7573',
+      accent: '#14B8A6',
+      bg: '#F9FAFA',
+      surface: '#F1F3F2',
+      surfaceElevated: '#FFFFFF',
+      text: '#1A2B2A',
+      textSecondary: '#4A5E5C',
+      textMuted: '#7E918F',
+      border: '#DDE0DF',
+      success: '#16A34A',
+      warning: '#CA8A04',
+      error: '#DC2626',
+      info: '#0284C7'
+    },
+    dark: {
+      primary: '#5EEAD4',
+      secondary: '#94B5B2',
+      accent: '#2DD4BF',
+      bg: '#141616',
+      surface: '#1C1F1E',
+      surfaceElevated: '#252827',
+      text: '#E2EDEB',
+      textSecondary: '#94B5B2',
+      textMuted: '#5E807C',
+      border: '#2E3232',
+      success: '#4ADE80',
+      warning: '#FACC15',
+      error: '#F87171',
+      info: '#38BDF8'
+    }
+  },
+  d2: {
+    name: 'Soft Indigo',
+    rationale: 'A modern productivity palette centered on indigo and violet. These hues naturally complement macOS system blue and feel at home in Apple\'s ecosystem. The indigo-to-violet range gives room for visual hierarchy while staying cohesive and focused.',
+    light: {
+      primary: '#6366F1',
+      secondary: '#7577A0',
+      accent: '#8B5CF6',
+      bg: '#FAFAFB',
+      surface: '#F2F1F4',
+      surfaceElevated: '#FFFFFF',
+      text: '#1E1B3A',
+      textSecondary: '#4F4B6E',
+      textMuted: '#8A86A8',
+      border: '#E0DEE5',
+      success: '#0D9373',
+      warning: '#B06C18',
+      error: '#DC2626',
+      info: '#0284C7'
+    },
+    dark: {
+      primary: '#A5B4FC',
+      secondary: '#9FA0C0',
+      accent: '#C4B5FD',
+      bg: '#131315',
+      surface: '#1B1B1F',
+      surfaceElevated: '#242428',
+      text: '#E8E8F4',
+      textSecondary: '#9FA0C0',
+      textMuted: '#6A6B8A',
+      border: '#30303A',
+      success: '#3DDBA6',
+      warning: '#F2A94B',
+      error: '#F87171',
+      info: '#38BDF8'
+    }
+  },
+  d3: {
+    name: 'Stone & Amber',
+    rationale: 'A warm departure from cool-toned productivity tools. Stone grays paired with amber accents create a distinctive, approachable identity. This palette makes Remarc feel less like a developer tool and more like a personal, everyday companion.',
+    light: {
+      primary: '#57534E',
+      secondary: '#A8A29E',
+      accent: '#D97706',
+      bg: '#FAFAF9',
+      surface: '#F3F2F0',
+      surfaceElevated: '#FFFFFF',
+      text: '#1C1917',
+      textSecondary: '#57534E',
+      textMuted: '#A8A29E',
+      border: '#E3E1DC',
+      success: '#16A34A',
+      warning: '#EA580C',
+      error: '#DC2626',
+      info: '#0284C7'
+    },
+    dark: {
+      primary: '#D6D3D1',
+      secondary: '#A8A29E',
+      accent: '#F59E0B',
+      bg: '#151413',
+      surface: '#1D1C1A',
+      surfaceElevated: '#272523',
+      text: '#E7E5E4',
+      textSecondary: '#A8A29E',
+      textMuted: '#78716C',
+      border: '#383530',
+      success: '#4ADE80',
+      warning: '#FB923C',
+      error: '#F87171',
+      info: '#38BDF8'
+    }
+  }
+};
+
+let currentMode = 'dark';
+
+// ── Color Roles ─────────────────────────────────────────────────────────────
+
+const brandRoles = [
+  { key: 'primary', label: 'Primary' },
+  { key: 'secondary', label: 'Secondary' },
+  { key: 'accent', label: 'Accent' }
+];
+
+const surfaceRoles = [
+  { key: 'bg', label: 'Background' },
+  { key: 'surface', label: 'Surface' },
+  { key: 'surfaceElevated', label: 'Elevated' },
+  { key: 'border', label: 'Border' }
+];
+
+const textRoles = [
+  { key: 'text', label: 'Primary' },
+  { key: 'textSecondary', label: 'Secondary' },
+  { key: 'textMuted', label: 'Muted' }
+];
+
+const semanticRoles = [
+  { key: 'success', label: 'Success' },
+  { key: 'warning', label: 'Warning' },
+  { key: 'error', label: 'Error' },
+  { key: 'info', label: 'Info' }
+];
+
+// ── Rendering ───────────────────────────────────────────────────────────────
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return { r, g, b };
+}
+
+function luminance(hex) {
+  const { r, g, b } = hexToRgb(hex);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function swatchBorderStyle(hex) {
+  const lum = luminance(hex);
+  if (lum > 0.85) return 'border: 1px solid rgba(0,0,0,0.1);';
+  if (lum < 0.15) return 'border: 1px solid rgba(255,255,255,0.1);';
+  return 'border: 1px solid rgba(0,0,0,0.06);';
+}
+
+function renderSwatchRow(dirId, roles, cssClass, forceMode) {
+  const mode = forceMode || currentMode;
+  const p = palettes[dirId][mode];
+  return `<div class="swatch-row ${cssClass || ''}">
+    ${roles.map(r => {
+      const hex = p[r.key];
+      return `<div class="swatch" data-dir="${dirId}" data-role="${r.key}">
+        <div class="swatch-color" style="background:${hex}; ${swatchBorderStyle(hex)}">
+          <input type="color" class="color-picker" value="${hex}"
+                 onchange="handleColorChange(this, '${dirId}', '${r.key}', '${mode}')">
+        </div>
+        <div class="swatch-role">${r.label}</div>
+        <div class="swatch-hex">${hex.toUpperCase()}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderMockUI(dirId, forceMode) {
+  const mode = forceMode || currentMode;
+  const p = palettes[dirId][mode];
+  const accentSubtle = mode === 'light'
+    ? hexWithAlpha(p.accent, 0.10)
+    : hexWithAlpha(p.accent, 0.15);
+  const activeItemBg = mode === 'light'
+    ? hexWithAlpha(p.primary, 0.10)
+    : hexWithAlpha(p.primary, 0.15);
+
+  return `<div class="mock-window" style="
+    --mock-bg: ${p.bg};
+    --mock-surface: ${p.surface};
+    --mock-surface-elevated: ${p.surfaceElevated};
+    --mock-border: ${p.border};
+    --mock-text: ${p.text};
+    --mock-text-secondary: ${p.textSecondary};
+    --mock-text-muted: ${p.textMuted};
+    --mock-primary: ${p.primary};
+    --mock-accent: ${p.accent};
+    --mock-accent-subtle: ${accentSubtle};
+    --mock-active-bg: ${activeItemBg};
+    --mock-success: ${p.success};
+    --mock-warning: ${p.warning};
+    --mock-error: ${p.error};
+    --mock-info: ${p.info};
+  ">
+    <div class="mock-titlebar">
+      <div class="traffic-lights">
+        <span class="tl red"></span>
+        <span class="tl yellow"></span>
+        <span class="tl green"></span>
+      </div>
+      <span class="mock-title">Remarc</span>
+    </div>
+    <div class="mock-body">
+      <div class="mock-sidebar">
+        <div class="sidebar-item active">All Comments</div>
+        <div class="sidebar-item">Recent</div>
+        <div class="sidebar-item">Favorites</div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-category">Collections</div>
+        <div class="sidebar-item">Work</div>
+        <div class="sidebar-item">Personal</div>
+      </div>
+      <div class="mock-content">
+        <div class="mock-toolbar">
+          <div class="toolbar-tab active">All</div>
+          <div class="toolbar-tab">Recent</div>
+          <div class="toolbar-tab">Starred</div>
+        </div>
+        <div class="mock-status-row">
+          <span class="status-badge" style="background:${hexWithAlpha(p.success, 0.12)}; color:${p.success}">Saved</span>
+          <span class="status-badge" style="background:${hexWithAlpha(p.warning, 0.12)}; color:${p.warning}">Draft</span>
+          <span class="status-badge" style="background:${hexWithAlpha(p.error, 0.12)}; color:${p.error}">Expired</span>
+          <span class="status-badge" style="background:${hexWithAlpha(p.info, 0.12)}; color:${p.info}">Synced</span>
+        </div>
+        <div class="mock-cards">
+          <div class="mock-card">
+            <div class="card-source">Safari</div>
+            <div class="card-selection">"The key insight about design systems is that consistency compounds over time..."</div>
+            <div class="card-comment">Reference this for the presentation next week</div>
+            <div class="card-meta">2 hours ago</div>
+          </div>
+          <div class="mock-card">
+            <div class="card-source">VS Code</div>
+            <div class="card-selection">"func handleError(err: Error) throws"</div>
+            <div class="card-comment">Needs refactoring — error handling is too broad</div>
+            <div class="card-meta">Yesterday</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function hexWithAlpha(hex, alpha) {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function renderDirection(dirId, forceMode) {
+  const d = palettes[dirId];
+  const mode = forceMode || currentMode;
+  const modeLabel = forceMode ? ` — ${forceMode === 'light' ? 'Light' : 'Dark'}` : '';
+  return `<section class="direction" data-direction="${dirId}">
+    <div class="direction-info">
+      <div class="direction-name">${d.name}${modeLabel}</div>
+      ${!forceMode ? `<p class="direction-rationale">${d.rationale}</p>` : ''}
+    </div>
+
+    <div class="swatch-section">
+      <div class="swatch-section-label">Brand</div>
+      ${renderSwatchRow(dirId, brandRoles, '', forceMode)}
+    </div>
+
+    <div class="swatch-section">
+      <div class="swatch-section-label">Surfaces</div>
+      ${renderSwatchRow(dirId, surfaceRoles, 'surfaces', forceMode)}
+    </div>
+
+    <div class="swatch-section">
+      <div class="swatch-section-label">Text</div>
+      ${renderSwatchRow(dirId, textRoles, '', forceMode)}
+    </div>
+
+    <div class="swatch-section">
+      <div class="swatch-section-label">Status</div>
+      ${renderSwatchRow(dirId, semanticRoles, 'semantic', forceMode)}
+    </div>
+
+    <div class="preview-section">
+      <div class="preview-label">Preview</div>
+      ${renderMockUI(dirId, forceMode)}
+    </div>
+  </section>`;
+}
+
+let viewMode = 'compare';
+
+function renderAll() {
+  const container = document.getElementById('directions');
+  if (viewMode === 'compare') {
+    container.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    container.style.maxWidth = '1100px';
+    container.innerHTML =
+      renderDirection('d2', 'light') +
+      renderDirection('d2', 'dark');
+  } else {
+    container.style.gridTemplateColumns = 'repeat(3, 1fr)';
+    container.style.maxWidth = '1600px';
+    container.innerHTML = ['d1', 'd2', 'd3'].map(d => renderDirection(d)).join('');
+  }
+}
+
+// ── Interactions ─────────────────────────────────────────────────────────────
+
+function setMode(mode) {
+  if (mode === 'compare') {
+    viewMode = 'compare';
+  } else {
+    viewMode = 'single';
+    currentMode = mode;
+  }
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+  renderAll();
+}
+
+function handleColorChange(input, dirId, role, mode) {
+  const newColor = input.value;
+  palettes[dirId][mode || currentMode][role] = newColor;
+  renderAll();
+}
+
+// ── Export Helper ────────────────────────────────────────────────────────────
+
+function exportPalette(dirId) {
+  const d = palettes[dirId];
+  const lines = [`// ${d.name} — Exported from Remarc Color Explorer\n`];
+  for (const mode of ['light', 'dark']) {
+    lines.push(`/* ${mode} */`);
+    for (const [key, val] of Object.entries(d[mode])) {
+      lines.push(`  ${key}: ${val}`);
+    }
+    lines.push('');
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `remarc-${dirId}-palette.txt`;
+  a.click();
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+renderAll();
+</script>
+</body>
+</html>

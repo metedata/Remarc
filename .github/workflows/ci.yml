@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+    - name: Check open-source repository contract
+      run: |
+        set -euo pipefail
+        REQUIRED_PATHS=(
+          LICENSE
+          README.md
+          CONTRIBUTING.md
+          SECURITY.md
+          CHANGELOG.md
+          THIRD-PARTY-NOTICES.md
+          .gitleaks.toml
+          .github/workflows/ci.yml
+          .github/workflows/release.yml
+        )
+        FORBIDDEN_PATHS=(
+          .mcp.json
+          appcast.xml
+          docs/internal
+          landing-pages
+          scripts/build-clean-mirror.sh
+          supabase
+          app/RemarcPackage/Sources/RemarcFeature/Services/SentryService.swift
+          app/RemarcPackage/Sources/RemarcFeature/Services/FeedbackService.swift
+          app/RemarcPackage/Sources/RemarcFeature/Views/FeedbackInputController.swift
+        )
+
+        for path in "${REQUIRED_PATHS[@]}"; do
+          if [[ ! -e "$path" ]]; then
+            echo "Missing required public path: $path" >&2
+            exit 1
+          fi
+          git ls-files --error-unmatch -- "$path" >/dev/null
+        done
+        for path in "${FORBIDDEN_PATHS[@]}"; do
+          if [[ -e "$path" ]] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+            echo "Private or retired path must not be published: $path" >&2
+            exit 1
+          fi
+        done
+
+        if grep -R -n -E \
+          'sentry-cocoa|SentrySDK|SentryService|import Sentry|FeedbackService|FeedbackInputController|import Supabase|SUPABASE_|supabase\.co' \
+          --include='*.swift' --include='Package.swift' --include='Package.resolved' \
+          app/RemarcPackage/Sources app/RemarcPackage/Package.swift \
+          app/RemarcPackage/Package.resolved app/Remarc/RemarcApp.swift; then
+          echo "Retired telemetry or feedback-backend code remains in a shipping surface" >&2
+          exit 1
+        fi
+
+        if grep -n -E \
+          'R2_ACCESS_KEY_ID|R2_SECRET_ACCESS_KEY|R2_ACCOUNT_ID|wrangler r2|cd mcp|npm ci|--clobber|Sparkle-2\.6\.4' \
+          .github/workflows/release.yml; then
+          echo "Release workflow contains retired or unsafe distribution logic" >&2
+          exit 1
+        fi
+
+    - name: Scan current snapshot for secrets
+      run: |
+        set -euo pipefail
+        if ! command -v gitleaks >/dev/null 2>&1; then
+          brew install gitleaks
+        fi
+        gitleaks dir . --config .gitleaks.toml --redact --no-banner
+
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
+    - name: Run Swift tests
+      run: |
+        set -euo pipefail
+        cd app/RemarcPackage
+        env -u THREADS_ACCESS_TOKEN swift test
+
+    - name: Build unsigned app
+      run: |
+        set -euo pipefail
+        xcodebuild build \
+          -workspace app/Remarc.xcworkspace \
+          -scheme Remarc \
+          -configuration Debug \
+          -derivedDataPath app/DerivedData \
+          -onlyUsePackageVersionsFromResolvedFile \
+          CODE_SIGN_IDENTITY=- \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO

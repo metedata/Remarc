@@ -1,0 +1,7 @@
+{
+  "source": "https://github.com/metedata/remarc-agent-plugins",
+  "path": "plugins/remarc/mcp/dist/index.js",
+  "commit": "4df0b8a9e4b8f29feac7cf0cbec6cd168b074995",
+  "pluginVersion": "0.10.0",
+  "sha256": "86210b10eb6c1514c097844e1c4678220a2c01121ff6baa780fec11c810f2617"
+}

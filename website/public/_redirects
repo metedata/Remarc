@@ -1,0 +1,12 @@
+# Cloudflare Pages redirects
+
+# Temporary fallback to the currently shipped build until the GitHub release is restored
+/download  https://releases.remarc.app/Remarc-0.5.1.zip  302
+
+# Public support and release history
+/support  https://github.com/metedata/Remarc/issues  302
+/changelog  https://github.com/metedata/Remarc/releases  302
+
+# Early tester page is retained in the repository but disabled publicly
+/invite  /  302
+/invite/*  /  302

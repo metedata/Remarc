@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chrome Extension - Remarc</title>
+<meta name="description" content="Install the Remarc Chrome extension to capture web context when commenting on web pages.">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" href="https://remarc.app/favicon.png">
+<meta name="theme-color" content="#0A0B14">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #06070E;
+    color: #e0e0ee;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Subtle centered top glow */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 120% 60% at 50% -5%, rgba(99, 102, 241, 0.14) 0%, transparent 65%);
+  }
+
+  .noise-layer {
+    position: fixed; inset: 0; z-index: 1;
+    pointer-events: none;
+    opacity: 0.15;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 150px 150px;
+  }
+
+  .hero, .steps-section, .divider, .troubleshoot, .footer {
+    position: relative; z-index: 2;
+  }
+
+  /* --- Hero --- */
+  .hero {
+    max-width: 640px; margin: 0 auto;
+    padding: 80px 32px 48px;
+    text-align: center;
+  }
+
+  .hero-icon-composite {
+    position: relative;
+    width: 72px; height: 72px;
+    margin: 0 auto 24px;
+  }
+  .hero-icon-composite .app-icon {
+    width: 72px; height: 72px;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow:
+      0 8px 32px rgba(99, 102, 241, 0.25),
+      0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+  .hero-icon-composite .app-icon img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .hero-icon-composite .chrome-badge {
+    position: absolute;
+    bottom: -8px; right: -8px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: #1a1b2e;
+    border: 2px solid rgba(99, 102, 241, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    padding: 5px;
+  }
+  .hero-icon-composite .chrome-badge svg {
+    width: 100%; height: 100%;
+  }
+
+  .hero h1 {
+    font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+    color: #f0f0ff; margin-bottom: 12px;
+  }
+  .hero p {
+    font-size: 16px; color: #8888a8; max-width: 540px; margin: 0 auto 28px;
+  }
+  .download-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 28px; border-radius: 10px;
+    background: linear-gradient(135deg, #6366F1, #7C6BF5);
+    color: white;
+    font-size: 15px; font-weight: 600;
+    text-decoration: none; border: none; cursor: pointer;
+    box-shadow:
+      0 4px 16px rgba(99, 102, 241, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transition: all 0.15s;
+  }
+  .download-btn:hover {
+    background: linear-gradient(135deg, #7578F8, #8D7EFA);
+    box-shadow:
+      0 6px 24px rgba(99, 102, 241, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
+  }
+  .download-btn:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 3px;
+  }
+  .download-btn svg { width: 16px; height: 16px; }
+  .download-meta {
+    margin-top: 10px; font-size: 12px; color: #5c5c78;
+  }
+
+  /* --- Steps section --- */
+  .steps-section {
+    max-width: 640px; margin: 0 auto;
+    padding: 0 32px 48px;
+  }
+  .section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #818cf8; margin-bottom: 24px;
+  }
+
+  .step {
+    display: flex; gap: 16px; margin-bottom: 32px;
+    align-items: flex-start;
+  }
+  .step-number {
+    width: 32px; height: 32px; flex-shrink: 0;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+    font-size: 14px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-content h3 {
+    font-size: 15px; font-weight: 600; color: #e0e0ee;
+    margin-bottom: 4px;
+  }
+  .step-content p {
+    font-size: 14px; color: #8888a8; line-height: 1.5;
+  }
+  .step-content code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #a5b4fc;
+    padding: 2px 6px; border-radius: 4px;
+  }
+
+  /* --- Divider --- */
+  .divider {
+    max-width: 640px; margin: 0 auto 48px;
+    padding: 0 32px;
+  }
+  .divider hr {
+    border: none;
+    border-top: 1px solid rgba(99, 102, 241, 0.1);
+  }
+
+  /* --- Troubleshooting --- */
+  .troubleshoot {
+    max-width: 640px; margin: 0 auto;
+    padding: 0 32px 64px;
+  }
+  .tip {
+    display: flex; gap: 12px; margin-bottom: 20px;
+    padding: 16px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(99, 102, 241, 0.08);
+  }
+  .tip-icon {
+    flex-shrink: 0; font-size: 16px; margin-top: 1px;
+  }
+  .tip-content h4 {
+    font-size: 14px; font-weight: 600; color: #e0e0ee;
+    margin-bottom: 2px;
+  }
+  .tip-content p {
+    font-size: 13px; color: #8888a8; line-height: 1.5;
+  }
+  .tip-content code {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #a5b4fc;
+    padding: 2px 5px; border-radius: 4px;
+  }
+
+  /* --- Footer --- */
+  .footer {
+    text-align: center;
+    padding: 24px 32px;
+    font-size: 12px; color: #5c5c78;
+    border-top: 1px solid rgba(99, 102, 241, 0.08);
+  }
+  .footer a { color: #818cf8; text-decoration: none; }
+  .footer a:hover { color: #a5b4fc; }
+  .footer a:focus-visible {
+    outline: 2px solid #818cf8;
+    outline-offset: 2px;
+  }
+
+  /* --- Mobile --- */
+  @media (max-width: 480px) {
+    .hero {
+      padding: 56px 20px 36px;
+    }
+    .hero h1 {
+      font-size: 23px;
+    }
+    .steps-section {
+      padding: 0 20px 36px;
+    }
+    .divider {
+      padding: 0 20px;
+      margin-bottom: 36px;
+    }
+    .troubleshoot {
+      padding: 0 20px 48px;
+    }
+    .footer {
+      padding: 20px 20px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Noise texture -->
+<div class="noise-layer"></div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-icon-composite">
+    <div class="app-icon">
+      <img src="/chrome-extension/icon_256x256.png" alt="Remarc">
+    </div>
+    <!-- Official Google Chrome logo (February 2022) -->
+    <div class="chrome-badge">
+      <svg aria-hidden="true" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" xml:space="preserve">
+        <defs>
+          <linearGradient id="cg1" gradientUnits="userSpaceOnUse" x1="283.2852" y1="18.9008" x2="62.8264" y2="400.7473" gradientTransform="matrix(1 0 0 -1 0 514)">
+            <stop offset="0" style="stop-color:#1E8E3E"/>
+            <stop offset="1" style="stop-color:#34A853"/>
+          </linearGradient>
+          <linearGradient id="cg2" gradientUnits="userSpaceOnUse" x1="218.5901" y1="2.3333" x2="439.0491" y2="384.1796" gradientTransform="matrix(1 0 0 -1 0 514)">
+            <stop offset="0" style="stop-color:#FCC934"/>
+            <stop offset="1" style="stop-color:#FBBC04"/>
+          </linearGradient>
+          <linearGradient id="cg3" gradientUnits="userSpaceOnUse" x1="35.2587" y1="353.0303" x2="476.177" y2="353.0303" gradientTransform="matrix(1 0 0 -1 0 514)">
+            <stop offset="0" style="stop-color:#D93025"/>
+            <stop offset="1" style="stop-color:#EA4335"/>
+          </linearGradient>
+        </defs>
+        <!-- White inner ring background -->
+        <path fill="#FFFFFF" d="M255.73,383.71c70.3,0,127.3-56.99,127.3-127.3s-56.99-127.3-127.3-127.3s-127.3,56.99-127.3,127.3S185.42,383.71,255.73,383.71z"/>
+        <!-- Green segment (left) -->
+        <path fill="url(#cg1)" d="M145.48,320.08L35.26,129.17c-22.35,38.7-34.12,82.6-34.12,127.29s11.76,88.59,34.11,127.29c22.35,38.7,54.49,70.83,93.2,93.17c38.71,22.34,82.61,34.09,127.3,34.08l110.22-190.92v-0.03c-11.16,19.36-27.23,35.44-46.58,46.62c-19.35,11.18-41.3,17.07-63.65,17.07s-44.3-5.88-63.66-17.05C172.72,355.52,156.65,339.44,145.48,320.08z"/>
+        <!-- Yellow segment (right) -->
+        <path fill="url(#cg2)" d="M365.96,320.08L255.74,510.99c44.69,0.01,88.59-11.75,127.29-34.1c38.7-22.34,70.84-54.48,93.18-93.18c22.34-38.7,34.1-82.61,34.09-127.3c-0.01-44.69-11.78-88.59-34.14-127.28H255.72l-0.03,0.02c22.35-0.01,44.31,5.86,63.66,17.03c19.36,11.17,35.43,27.24,46.61,46.59c11.18,19.35,17.06,41.31,17.06,63.66C383.03,278.77,377.14,300.72,365.96,320.08L365.96,320.08z"/>
+        <!-- Blue center circle -->
+        <path fill="#1A73E8" d="M255.73,357.21c55.66,0,100.78-45.12,100.78-100.78s-45.12-100.78-100.78-100.78s-100.78,45.12-100.78,100.78S200.07,357.21,255.73,357.21z"/>
+        <!-- Red segment (top) -->
+        <path fill="url(#cg3)" d="M255.73,129.14h220.45C453.84,90.43,421.7,58.29,383,35.95C344.3,13.6,300.4,1.84,255.71,1.84c-44.69,0-88.59,11.77-127.29,34.12c-38.7,22.35-70.83,54.5-93.16,93.2l110.22,190.92l0.03,0.02c-11.18-19.35-17.08-41.3-17.08-63.65s5.87-44.31,17.04-63.66c11.17-19.36,27.24-35.43,46.6-46.6C211.42,135.01,233.38,129.13,255.73,129.14z"/>
+      </svg>
+    </div>
+  </div>
+  <h1>Install the Chrome Extension</h1>
+  <p>Enrich your comments with web context - element data, styles, and&nbsp;structure - so your agent knows exactly what you're&nbsp;looking&nbsp;at. Works in Chrome, Arc, Brave, Edge, Vivaldi, and&nbsp;Opera.</p>
+  <a href="https://releases.remarc.app/Remarc-Extension-0.3.0.zip" class="download-btn">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 11.5l-4.5-4.5h3V2h3v5h3L8 11.5z"/><rect x="2" y="13" width="12" height="1.5" rx="0.75"/></svg>
+    Download Extension
+  </a>
+  <div class="download-meta">v0.3.0 · Chrome and Chromium browsers</div>
+</section>
+
+<!-- Installation steps -->
+<section class="steps-section">
+  <h2 class="section-label">Installation</h2>
+
+  <div class="step">
+    <div class="step-number">1</div>
+    <div class="step-content">
+      <h3>Unzip the download</h3>
+      <p>Extract the zip file. You'll get a folder called <code>remarc-extension</code>. Put it somewhere permanent - Chrome needs this folder to stay in place.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">2</div>
+    <div class="step-content">
+      <h3>Open Chrome Extensions</h3>
+      <p>Navigate to <code>chrome://extensions</code> in your address bar.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">3</div>
+    <div class="step-content">
+      <h3>Enable Developer Mode</h3>
+      <p>Toggle the <strong>Developer mode</strong> switch in the top-right corner of the Extensions page.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">4</div>
+    <div class="step-content">
+      <h3>Load the extension</h3>
+      <p>Click <strong>Load unpacked</strong> and select the <code>remarc-extension</code> folder you unzipped.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">5</div>
+    <div class="step-content">
+      <h3>Pin it to your toolbar</h3>
+      <p>Click the puzzle piece icon in Chrome's toolbar, then pin <strong>Remarc Web Context</strong> so it's always visible.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"><hr></div>
+
+<!-- Connect to Remarc -->
+<section class="steps-section">
+  <h2 class="section-label">Connect to Remarc</h2>
+
+  <div class="step">
+    <div class="step-number">6</div>
+    <div class="step-content">
+      <h3>Enable in Remarc settings</h3>
+      <p>Open the Remarc app → <strong>Settings</strong> → <strong>Chrome Extension</strong> tab. This starts the local connection server. The status reads <strong>Waiting for extension</strong> until your browser connects in the next step.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">7</div>
+    <div class="step-content">
+      <h3>Reload your browser tabs</h3>
+      <p>Refresh the tabs you want to capture from. Each tab that was open before you installed needs one reload. The extension icon shows a green dot once connected, and the status in Remarc's settings turns green too.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-number">8</div>
+    <div class="step-content">
+      <h3>Capture web context</h3>
+      <p><strong>Grab Element</strong> (<code>⌥⇧G</code>) highlights the element under your cursor; click to attach it to a comment. <strong>Select Region</strong> (<code>⌥⇧R</code>) captures a screenshot of any area of the page. Both are also in the extension popup, along with a pause toggle. Remarc saves the element's React components, computed styles, accessibility info, layout, and identity with your comment; toggle each category in Settings → Chrome Extension. The connection is local-only: it never leaves your Mac. Full details in the <a href="https://docs.remarc.app/chrome-extension/" rel="noopener noreferrer">documentation</a>.</p>
+    </div>
+  </div>
+</section>
+
+<div class="divider"><hr></div>
+
+<!-- Troubleshooting -->
+<section class="troubleshoot">
+  <h2 class="section-label">Troubleshooting</h2>
+
+  <div class="tip">
+    <div class="tip-icon">⚠️</div>
+    <div class="tip-content">
+      <h4>Extension shows "Disconnected"</h4>
+      <p>Make sure the Remarc app is running and you've opened the Chrome Extension tab in Settings at least once. Then reload the page.</p>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-icon">🟠</div>
+    <div class="tip-content">
+      <h4>Extension icon shows an orange dot (Blocked)</h4>
+      <p>The browser is blocking this site from reaching apps on your device. Open the site's permission settings and set <strong>Apps on Device</strong> to Allow (Arc calls it <strong>Loopback Network</strong>), then reload the tab. The button in the extension popup opens the right settings page for you.</p>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-icon">⌨️</div>
+    <div class="tip-content">
+      <h4>Keyboard shortcuts not working</h4>
+      <p>Chrome blocks <code>⌘</code> shortcuts in extensions. Use <code>⌃⇧</code> (Ctrl+Shift) or <code>⌥⇧</code> (Alt+Shift) combinations instead. Configure shortcuts in Remarc Settings → Chrome Extension.</p>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-icon">🔌</div>
+    <div class="tip-content">
+      <h4>Connection drops after restarting Remarc</h4>
+      <p>The extension reconnects automatically every few seconds. If it doesn't, reload the browser tab.</p>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-icon">🚫</div>
+    <div class="tip-content">
+      <h4>Port conflict on 9274</h4>
+      <p>If another app is using port 9274, the connection will fail. Check the Remarc Chrome Extension settings for a "Port unavailable" error, close the conflicting app, then click <strong>Retry</strong> in the same settings tab to restart the server.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p><a href="https://remarc.app" rel="noopener noreferrer">remarc.app</a> · <a href="https://docs.remarc.app/chrome-extension/" rel="noopener noreferrer">Docs</a> · © 2026 Metedata</p>
+</footer>
+
+</body>
+</html>

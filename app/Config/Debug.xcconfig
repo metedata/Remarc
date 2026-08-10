@@ -1,0 +1,6 @@
+// Debug.xcconfig
+
+#include "Shared.xcconfig"
+
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
+GCC_PREPROCESSOR_DEFINITIONS = DEBUG=1 $(inherited)

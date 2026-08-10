@@ -1,0 +1,18 @@
+{
+	// Assets-only Worker: serves the built Starlight site, no Worker script.
+	// Deployed via Workers Builds (Git): root directory docs-site,
+	// build command `npm run build`, deploy command `npx wrangler deploy`.
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "remarc-docs",
+	"compatibility_date": "2026-08-08",
+	"assets": {
+		"directory": "./dist",
+		"not_found_handling": "404-page"
+	},
+	// docs.remarc.app lives on the remarc.app zone; deploying creates the DNS record.
+	"routes": [{ "pattern": "docs.remarc.app", "custom_domain": true }],
+	// No stable workers.dev subdomain (avoid duplicate content next to docs.remarc.app);
+	// per-version preview URLs stay available for branch builds.
+	"workers_dev": false,
+	"preview_urls": true
+}

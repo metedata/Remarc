@@ -1,0 +1,632 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semantic version (for example, 1.2.3)"
+        required: true
+        type: string
+      build_number:
+        description: "Positive integer higher than the previous release"
+        required: true
+        type: string
+      release_notes:
+        description: "Release notes with at least one '- ' bullet"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: remarc-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    steps:
+    - name: Require the main branch
+      env:
+        DISPATCH_REF: ${{ github.ref }}
+      run: |
+        set -euo pipefail
+        if [[ "$DISPATCH_REF" != "refs/heads/main" ]]; then
+          echo "Releases must be dispatched from main; received $DISPATCH_REF" >&2
+          exit 1
+        fi
+
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      with:
+        fetch-depth: 0
+        ref: main
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Validate inputs and remote state
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GIST_TOKEN: ${{ secrets.GIST_PAT }}
+        VERSION: ${{ inputs.version }}
+        BUILD_NUMBER: ${{ inputs.build_number }}
+        NOTES: ${{ inputs.release_notes }}
+      run: |
+        set -euo pipefail
+
+        if [[ ! "$VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+          echo "version must be an X.Y.Z semantic version without leading zeroes" >&2
+          exit 1
+        fi
+        if [[ ! "$BUILD_NUMBER" =~ ^[1-9][0-9]*$ ]]; then
+          echo "build_number must be a positive integer" >&2
+          exit 1
+        fi
+        if ! grep -q '^-[[:space:]]' <<< "$NOTES"; then
+          echo "release_notes must contain at least one line beginning with '- '" >&2
+          exit 1
+        fi
+
+        CURRENT_VERSION="$(awk -F'= ' '/^MARKETING_VERSION =/ { print $2; exit }' app/Config/Shared.xcconfig)"
+        CURRENT_BUILD="$(awk -F'= ' '/^CURRENT_PROJECT_VERSION =/ { print $2; exit }' app/Config/Shared.xcconfig)"
+        if [[ ! "$CURRENT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$CURRENT_BUILD" =~ ^[0-9]+$ ]]; then
+          echo "Could not read the current version/build from app/Config/Shared.xcconfig" >&2
+          exit 1
+        fi
+
+        APPCAST_PRECHECK="$RUNNER_TEMP/current-appcast.xml"
+        GH_TOKEN="$GIST_TOKEN" gh gist view 0bbb8342e141a8c41a9f1c0bfaab8f81 \
+          --filename appcast.xml --raw > "$APPCAST_PRECHECK"
+        python3 - "$APPCAST_PRECHECK" "$VERSION" "$BUILD_NUMBER" <<'PYTHON_EOF'
+        import sys
+        import xml.etree.ElementTree as ET
+
+        appcast_path, requested_version, requested_build = sys.argv[1:]
+        sparkle = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        root = ET.parse(appcast_path).getroot()
+        versions = {
+            (item.findtext(f"{{{sparkle}}}shortVersionString") or "").strip()
+            for item in root.findall(".//item")
+        }
+        builds = {
+            (item.findtext(f"{{{sparkle}}}version") or "").strip()
+            for item in root.findall(".//item")
+        }
+        if requested_version in versions:
+            raise SystemExit(
+                f"appcast already advertises version {requested_version}; choose a newer version"
+            )
+        if requested_build in builds:
+            raise SystemExit(
+                f"appcast already advertises build {requested_build}; choose a newer build"
+            )
+        PYTHON_EOF
+
+        RELEASE_STATE="$(python3 - "$CURRENT_VERSION" "$CURRENT_BUILD" "$VERSION" "$BUILD_NUMBER" <<'PYTHON_EOF'
+        import sys
+
+        current_version, current_build, requested_version, requested_build = sys.argv[1:]
+        current = tuple(map(int, current_version.split(".")))
+        requested = tuple(map(int, requested_version.split(".")))
+
+        if requested_version == current_version and requested_build == current_build:
+            print("resume")
+        elif requested <= current:
+            raise SystemExit(
+                f"requested version {requested_version} must be newer than {current_version}"
+            )
+        elif int(requested_build) <= int(current_build):
+            raise SystemExit(
+                f"requested build {requested_build} must be higher than {current_build}"
+            )
+        else:
+            print("new")
+        PYTHON_EOF
+        )"
+
+        TAG="v${VERSION}"
+        git fetch origin main --tags --prune
+        if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+          echo "Checked-out main is not the current origin/main" >&2
+          exit 1
+        fi
+
+        EXISTING_RELEASE_IDS="$(
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"${TAG}\") | .id"
+        )"
+        if [[ -n "$EXISTING_RELEASE_IDS" ]]; then
+          echo "A draft or published release already exists for $TAG; refusing to replace it" >&2
+          exit 1
+        fi
+
+        REUSE_TAG=false
+        if git show-ref --verify --quiet "refs/tags/${TAG}"; then
+          TAG_COMMIT="$(git rev-list -n 1 "refs/tags/${TAG}")"
+          if [[ "$RELEASE_STATE" != "resume" || "$TAG_COMMIT" != "$(git rev-parse HEAD)" ]]; then
+            echo "Existing tag $TAG does not identify this exact release commit" >&2
+            exit 1
+          fi
+          REUSE_TAG=true
+        elif [[ "$RELEASE_STATE" == "resume" ]]; then
+          if [[ "$(git log -1 --format=%s)" != "Release ${TAG}" ]]; then
+            echo "Version fields match $TAG, but HEAD is not the workflow's release commit" >&2
+            echo "Choose a genuinely newer version and build instead of rebuilding an existing version" >&2
+            exit 1
+          fi
+          echo "Version fields and release commit match $TAG; resuming before tag creation"
+        fi
+
+        {
+          echo "VERSION=$VERSION"
+          echo "BUILD_NUMBER=$BUILD_NUMBER"
+          echo "TAG=$TAG"
+          echo "RELEASE_STATE=$RELEASE_STATE"
+          echo "REUSE_TAG=$REUSE_TAG"
+        } >> "$GITHUB_ENV"
+
+    - name: Select Xcode
+      run: sudo xcode-select -s /Applications/Xcode_26.2.app
+
+    - name: Update version
+      run: |
+        set -euo pipefail
+        sed -i '' "s/^MARKETING_VERSION = .*/MARKETING_VERSION = ${VERSION}/" app/Config/Shared.xcconfig
+        sed -i '' "s/^CURRENT_PROJECT_VERSION = .*/CURRENT_PROJECT_VERSION = ${BUILD_NUMBER}/" app/Config/Shared.xcconfig
+        grep -qx "MARKETING_VERSION = ${VERSION}" app/Config/Shared.xcconfig
+        grep -qx "CURRENT_PROJECT_VERSION = ${BUILD_NUMBER}" app/Config/Shared.xcconfig
+
+    - name: Install signing identity and provisioning profile
+      env:
+        CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+        CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+      run: |
+        set -euo pipefail
+        KEYCHAIN_PATH="$RUNNER_TEMP/remarc-build.keychain-db"
+        KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+        CERTIFICATE_PATH="$RUNNER_TEMP/certificate.p12"
+        PROFILE_PATH="$RUNNER_TEMP/profile.provisionprofile"
+
+        printf '%s' "$CERTIFICATE_P12" | base64 --decode > "$CERTIFICATE_PATH"
+        printf '%s' "$PROVISIONING_PROFILE" | base64 --decode > "$PROFILE_PATH"
+        chmod 600 "$CERTIFICATE_PATH" "$PROFILE_PATH"
+
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security import "$CERTIFICATE_PATH" \
+          -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        security list-keychains -d user -s "$KEYCHAIN_PATH"
+        security set-key-partition-list \
+          -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+        PROFILE_UUID="$(security cms -D -i "$PROFILE_PATH" | plutil -extract UUID raw -)"
+        if [[ ! "$PROFILE_UUID" =~ ^[0-9A-Fa-f-]{36}$ ]]; then
+          echo "Provisioning profile did not contain a valid UUID" >&2
+          exit 1
+        fi
+        PROFILE_DEST="$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.provisionprofile"
+        mkdir -p "$(dirname "$PROFILE_DEST")"
+        cp "$PROFILE_PATH" "$PROFILE_DEST"
+
+        {
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH"
+          echo "PROFILE_DEST=$PROFILE_DEST"
+        } >> "$GITHUB_ENV"
+
+    - name: Archive
+      run: |
+        set -euo pipefail
+        xcodebuild archive \
+          -workspace app/Remarc.xcworkspace \
+          -scheme Remarc \
+          -configuration Release \
+          -archivePath build/Remarc.xcarchive \
+          -derivedDataPath build/DerivedData \
+          -destination "generic/platform=macOS" \
+          -onlyUsePackageVersionsFromResolvedFile
+
+    - name: Export
+      run: |
+        set -euo pipefail
+        xcodebuild -exportArchive \
+          -archivePath build/Remarc.xcarchive \
+          -exportPath build/export \
+          -exportOptionsPlist ExportOptions.plist
+        test -d build/export/Remarc.app
+
+    - name: Notarize and staple
+      env:
+        NOTARIZE_KEY: ${{ secrets.NOTARIZE_KEY }}
+        NOTARIZE_KEY_ID: ${{ secrets.NOTARIZE_KEY_ID }}
+        NOTARIZE_ISSUER_ID: ${{ secrets.NOTARIZE_ISSUER_ID }}
+      run: |
+        set -euo pipefail
+        NOTARY_KEY_PATH="$RUNNER_TEMP/notarize-key.p8"
+        NOTARY_ARCHIVE="$RUNNER_TEMP/Remarc-notarize.zip"
+        NOTARY_RESULT="$RUNNER_TEMP/notary-result.json"
+        printf '%s' "$NOTARIZE_KEY" > "$NOTARY_KEY_PATH"
+        chmod 600 "$NOTARY_KEY_PATH"
+
+        ditto -c -k --sequesterRsrc --keepParent \
+          build/export/Remarc.app "$NOTARY_ARCHIVE"
+        if ! xcrun notarytool submit "$NOTARY_ARCHIVE" \
+          --key "$NOTARY_KEY_PATH" \
+          --key-id "$NOTARIZE_KEY_ID" \
+          --issuer "$NOTARIZE_ISSUER_ID" \
+          --wait --output-format json > "$NOTARY_RESULT"; then
+          cat "$NOTARY_RESULT" >&2 || true
+          exit 1
+        fi
+
+        SUBMISSION_ID="$(plutil -extract id raw -o - "$NOTARY_RESULT")"
+        STATUS="$(plutil -extract status raw -o - "$NOTARY_RESULT")"
+        if [[ "$STATUS" != "Accepted" ]]; then
+          echo "Notarization failed with status: $STATUS" >&2
+          xcrun notarytool log "$SUBMISSION_ID" \
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$NOTARIZE_KEY_ID" \
+            --issuer "$NOTARIZE_ISSUER_ID" \
+            "$RUNNER_TEMP/notarization-log.json" || true
+          cat "$RUNNER_TEMP/notarization-log.json" >&2 || true
+          exit 1
+        fi
+
+        xcrun stapler staple build/export/Remarc.app
+        xcrun stapler validate build/export/Remarc.app
+
+    - name: Validate app and create release archive
+      run: |
+        set -euo pipefail
+        APP="build/export/Remarc.app"
+        INFO_PLIST="$APP/Contents/Info.plist"
+
+        codesign --verify --deep --strict --verbose=2 "$APP"
+        spctl --assess --type execute --verbose=4 "$APP"
+        xcrun stapler validate "$APP"
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")" = "$VERSION"
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")" = "$BUILD_NUMBER"
+
+        ditto -c -k --sequesterRsrc --keepParent "$APP" Remarc.zip
+        test -s Remarc.zip
+        shasum -a 256 Remarc.zip > Remarc.zip.sha256
+        shasum -a 256 -c Remarc.zip.sha256
+
+        UNPACK_DIR="$(mktemp -d "$RUNNER_TEMP/remarc-unpack.XXXXXX")"
+        ditto -x -k Remarc.zip "$UNPACK_DIR"
+        EXTRACTED_APP="$UNPACK_DIR/Remarc.app"
+        test -d "$EXTRACTED_APP"
+        codesign --verify --deep --strict --verbose=2 "$EXTRACTED_APP"
+        spctl --assess --type execute --verbose=4 "$EXTRACTED_APP"
+        xcrun stapler validate "$EXTRACTED_APP"
+        rm -rf "$UNPACK_DIR"
+
+    - name: Sign update with the resolved Sparkle tool
+      env:
+        SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      run: |
+        set -euo pipefail
+        SPARKLE_VERSION="$(python3 - <<'PYTHON_EOF'
+        import json
+
+        with open("app/RemarcPackage/Package.resolved", "r", encoding="utf-8") as handle:
+            pins = json.load(handle)["pins"]
+        matches = [pin for pin in pins if pin["identity"] == "sparkle"]
+        if len(matches) != 1 or "version" not in matches[0]["state"]:
+            raise SystemExit("Package.resolved must contain exactly one versioned Sparkle pin")
+        print(matches[0]["state"]["version"])
+        PYTHON_EOF
+        )"
+        if [[ "$SPARKLE_VERSION" != "2.9.5" ]]; then
+          echo "Review release tooling before changing the pinned Sparkle version (found $SPARKLE_VERSION)" >&2
+          exit 1
+        fi
+
+        SIGN_TOOLS=()
+        while IFS= read -r tool; do
+          SIGN_TOOLS+=("$tool")
+        done < <(find build/DerivedData/SourcePackages/artifacts -type f -path '*/Sparkle/bin/sign_update' -print)
+        if [[ "${#SIGN_TOOLS[@]}" -ne 1 ]]; then
+          echo "Expected one resolved Sparkle sign_update tool, found ${#SIGN_TOOLS[@]}" >&2
+          printf '%s\n' "${SIGN_TOOLS[@]}" >&2
+          exit 1
+        fi
+
+        SPARKLE_KEY_PATH="$RUNNER_TEMP/sparkle-private-key"
+        printf '%s' "$SPARKLE_PRIVATE_KEY" > "$SPARKLE_KEY_PATH"
+        chmod 600 "$SPARKLE_KEY_PATH"
+        SIGNATURE_OUTPUT="$("${SIGN_TOOLS[0]}" Remarc.zip --ed-key-file "$SPARKLE_KEY_PATH")"
+        ED_SIGNATURE="$(sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p' <<< "$SIGNATURE_OUTPUT")"
+        FILE_LENGTH="$(sed -n 's/.*length="\([0-9]*\)".*/\1/p' <<< "$SIGNATURE_OUTPUT")"
+        ACTUAL_LENGTH="$(stat -f '%z' Remarc.zip)"
+        if [[ -z "$ED_SIGNATURE" || "$FILE_LENGTH" != "$ACTUAL_LENGTH" ]]; then
+          echo "Sparkle signature output was incomplete or reported the wrong archive length" >&2
+          exit 1
+        fi
+        {
+          echo "ED_SIGNATURE=$ED_SIGNATURE"
+          echo "FILE_LENGTH=$FILE_LENGTH"
+        } >> "$GITHUB_ENV"
+
+    - name: Commit version and create the release tag
+      run: |
+        set -euo pipefail
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add app/Config/Shared.xcconfig
+
+        if ! git diff --staged --quiet; then
+          if [[ "$REUSE_TAG" == "true" ]]; then
+            echo "Refusing to move existing tag $TAG onto a new version commit" >&2
+            exit 1
+          fi
+          git commit -m "Release ${TAG}"
+          git push origin HEAD:refs/heads/main
+        fi
+
+        git fetch origin main --tags --prune
+        if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+          echo "origin/main changed during the release; refusing to tag" >&2
+          exit 1
+        fi
+
+        if git show-ref --verify --quiet "refs/tags/${TAG}"; then
+          if [[ "$(git rev-list -n 1 "refs/tags/${TAG}")" != "$(git rev-parse HEAD)" ]]; then
+            echo "Existing tag $TAG does not point to the release commit" >&2
+            exit 1
+          fi
+        else
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "refs/tags/${TAG}"
+        fi
+
+    - name: Create and verify draft GitHub release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NOTES: ${{ inputs.release_notes }}
+      run: |
+        set -euo pipefail
+        gh release create "$TAG" Remarc.zip Remarc.zip.sha256 \
+          --draft \
+          --verify-tag \
+          --title "Remarc $TAG" \
+          --notes "$NOTES"
+
+        RELEASE_JSON="$RUNNER_TEMP/release.json"
+        gh release view "$TAG" --json isDraft,assets > "$RELEASE_JSON"
+        python3 - "$RELEASE_JSON" "$(stat -f '%z' Remarc.zip)" "$(stat -f '%z' Remarc.zip.sha256)" <<'PYTHON_EOF'
+        import json
+        import sys
+
+        release_path, zip_size, checksum_size = sys.argv[1:]
+        with open(release_path, "r", encoding="utf-8") as handle:
+            release = json.load(handle)
+        if release.get("isDraft") is not True:
+            raise SystemExit("release was not created as a draft")
+        expected = {"Remarc.zip": int(zip_size), "Remarc.zip.sha256": int(checksum_size)}
+        actual = {asset["name"]: asset["size"] for asset in release.get("assets", [])}
+        if actual != expected:
+            raise SystemExit(f"draft assets differ from expected assets: {actual!r}")
+        PYTHON_EOF
+
+    # Prepare and validate the appcast while the release is still a draft.
+    # Publication remains last so Sparkle never sees an enclosure that 404s.
+    - name: Download current appcast
+      env:
+        GH_TOKEN: ${{ secrets.GIST_PAT }}
+      run: |
+        set -euo pipefail
+        APPCAST_DOWNLOAD="$RUNNER_TEMP/appcast.xml"
+        gh gist view 0bbb8342e141a8c41a9f1c0bfaab8f81 \
+          --filename appcast.xml --raw > "$APPCAST_DOWNLOAD"
+        mv "$APPCAST_DOWNLOAD" appcast.xml
+        python3 <<'PYTHON_EOF'
+        from pathlib import Path
+
+        path = Path("appcast.xml")
+        content = path.read_text(encoding="utf-8")
+        xml_start = content.find("<?xml")
+        if xml_start == -1:
+            raise SystemExit("appcast.xml is missing an XML declaration")
+        path.write_text(content[xml_start:], encoding="utf-8")
+        PYTHON_EOF
+        xmllint --noout appcast.xml
+
+    - name: Update appcast
+      env:
+        NOTES: ${{ inputs.release_notes }}
+      run: |
+        set -euo pipefail
+        DATE="$(date -u '+%a, %d %b %Y %H:%M:%S +0000')"
+        MIN_MACOS="$(awk -F'= ' '/^MACOSX_DEPLOYMENT_TARGET =/ { print $2; exit }' app/Config/Shared.xcconfig)"
+        export DATE MIN_MACOS
+        if [[ -z "$MIN_MACOS" ]]; then
+          echo "Could not read MACOSX_DEPLOYMENT_TARGET" >&2
+          exit 1
+        fi
+
+        python3 <<'PYTHON_EOF'
+        from html import escape
+        import os
+        import re
+
+        version = os.environ["VERSION"]
+        build = os.environ["BUILD_NUMBER"]
+        notes = os.environ["NOTES"]
+        date = os.environ["DATE"]
+        ed_signature = os.environ["ED_SIGNATURE"]
+        file_length = os.environ["FILE_LENGTH"]
+        min_macos = os.environ["MIN_MACOS"]
+
+        with open("appcast.xml", "r", encoding="utf-8") as handle:
+            content = handle.read()
+
+        if re.search(
+            rf"<sparkle:shortVersionString>{re.escape(version)}</sparkle:shortVersionString>",
+            content,
+        ):
+            raise SystemExit(f"appcast already contains version {version}")
+
+        def appcast_section_key(section: str) -> str:
+            title_match = re.search(r"<h2>\s*(.*?)\s*</h2>", section, re.DOTALL)
+            title = title_match.group(1).strip() if title_match else section
+            version_match = re.search(r"(\d+(?:\.\d+)+)", title)
+            return version_match.group(1) if version_match else title
+
+        previous_match = re.search(
+            r"<description><!\[CDATA\[(.*?)\]\]></description>", content, re.DOTALL
+        )
+        previous_notes = ""
+        if previous_match:
+            sections = re.findall(r"(<h2>.*?</ul>)", previous_match.group(1), re.DOTALL)
+            seen = {version}
+            unique_sections = []
+            for section in sections:
+                key = appcast_section_key(section)
+                if key not in seen:
+                    seen.add(key)
+                    unique_sections.append(section)
+            previous_notes = "\n".join(unique_sections)
+
+        list_items = [
+            f"                    <li>{escape(line.strip()[2:], quote=False)}</li>"
+            for line in notes.splitlines()
+            if line.strip().startswith("- ")
+        ]
+        if not list_items:
+            raise SystemExit("release notes must contain at least one '- ' bullet")
+
+        description_parts = [
+            f"<h2>What's New in Remarc {version}</h2>",
+            "<ul>",
+            "\n".join(list_items),
+            "</ul>",
+            previous_notes,
+        ]
+        description = "\n                ".join(description_parts)
+        item = f"""        <item>
+            <title>Version {version}</title>
+            <description><![CDATA[
+                {description}
+            ]]></description>
+            <pubDate>{date}</pubDate>
+            <sparkle:version>{build}</sparkle:version>
+            <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>{min_macos}</sparkle:minimumSystemVersion>
+            <enclosure
+                url="https://github.com/metedata/Remarc/releases/download/v{version}/Remarc.zip"
+                sparkle:edSignature="{ed_signature}"
+                length="{file_length}"
+                type="application/octet-stream" />
+        </item>
+
+        """
+        content = re.sub(
+            r"\s*<!-- Add new releases here.*?-->\s*", "\n\n", content, flags=re.DOTALL
+        )
+        content, count = re.subn(
+            r"(<language>en</language>\s*)",
+            lambda match: match.group(1) + "\n" + item,
+            content,
+            count=1,
+        )
+        if count != 1:
+            raise SystemExit("could not find a unique appcast insertion point")
+
+        with open("appcast.xml", "w", encoding="utf-8") as handle:
+            handle.write(content)
+        PYTHON_EOF
+        xmllint --noout appcast.xml
+        grep -q "releases/download/${TAG}/Remarc.zip" appcast.xml
+
+    - name: Publish GitHub release
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        gh release edit "$TAG" --draft=false --latest
+        test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "false"
+
+    - name: Publish appcast
+      env:
+        GH_TOKEN: ${{ secrets.GIST_PAT }}
+      run: |
+        set -euo pipefail
+        gh gist edit 0bbb8342e141a8c41a9f1c0bfaab8f81 appcast.xml
+
+    - name: Verify published release assets
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        test "$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)" = "$TAG"
+        test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = "false"
+
+        VERIFY_DIR="$(mktemp -d "$RUNNER_TEMP/remarc-release-verify.XXXXXX")"
+        gh release download "$TAG" --pattern 'Remarc.zip*' --dir "$VERIFY_DIR"
+        test -f "$VERIFY_DIR/Remarc.zip"
+        test -f "$VERIFY_DIR/Remarc.zip.sha256"
+        cmp Remarc.zip "$VERIFY_DIR/Remarc.zip"
+        cmp Remarc.zip.sha256 "$VERIFY_DIR/Remarc.zip.sha256"
+        (cd "$VERIFY_DIR" && shasum -a 256 -c Remarc.zip.sha256)
+
+    - name: Verify published appcast
+      env:
+        GH_TOKEN: ${{ secrets.GIST_PAT }}
+      run: |
+        set -euo pipefail
+        PUBLISHED_APPCAST="$RUNNER_TEMP/published-appcast.xml"
+        gh gist view 0bbb8342e141a8c41a9f1c0bfaab8f81 \
+          --filename appcast.xml --raw > "$PUBLISHED_APPCAST"
+        xmllint --noout "$PUBLISHED_APPCAST"
+        python3 - "$PUBLISHED_APPCAST" "$VERSION" "$BUILD_NUMBER" \
+          "$ED_SIGNATURE" "$FILE_LENGTH" <<'PYTHON_EOF'
+        import sys
+        import xml.etree.ElementTree as ET
+
+        path, version, build, signature, length = sys.argv[1:]
+        sparkle = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+        root = ET.parse(path).getroot()
+        items = [
+            item
+            for item in root.findall(".//item")
+            if (item.findtext(f"{{{sparkle}}}shortVersionString") or "").strip() == version
+        ]
+        if len(items) != 1:
+            raise SystemExit(f"published appcast has {len(items)} items for version {version}")
+        item = items[0]
+        if (item.findtext(f"{{{sparkle}}}version") or "").strip() != build:
+            raise SystemExit("published appcast has the wrong build number")
+        enclosure = item.find("enclosure")
+        if enclosure is None:
+            raise SystemExit("published appcast item has no enclosure")
+        expected_url = f"https://github.com/metedata/Remarc/releases/download/v{version}/Remarc.zip"
+        if enclosure.get("url") != expected_url:
+            raise SystemExit("published appcast has the wrong enclosure URL")
+        if enclosure.get(f"{{{sparkle}}}edSignature") != signature:
+            raise SystemExit("published appcast has the wrong Sparkle signature")
+        if enclosure.get("length") != length:
+            raise SystemExit("published appcast has the wrong archive length")
+        PYTHON_EOF
+
+    - name: Clean up signing material
+      if: always()
+      run: |
+        PROFILE_PATH="$RUNNER_TEMP/profile.provisionprofile"
+        if [[ -f "$PROFILE_PATH" ]]; then
+          PROFILE_UUID="$(security cms -D -i "$PROFILE_PATH" 2>/dev/null | plutil -extract UUID raw - 2>/dev/null || true)"
+          if [[ "$PROFILE_UUID" =~ ^[0-9A-Fa-f-]{36}$ ]]; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.provisionprofile"
+          fi
+        fi
+        rm -f \
+          "$RUNNER_TEMP/certificate.p12" \
+          "$PROFILE_PATH" \
+          "$RUNNER_TEMP/notarize-key.p8" \
+          "$RUNNER_TEMP/sparkle-private-key"
+        if [[ -n "${PROFILE_DEST:-}" ]]; then
+          rm -f "$PROFILE_DEST"
+        fi
+        security delete-keychain "$RUNNER_TEMP/remarc-build.keychain-db" || true

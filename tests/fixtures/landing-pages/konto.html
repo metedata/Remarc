@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Konto - Expenses, Accounted For</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23FFFFFF'/><rect x='16' y='16' width='68' height='68' fill='%23111111'/><rect x='58' y='58' width='26' height='26' fill='%23E30613'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FFFFFF;
+    --ink: #111111;
+    --grey: #6B6B6B;
+    --hairline: #E2E2E2;
+    --red: #E30613;
+    --sans: "Familjen Grotesk", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    font-size: 1.02rem;
+    line-height: 1.55;
+    font-feature-settings: "tnum" 1;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--red); color: var(--paper); }
+
+  .grid-frame {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 40px;
+    position: relative;
+  }
+  /* Visible construction grid */
+  .grid-frame::before, .grid-frame::after {
+    content: "";
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--hairline);
+    z-index: 0;
+  }
+  .grid-frame::before { left: max(40px, calc((100vw - 1200px) / 2 + 40px)); }
+  .grid-frame::after { right: max(40px, calc((100vw - 1200px) / 2 + 40px)); }
+
+  main, header, footer { position: relative; z-index: 1; }
+
+  h1, h2, h3 { font-weight: 700; letter-spacing: -0.03em; line-height: 1.02; }
+
+  a { color: inherit; }
+
+  /* ---------- Header ---------- */
+  header {
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 0;
+  }
+  .wordmark {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    text-decoration: none;
+  }
+  .wordmark i { font-style: normal; color: var(--red); }
+
+  .nav-links { display: flex; align-items: center; gap: 34px; }
+  .nav-links a:not(.btn) {
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    position: relative;
+  }
+  .nav-links a:not(.btn)::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: -4px;
+    width: 100%; height: 2px;
+    background: var(--red);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.25s ease;
+  }
+  .nav-links a:not(.btn):hover::after { transform: scaleX(1); transform-origin: left; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-block;
+    font-family: var(--sans);
+    font-size: 0.98rem;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 13px 28px;
+    background: var(--ink);
+    color: var(--paper);
+    border: 1px solid var(--ink);
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  }
+  .btn:hover { background: var(--red); border-color: var(--red); }
+  .btn:active { background: #B00510; border-color: #B00510; transform: translateY(1px); }
+
+  .btn-outline { background: transparent; color: var(--ink); }
+  .btn-outline:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn-outline:active { transform: translateY(1px); }
+
+  .btn-sm { padding: 9px 20px; font-size: 0.9rem; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding: 110px 0 90px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .hero .meta-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--grey);
+    margin-bottom: 66px;
+  }
+  .hero h1 {
+    font-size: clamp(3.4rem, 10vw, 8rem);
+    margin-bottom: 42px;
+  }
+  .hero h1 i { font-style: normal; color: var(--red); }
+
+  .hero-cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    gap: 60px;
+    align-items: end;
+  }
+  .hero-cols .lede {
+    font-size: 1.35rem;
+    font-weight: 500;
+    line-height: 1.4;
+    max-width: 30ch;
+  }
+  .hero-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; }
+  .hero-actions .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .hero-actions .note { font-size: 0.85rem; color: var(--grey); }
+
+  /* ---------- Table mock ---------- */
+  .ledger {
+    border: 1px solid var(--ink);
+    margin-top: 80px;
+    font-size: 0.92rem;
+  }
+  .ledger .l-head {
+    display: grid;
+    grid-template-columns: 110px 1fr 150px 120px 110px;
+    border-bottom: 1px solid var(--ink);
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .ledger .l-row {
+    display: grid;
+    grid-template-columns: 110px 1fr 150px 120px 110px;
+    border-bottom: 1px solid var(--hairline);
+    transition: background 0.15s ease;
+  }
+  .ledger .l-row:last-child { border-bottom: none; }
+  .ledger .l-row:hover { background: #F6F6F6; }
+  .ledger .cell { padding: 13px 18px; border-right: 1px solid var(--hairline); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ledger .cell:last-child { border-right: none; text-align: right; font-weight: 600; }
+  .ledger .l-head .cell { border-right: 1px solid var(--ink); }
+  .ledger .l-head .cell:last-child { border-right: none; }
+  .ledger .tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border: 1px solid var(--ink);
+  }
+  .ledger .tag.ok { border-color: var(--ink); }
+  .ledger .tag.wait { color: var(--red); border-color: var(--red); }
+  .ledger .cap {
+    padding: 10px 18px;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--grey);
+    border-top: 1px solid var(--ink);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ---------- Features ---------- */
+  section.features { padding: 100px 0; border-bottom: 1px solid var(--ink); }
+
+  .sec-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--red);
+    display: block;
+    margin-bottom: 20px;
+  }
+  .sec-title { font-size: clamp(2.2rem, 5vw, 3.6rem); max-width: 18ch; margin-bottom: 70px; }
+
+  .feature-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 1.4fr;
+    gap: 40px;
+    padding: 34px 0;
+    border-top: 1px solid var(--ink);
+    align-items: baseline;
+    transition: background 0.18s ease;
+  }
+  .feature-row:hover { background: #FAFAFA; }
+  .feature-row:hover .f-num { color: var(--red); }
+  .f-num {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--grey);
+    transition: color 0.18s ease;
+  }
+  .f-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .f-body { color: var(--grey); font-size: 1.02rem; max-width: 52ch; }
+  .f-body strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Stats band ---------- */
+  .stats {
+    border-bottom: 1px solid var(--ink);
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .stat {
+    padding: 54px 40px;
+    border-right: 1px solid var(--ink);
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  .stat:last-child { border-right: none; }
+  .stat:hover { background: var(--ink); color: var(--paper); }
+  .stat:hover .s-l { color: var(--paper); }
+  .stat .s-n { font-size: clamp(1.9rem, 3.6vw, 2.9rem); font-weight: 700; letter-spacing: -0.03em; display: block; }
+  .stat .s-n i { font-style: normal; color: var(--red); }
+  .stat .s-l { font-size: 0.82rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grey); margin-top: 10px; display: block; transition: color 0.18s ease; }
+
+  /* ---------- Logos ---------- */
+  .logos { padding: 60px 0; border-bottom: 1px solid var(--ink); }
+  .logos-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .logos-inner .label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--grey); }
+  .logos-inner .l-set { display: flex; gap: 44px; flex-wrap: wrap; }
+  .logos-inner .l-set span {
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: var(--grey);
+    transition: color 0.18s ease;
+  }
+  .logos-inner .l-set span:hover { color: var(--ink); }
+
+  /* ---------- Pricing ---------- */
+  section.pricing { padding: 100px 0; border-bottom: 1px solid var(--ink); }
+
+  .price-table {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--ink);
+  }
+  .p-col {
+    padding: 44px 38px;
+    border-right: 1px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+  }
+  .p-col:last-child { border-right: none; }
+  .p-col.mid { background: var(--ink); color: var(--paper); }
+  .p-col.mid .p-per, .p-col.mid li { color: #BBBBBB; }
+  .p-col.mid li { border-top-color: #333; }
+
+  .p-name { font-size: 0.82rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 26px; }
+  .p-name i { font-style: normal; color: var(--red); }
+  .p-price { font-size: 3.2rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+  .p-per { font-size: 0.88rem; color: var(--grey); margin: 10px 0 30px; }
+
+  .p-col ul { list-style: none; flex: 1; margin-bottom: 34px; }
+  .p-col li {
+    padding: 11px 0;
+    border-top: 1px solid var(--hairline);
+    font-size: 0.95rem;
+    color: var(--grey);
+  }
+  .p-col li strong { color: inherit; font-weight: 600; }
+  .p-col.mid li strong { color: var(--paper); }
+  .p-col:not(.mid) li strong { color: var(--ink); }
+
+  .p-col .btn { text-align: center; }
+  .p-col.mid .btn { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+  .p-col.mid .btn:hover { background: var(--red); color: var(--paper); border-color: var(--red); }
+
+  /* ---------- Final CTA ---------- */
+  .final { padding: 110px 0; border-bottom: 1px solid var(--ink); }
+  .final-inner { display: flex; justify-content: space-between; align-items: center; gap: 40px; flex-wrap: wrap; }
+  .final h2 { font-size: clamp(2.4rem, 6vw, 4.6rem); max-width: 14ch; }
+  .final h2 i { font-style: normal; color: var(--red); }
+  .final .side { display: flex; flex-direction: column; gap: 16px; align-items: flex-start; }
+  .final .side p { color: var(--grey); max-width: 34ch; }
+
+  /* ---------- Footer ---------- */
+  footer { padding: 46px 0 60px; }
+  .foot {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 40px;
+    font-size: 0.9rem;
+  }
+  .foot .wordmark { font-size: 1.2rem; }
+  .foot .col h4 {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--grey);
+    margin-bottom: 14px;
+  }
+  .foot .col a {
+    display: block;
+    text-decoration: none;
+    padding: 4px 0;
+    color: var(--ink);
+  }
+  .foot .col a:hover { color: var(--red); }
+  .foot .fine { margin-top: 18px; color: var(--grey); font-size: 0.82rem; max-width: 30ch; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 960px) {
+    .grid-frame { padding: 0 24px; }
+    .grid-frame::before, .grid-frame::after { display: none; }
+    .hero-cols { grid-template-columns: 1fr; gap: 34px; align-items: start; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .stat { border-bottom: 1px solid var(--ink); }
+    .stat:nth-child(3), .stat:nth-child(4) { border-bottom: none; }
+    .stat:nth-child(2), .stat:nth-child(4) { border-right: none; }
+    .feature-row { grid-template-columns: 60px 1fr; }
+    .f-body { grid-column: 2; }
+    .price-table { grid-template-columns: 1fr; }
+    .p-col { border-right: none; border-bottom: 1px solid var(--ink); }
+    .p-col:last-child { border-bottom: none; }
+    .foot { grid-template-columns: 1fr 1fr; }
+    .nav-links a:not(.btn) { display: none; }
+    .ledger .l-head, .ledger .l-row { grid-template-columns: 90px 1fr 110px; }
+    .ledger .cell:nth-child(4), .ledger .cell:nth-child(3) { display: none; }
+    .ledger .l-head .cell:nth-child(4), .ledger .l-head .cell:nth-child(3) { display: none; }
+    .ledger .cell:nth-child(5) { display: block; }
+  }
+</style>
+</head>
+<body>
+<div class="grid-frame">
+
+<header>
+  <nav class="nav">
+    <a class="wordmark" href="#">Konto<i>.</i></a>
+    <div class="nav-links">
+      <a href="#product">Product</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#">Docs</a>
+      <a href="#">Sign in</a>
+      <a class="btn btn-sm" href="#pricing">Start free</a>
+    </div>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="meta-row">
+      <span>Expense management</span>
+      <span>For teams of 2-200</span>
+      <span>Z&uuml;rich + Berlin</span>
+    </div>
+    <h1>Expenses,<br>accounted for<i>.</i></h1>
+    <div class="hero-cols">
+      <p class="lede">One ledger for cards, receipts, and reimbursements. Close the month in hours, not weeks.</p>
+      <div class="hero-actions">
+        <div class="row">
+          <a class="btn" href="#pricing">Start free - 14 days</a>
+          <a class="btn btn-outline" href="#product">See the product</a>
+        </div>
+        <span class="note">No card required. Books stay yours, always exportable.</span>
+      </div>
+    </div>
+
+    <div class="ledger" role="img" aria-label="Example Konto ledger showing matched expenses">
+      <div class="l-head">
+        <span class="cell">Date</span>
+        <span class="cell">Merchant</span>
+        <span class="cell">Card</span>
+        <span class="cell">Receipt</span>
+        <span class="cell">Amount</span>
+      </div>
+      <div class="l-row">
+        <span class="cell">04.08</span>
+        <span class="cell">SBB Easyride</span>
+        <span class="cell">Fischer &middot; 4421</span>
+        <span class="cell"><span class="tag ok">Matched</span></span>
+        <span class="cell">CHF 34.60</span>
+      </div>
+      <div class="l-row">
+        <span class="cell">04.08</span>
+        <span class="cell">Figma Organization</span>
+        <span class="cell">Team &middot; 8067</span>
+        <span class="cell"><span class="tag ok">Matched</span></span>
+        <span class="cell">CHF 675.00</span>
+      </div>
+      <div class="l-row">
+        <span class="cell">03.08</span>
+        <span class="cell">Restaurant Kronenhalle</span>
+        <span class="cell">Weber &middot; 1198</span>
+        <span class="cell"><span class="tag wait">Nudged</span></span>
+        <span class="cell">CHF 212.50</span>
+      </div>
+      <div class="l-row">
+        <span class="cell">03.08</span>
+        <span class="cell">Hetzner Cloud</span>
+        <span class="cell">Team &middot; 8067</span>
+        <span class="cell"><span class="tag ok">Matched</span></span>
+        <span class="cell">&euro; 148.90</span>
+      </div>
+      <div class="cap"><span>August &middot; 214 transactions</span><span>98.4% auto-matched</span></div>
+    </div>
+  </section>
+
+  <section class="features" id="product">
+    <span class="sec-label">01-04 &middot; Product</span>
+    <h2 class="sec-title">Four things, done properly.</h2>
+
+    <div class="feature-row">
+      <span class="f-num">01</span>
+      <h3 class="f-title">Cards with rules baked in</h3>
+      <p class="f-body">Issue virtual and physical cards with <strong>limits, categories, and merchant locks</strong> set before the first swipe. Policy is enforced at the terminal, not in a PDF nobody reads.</p>
+    </div>
+    <div class="feature-row">
+      <span class="f-num">02</span>
+      <h3 class="f-title">Receipts match themselves</h3>
+      <p class="f-body">Forward an email or snap a photo. Konto reads the merchant, amount, and VAT, then <strong>pairs it to the transaction</strong> on its own. Missing one? The spender gets the nudge, not you.</p>
+    </div>
+    <div class="feature-row">
+      <span class="f-num">03</span>
+      <h3 class="f-title">Approvals that route themselves</h3>
+      <p class="f-body">Amount, team, and category decide who signs off. Approvers act <strong>from Slack or email in one click</strong>, and every decision is logged for the auditor you hope never calls.</p>
+    </div>
+    <div class="feature-row" style="border-bottom: 1px solid var(--ink);">
+      <span class="f-num">04</span>
+      <h3 class="f-title">Exports your accountant will love</h3>
+      <p class="f-body">DATEV, Xero, QuickBooks, or plain CSV with <strong>VAT split and cost centers intact</strong>. The month closes reconciled, not approximately.</p>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><span class="s-n">2h 14m<i>.</i></span><span class="s-l">Median monthly close</span></div>
+    <div class="stat"><span class="s-n">98.4%<i>.</i></span><span class="s-l">Receipts auto-matched</span></div>
+    <div class="stat"><span class="s-n">&euro;0<i>.</i></span><span class="s-l">Implementation cost</span></div>
+    <div class="stat"><span class="s-n">4 200+<i>.</i></span><span class="s-l">Finance teams on Konto</span></div>
+  </div>
+
+  <div class="logos">
+    <div class="logos-inner">
+      <span class="label">In steady hands at</span>
+      <div class="l-set">
+        <span>Nordbahn</span>
+        <span>Atelier M&uuml;ller</span>
+        <span>Papierwerk</span>
+        <span>Kaffeeform</span>
+        <span>Studio Meridian</span>
+      </div>
+    </div>
+  </div>
+
+  <section class="pricing" id="pricing">
+    <span class="sec-label">05 &middot; Pricing</span>
+    <h2 class="sec-title">Per seat. Per month. Period.</h2>
+    <div class="price-table">
+      <div class="p-col">
+        <span class="p-name">Starter</span>
+        <span class="p-price">&euro;0</span>
+        <span class="p-per">Up to 5 seats, forever</span>
+        <ul>
+          <li><strong>10 cards</strong> included</li>
+          <li>Receipt matching</li>
+          <li>CSV export</li>
+          <li>Email support</li>
+        </ul>
+        <a class="btn btn-outline" href="#">Start free</a>
+      </div>
+      <div class="p-col mid">
+        <span class="p-name">Growth <i>&middot; most chosen</i></span>
+        <span class="p-price">&euro;6</span>
+        <span class="p-per">Per seat / month, billed yearly</span>
+        <ul>
+          <li><strong>Unlimited cards</strong> + approval flows</li>
+          <li>DATEV, Xero, QuickBooks sync</li>
+          <li>VAT + cost center handling</li>
+          <li>Same-day support</li>
+        </ul>
+        <a class="btn" href="#">Start 14-day trial</a>
+      </div>
+      <div class="p-col">
+        <span class="p-name">Scale</span>
+        <span class="p-price">Custom</span>
+        <span class="p-per">For 100+ seats and audits</span>
+        <ul>
+          <li><strong>SSO + SCIM</strong> provisioning</li>
+          <li>Custom approval graphs</li>
+          <li>Audit exports + retention</li>
+          <li>Named account manager</li>
+        </ul>
+        <a class="btn btn-outline" href="#">Talk to us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="final-inner">
+      <h2>Close the month by lunch<i>.</i></h2>
+      <div class="side">
+        <p>Import your cards today, match your first hundred receipts by tomorrow morning.</p>
+        <a class="btn" href="#pricing">Start free - 14 days</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="foot">
+    <div>
+      <a class="wordmark" href="#">Konto<i>.</i></a>
+      <p class="fine">Built in Z&uuml;rich and Berlin. Regulated e-money services provided by partner institutions.</p>
+    </div>
+    <div class="col">
+      <h4>Product</h4>
+      <a href="#product">Cards</a>
+      <a href="#product">Receipts</a>
+      <a href="#product">Approvals</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <div class="col">
+      <h4>Company</h4>
+      <a href="#">About</a>
+      <a href="#">Careers</a>
+      <a href="#">Press</a>
+    </div>
+    <div class="col">
+      <h4>Legal</h4>
+      <a href="#">Privacy</a>
+      <a href="#">Terms</a>
+      <a href="#">Imprint</a>
+    </div>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
