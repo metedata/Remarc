@@ -25,6 +25,28 @@ enum CritModeError: Error {
     case microphonePermissionDenied
 }
 
+enum CritModeTextNormalizer {
+    static func sentenceCaseIfAllCaps(_ text: String) -> String {
+        let casedCharacters = text.filter { $0.isUppercase || $0.isLowercase }
+        guard !casedCharacters.isEmpty,
+              casedCharacters.allSatisfy(\.isUppercase) else {
+            return text
+        }
+
+        var normalized = text.lowercased()
+        guard let firstLetter = normalized.firstIndex(where: \.isLetter) else {
+            return text
+        }
+
+        let end = normalized.index(after: firstLetter)
+        normalized.replaceSubrange(
+            firstLetter..<end,
+            with: normalized[firstLetter..<end].uppercased()
+        )
+        return normalized
+    }
+}
+
 // MARK: - CritModeService
 
 @available(macOS 26, *)
@@ -135,8 +157,14 @@ final class CritModeService: ObservableObject {
             return []
         }
 
+        // Normalize every output path, including short transcripts and
+        // Foundation Models fallbacks that bypass generated segmentation.
+        let normalizedSegments = segments.map(
+            CritModeTextNormalizer.sentenceCaseIfAllCaps
+        )
+
         // Create comments
-        let comments = createComments(from: segments)
+        let comments = createComments(from: normalizedSegments)
         debugLog("CritModeService: Created \(comments.count) comments")
 
         DictationSounds.playStop()
@@ -508,7 +536,7 @@ import FoundationModels
 @available(macOS 26, *)
 @Generable
 struct CritiqueSegments {
-    @Guide(description: "Array of distinct feedback points. Each should be a single, self-contained observation or suggestion — properly capitalized as its own sentence, with filler words (um, uh, like, you know, so, basically, I mean) removed.")
+    @Guide(description: "Array of distinct feedback points. Each should be a single, self-contained observation or suggestion in ordinary sentence case, never all caps, with filler words (um, uh, like, you know, so, basically, I mean) removed.")
     var segments: [String]
 }
 
@@ -527,7 +555,7 @@ extension CritModeService {
                 Each segment should be one self-contained observation, suggestion, or critique.
                 Clean up each segment so it reads as a standalone comment:
                 - Remove filler words (um, uh, like, you know, so, basically, I mean)
-                - Capitalize the first word of each segment
+                - Use ordinary sentence case for each segment; never use ALL CAPS
                 - Keep the speaker's intent and meaning — do not rephrase or editorialize
                 Return each as a separate item in the segments array.
                 """)
