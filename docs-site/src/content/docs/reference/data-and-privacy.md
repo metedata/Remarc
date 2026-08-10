@@ -25,7 +25,6 @@ Nothing you capture leaves your Mac unless you explicitly set that up. Remarc's 
 - Update checks, described under Updates below.
 - Transcription model downloads: choosing the WhisperKit or Parakeet engine downloads the model in-app. Apple Speech needs no download.
 - [Webhooks](/agents/webhooks/) you configure: each one sends the comment events you subscribed to, to the URL you entered. Remarc sends nothing unless you add one.
-- Send Feedback: sends only what you write, only when you send it.
 - Agent plugin installs: installing the Claude Code or Codex integration runs that harness's own CLI, which downloads the plugin from GitHub.
 
 The [Chrome extension](/chrome-extension/) talks to the app over a local WebSocket on `127.0.0.1:9274`. That connection never leaves your machine.

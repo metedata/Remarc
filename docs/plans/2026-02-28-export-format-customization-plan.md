@@ -170,7 +170,7 @@ if defaults.object(forKey: Keys.includeStatus) != nil {
 
 **Step 5: Build and verify**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 **Step 6: Commit**
@@ -354,7 +354,7 @@ struct ExportFormatTests {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -only-testing RemarcFeatureTests/ExportFormatTests -quiet 2>&1 | tail -10`
+Run: `cd $REPO_ROOT/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -only-testing RemarcFeatureTests/ExportFormatTests -quiet 2>&1 | tail -10`
 Expected: FAIL — `formatReference`, `formatPrefix`, `formatDate`, `formatMetadataLine` don't exist yet
 
 **Step 3: Add the formatting helper methods to ExportManager**
@@ -440,7 +440,7 @@ public func formatMetadataLine(
 
 **Step 4: Run tests to verify they pass**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -only-testing RemarcFeatureTests/ExportFormatTests -quiet 2>&1 | tail -10`
+Run: `cd $REPO_ROOT/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -only-testing RemarcFeatureTests/ExportFormatTests -quiet 2>&1 | tail -10`
 Expected: All tests PASS
 
 **Step 5: Refactor `markdownForSession` to use the new helpers and settings**
@@ -543,7 +543,7 @@ public func markdownForComment(_ comment: Comment) -> String {
 
 **Step 7: Build and run all tests**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -quiet 2>&1 | tail -10`
+Run: `cd $REPO_ROOT/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -quiet 2>&1 | tail -10`
 Expected: BUILD SUCCEEDED, all tests pass
 
 **Step 8: Commit**
@@ -613,7 +613,7 @@ public func previewMarkdown(
 
 **Step 2: Build**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 **Step 3: Commit**
@@ -778,7 +778,7 @@ private var exportPreviewText: String {
 
 **Step 3: Build, kill, and relaunch**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug 2>&1 | grep -oE '/Users/[^ ]*DerivedData/Remarc-[^/]+' | head -1`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug 2>&1 | grep -oE '/Users/[^ ]*DerivedData/Remarc-[^/]+' | head -1`
 Then: `pkill -x Remarc || true && open <derived_path>/Build/Products/Debug/Remarc.app`
 Verify: Open Preferences → Export tab should show two-column layout with live preview
 
@@ -807,7 +807,7 @@ This is correct — clipboard copy is always markdown. The `markdownForSession` 
 
 **Step 2: Verify by building and testing Copy All**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 Verify manually: Change export settings in Preferences → Export, then use Copy All → paste into a text editor → confirm format matches the settings.
@@ -833,14 +833,14 @@ Verify the `copySessionToClipboard` method still works correctly:
 
 **Step 2: Build and run tests**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -quiet 2>&1 | tail -10`
+Run: `cd $REPO_ROOT/app && xcodebuild test -workspace Remarc.xcworkspace -scheme RemarcFeature -quiet 2>&1 | tail -10`
 Expected: All tests pass
 
 **Step 3: Final build, kill, and relaunch for manual verification**
 
 Run build without `-quiet` to get DerivedData path:
 ```bash
-cd /Users/metepolat/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug 2>&1 | grep -oE '/Users/[^ ]*DerivedData/Remarc-[^/]+' | head -1
+cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug 2>&1 | grep -oE '/Users/[^ ]*DerivedData/Remarc-[^/]+' | head -1
 ```
 Then:
 ```bash

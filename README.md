@@ -61,4 +61,4 @@ To report a vulnerability, please see [SECURITY.md](SECURITY.md). Do not open a 
 
 Remarc is released under the [MIT License](LICENSE).
 
-The Remarc name, logo, and app icon are trademarks of Mete Polat and are not covered by the MIT license. Third-party names, logos, and bundled media remain subject to the rights described in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). If you distribute a fork, ship it under a different name and icon.
+The Remarc name, logo, and app icon are trademarks of Mete Polat and are not covered by the MIT license. Third-party software notices are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). If you distribute a fork, ship it under a different name and icon.

@@ -37,7 +37,7 @@ Note the working download URL for the extension zip.
 - [ ] **Step 2: If extension zip is NOT on R2, upload it**
 
 ```bash
-cd /Users/mete/Developer/Remarc
+cd $REPO_ROOT
 zip -r /tmp/remarc-extension.zip extension/
 wrangler r2 object put remarc-releases/remarc-extension.zip --file=/tmp/remarc-extension.zip --content-type=application/zip
 ```

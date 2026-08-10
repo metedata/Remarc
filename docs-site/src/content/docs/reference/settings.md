@@ -136,4 +136,4 @@ Remarc never shows the Comment tooltip in the apps listed here. Add apps with th
 
 ## About
 
-The About tab shows the app version and build number, the total count of remarks you have created, a "Check for Updates..." button, and links: Website, Changelog, Support, and Send Feedback.
+The About tab shows the app version and build number, the total count of remarks you have created, a "Check for Updates..." button, and links to the Website, Documentation, and GitHub.

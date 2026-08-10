@@ -26,7 +26,7 @@
 - [ ] **Step 1: Delete the draft FnAwareRecorder.swift**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support
+cd $REPO_ROOT/.worktrees/fn-key-support
 rm app/RemarcPackage/Sources/RemarcFeature/Views/FnAwareRecorder.swift
 ```
 
@@ -100,7 +100,7 @@ self.dictationHandsFreeUsesFnKey = defaults.bool(forKey: Keys.dictationHandsFree
 - [ ] **Step 4: Build to verify**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support/app
+cd $REPO_ROOT/.worktrees/fn-key-support/app
 xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5
 ```
 
@@ -109,7 +109,7 @@ Expected: BUILD SUCCEEDED
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support
+cd $REPO_ROOT/.worktrees/fn-key-support
 git add app/RemarcPackage/Sources/RemarcFeature/Services/SettingsManager.swift
 git commit -m "feat: add dictationUsesFnKey settings with mutual exclusion"
 ```
@@ -273,7 +273,7 @@ private func fnKeyEventCallback(
 - [ ] **Step 2: Build to verify**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support/app
+cd $REPO_ROOT/.worktrees/fn-key-support/app
 xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5
 ```
 
@@ -282,7 +282,7 @@ Expected: BUILD SUCCEEDED
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support
+cd $REPO_ROOT/.worktrees/fn-key-support
 git add app/RemarcPackage/Sources/RemarcFeature/Services/FnKeyMonitor.swift
 git commit -m "feat: add FnKeyMonitor — CGEventTap singleton for fn/globe key detection"
 ```
@@ -344,7 +344,7 @@ Note: don't call `FnKeyMonitor.shared.uninstall()` here — the tap is persisten
 - [ ] **Step 3: Build to verify**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support/app
+cd $REPO_ROOT/.worktrees/fn-key-support/app
 xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5
 ```
 
@@ -353,7 +353,7 @@ Expected: BUILD SUCCEEDED
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support
+cd $REPO_ROOT/.worktrees/fn-key-support
 git add app/RemarcPackage/Sources/RemarcFeature/Utilities/GlobalHotkey.swift
 git commit -m "feat: wire FnKeyMonitor callbacks into GlobalHotkey dictation handlers"
 ```
@@ -438,7 +438,7 @@ struct ConflictAwareRecorder: View {
 - [ ] **Step 2: Build to verify**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support/app
+cd $REPO_ROOT/.worktrees/fn-key-support/app
 xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5
 ```
 
@@ -447,7 +447,7 @@ Expected: BUILD SUCCEEDED
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support
+cd $REPO_ROOT/.worktrees/fn-key-support
 git add app/RemarcPackage/Sources/RemarcFeature/Views/ConflictAwareRecorder.swift
 git commit -m "feat: add ConflictAwareRecorder with intra-app shortcut conflict detection"
 ```
@@ -522,7 +522,7 @@ if settings.dictationHandsFreeMode == .customShortcut {
 - [ ] **Step 4: Build to verify**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support/app
+cd $REPO_ROOT/.worktrees/fn-key-support/app
 xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5
 ```
 
@@ -531,7 +531,7 @@ Expected: BUILD SUCCEEDED
 - [ ] **Step 5: Relaunch and manually verify**
 
 ```bash
-pkill -x Remarc; sleep 0.5; open /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support/app/DerivedData/Build/Products/Debug/Remarc.app
+pkill -x Remarc; sleep 0.5; open $REPO_ROOT/.worktrees/fn-key-support/app/DerivedData/Build/Products/Debug/Remarc.app
 ```
 
 **Manual verification checklist:**
@@ -546,7 +546,7 @@ pkill -x Remarc; sleep 0.5; open /Users/metepolat/Developer/Remarc/.worktrees/fn
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/metepolat/Developer/Remarc/.worktrees/fn-key-support
+cd $REPO_ROOT/.worktrees/fn-key-support
 git add app/RemarcPackage/Sources/RemarcFeature/Views/PreferencesWindowController.swift
 git commit -m "feat: add fn key toggles and conflict-aware recorders in preferences"
 ```

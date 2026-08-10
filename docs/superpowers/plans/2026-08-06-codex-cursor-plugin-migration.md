@@ -34,7 +34,7 @@
 > **Codex prefers its own manifest, so Claude Code never has to change. VERIFIED, not assumed.** The owed test was run: a `.codex-plugin/plugin.json` was added to the marketplace snapshot alongside the untouched `.claude-plugin/plugin.json`, pointing at its own `codex-mcp.json` with the relative-`cwd` form. Results:
 >
 > - `codex plugin add` reported `version: 0.5.0` - a value present ONLY in the `.codex-plugin` manifest, proving Codex read that one in preference to `.claude-plugin`.
-> - `codex mcp get remarc` showed `args: ["mcp/dist/index.js"]` with `cwd` resolved to the absolute installed root, `/Users/mete/.codex/plugins/cache/remarc/remarc/0.5.0/.` - so Codex used `codex-mcp.json`, and it does resolve a relative `cwd` against the plugin root exactly as documented.
+> - `codex mcp get remarc` showed `args: ["mcp/dist/index.js"]` with `cwd` resolved to the absolute installed root, `~/.codex/plugins/cache/remarc/remarc/0.5.0/.` - so Codex used `codex-mcp.json`, and it does resolve a relative `cwd` against the plugin root exactly as documented.
 > - A real Codex session listed all seven `mcp__remarc__remarc_*` tools.
 > - Throughout, `.claude-plugin/plugin.json` and the root `.mcp.json` (still `${CLAUDE_PLUGIN_ROOT}`) were untouched.
 >
@@ -1005,7 +1005,7 @@ Scope note for revision 4: Cursor still uses the app-side installer, so this pha
 **Files:**
 - Modify: `CLAUDE.md` (root, allowed on main): rewrite the "Claude Code integration" section into an "Agent integrations" section describing the two plugin surfaces accurately: Claude Code is plugin-based AND retains its legacy cleanup latch; Codex is plugin-based and INSTALL-ONLY with no cleanup; Cursor remains fully app-managed via `~/.cursor/mcp.json` + `~/.cursor/skills/`, with its installer branch still active. Do not describe the legacy machinery as dormant - only its Claude Code and Codex branches are. Also reconcile the stale "Min macOS: 14.4" line against `MACOSX_DEPLOYMENT_TARGET = 14.0` in `app/Config/Shared.xcconfig` while editing.
 - Modify: `docs/superpowers/plans/2026-08-06-codex-cursor-plugin-migration.md`: check off completed tasks.
-- Memory: update `~/.claude/projects/-Users-mete-Developer-Remarc/memory/project_plugin_marketplace_migration_stranded.md` (and its line in MEMORY.md) - Codex migrated; Cursor deliberately deferred with the reasoning; legacy installer machinery still present; its Claude Code and Codex branches are dormant but the Cursor branch is live (retirement deferred); remaining items are the code retirement with an `MCPManager.isEnabled` replacement, the Cursor official-marketplace listing, the empty `~/.cursor/skills/remarc/` diagnosis, and `mcp/` consolidation once Claude Desktop is rethought.
+- Memory: update `~/.claude/projects/<project>/memory/project_plugin_marketplace_migration_stranded.md` (and its line in MEMORY.md) - Codex migrated; Cursor deliberately deferred with the reasoning; legacy installer machinery still present; its Claude Code and Codex branches are dormant but the Cursor branch is live (retirement deferred); remaining items are the code retirement with an `MCPManager.isEnabled` replacement, the Cursor official-marketplace listing, the empty `~/.cursor/skills/remarc/` diagnosis, and `mcp/` consolidation once Claude Desktop is rethought.
 - Do NOT claim the legacy machinery was removed. It was not - revision 5 deferred that work.
 
 - [ ] **Step 1: Apply the documentation edits above, commit on main**

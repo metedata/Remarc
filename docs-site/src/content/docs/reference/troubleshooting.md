@@ -54,7 +54,7 @@ Screenshot comments require the Screen Recording permission. Grant it in System 
 
 **Where is my data stored?** In `~/Library/Application Support/Remarc/`, as `comments.json` plus image files. See [data, privacy & updates](/reference/data-and-privacy/).
 
-**Is anything sent to a server?** Your comments, screenshots, and audio stay on your Mac. The only network activity is update checks, transcription model downloads, webhooks you configure, and feedback you send.
+**Is anything sent to a server?** Remarc stores comments, screenshots, and audio on your Mac. Data can leave through agents and webhooks you explicitly use; other network activity is limited to update checks, transcription model downloads, and agent plugin installs.
 
 **How many sessions can I have?** Up to 8 active sessions, plus the permanent Inbox that catches unfiled comments. See [Sessions & the Inbox](/basics/sessions/).
 
@@ -68,4 +68,4 @@ Screenshot comments require the Screen Recording permission. Grant it in System 
 
 ## Still stuck
 
-Remarc writes a debug log to `/tmp/remarc_debug.log`; check it first and include it in any report. Use Send Feedback in Settings > About to reach the developer.
+Remarc writes a debug log to `/tmp/remarc_debug.log`; check it first and include it when you [open a GitHub issue](https://github.com/metedata/Remarc/issues). Report security problems privately as described in the [security policy](https://github.com/metedata/Remarc/security/policy).

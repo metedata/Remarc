@@ -34,7 +34,7 @@ which gitleaks
 - [ ] **1.2 Scan full git history for secrets**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 gitleaks detect --no-banner --redact --report-format json --report-path /tmp/gitleaks-report.json || true
 cat /tmp/gitleaks-report.json | jq 'length'
 ```
@@ -44,7 +44,7 @@ Expected: review findings. Anything flagged must be triaged (false positive, scr
 - [ ] **1.3 Manual pattern sweep**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 rg -n --hidden --glob '!.git' --glob '!node_modules' --glob '!*.lock' \
   -e 'sk_live' -e 'sk_test' -e 'pk_live' \
   -e 'SUPABASE_SERVICE_ROLE_KEY' -e 'supabase.co' \
@@ -52,7 +52,7 @@ rg -n --hidden --glob '!.git' --glob '!node_modules' --glob '!*.lock' \
   -e 'api[_-]?key.*=.*["'\''][A-Za-z0-9]{20,}' \
   -e 'sentry.io/[0-9]+' \
   -e 'lemonsqueezy' \
-  -e '/Users/mete/' \
+  -e '/Users/example/' \
   || true
 ```
 
@@ -61,7 +61,7 @@ Triage each hit: is it a legitimate reference (env var name, example) or a real 
 - [ ] **1.4 Git history grep for sensitive patterns**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 git log --all -p -S 'SUPABASE_SERVICE_ROLE_KEY' --oneline | head -20
 git log --all -p -S 'api_key' --oneline | head -20
 git log --all -p -S 'sk_live' --oneline | head -20
@@ -87,7 +87,7 @@ Internal planning/bug-tracker docs should not be in the public repo root.
 It's a bug list. Options: (a) convert to GitHub Issues post-launch, (b) move to `docs/internal/improvements.md` and add `docs/internal/` to `.gitignore`, (c) delete. Pick (b) for this pass to preserve content without exposing it.
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 mkdir -p docs/internal
 git mv Improvements.md docs/internal/improvements.md
 ```
@@ -121,7 +121,7 @@ Actually: for this phase, just move the files. They'll be committed and visible 
 - [ ] **2.6 Commit phase 2**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 git add -A
 git commit -m "chore(oss): relocate internal-only docs under docs/internal/"
 ```
@@ -140,7 +140,7 @@ git commit -m "chore(oss): relocate internal-only docs under docs/internal/"
 - [ ] **3.1 Create `LICENSE` (MIT)**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 ```
 
 Content: standard MIT, copyright holder "Mete Polat", year 2026.
@@ -292,7 +292,7 @@ Verify README explicitly states: "The Remarc name, logo, and icon are trademarks
 - [ ] **7.2 Scan copy for em dashes**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 rg -n '—' README.md CONTRIBUTING.md SECURITY.md CHANGELOG.md LICENSE || echo "clean"
 ```
 
@@ -305,7 +305,7 @@ Per CLAUDE.md style rule, replace any em dash (—) with a hyphen (-) in public-
 - [ ] **8.1 Verify build still passes in worktree**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep/app
+cd $REPO_ROOT/.worktrees/oss-prep/app
 xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" | tail -20
 ```
 
@@ -314,7 +314,7 @@ Expected: BUILD SUCCEEDED.
 - [ ] **8.2 Summary diff**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/oss-prep
+cd $REPO_ROOT/.worktrees/oss-prep
 git log --oneline main..HEAD
 git diff --stat main..HEAD
 ```

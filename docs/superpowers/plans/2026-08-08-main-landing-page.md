@@ -32,12 +32,12 @@
 - Create: `website/index.html` (overwrites the "Coming Soon" placeholder with a copy of the invite page)
 
 **Interfaces:**
-- Produces: worktree at `/Users/mete/Developer/Remarc/.worktrees/main-landing-page`; all later tasks run inside it and edit `website/index.html` there.
+- Produces: worktree at `$REPO_ROOT/.worktrees/main-landing-page`; all later tasks run inside it and edit `website/index.html` there.
 
 - [ ] **Step 1: Create the worktree**
 
 ```bash
-cd /Users/mete/Developer/Remarc
+cd $REPO_ROOT
 git worktree add .worktrees/main-landing-page -b feat/main-landing-page
 ```
 
@@ -46,7 +46,7 @@ Expected: `Preparing worktree (new branch 'feat/main-landing-page')`.
 - [ ] **Step 2: Seed the page**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/main-landing-page
+cd $REPO_ROOT/.worktrees/main-landing-page
 cp website/invite/index.html website/index.html
 wc -l website/index.html
 ```
@@ -180,7 +180,7 @@ Replace `<main id="scene-main" class="scene">` with `<main id="scene-main" class
 - [ ] **Step 7: Verify no ceremony remnants**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/main-landing-page
+cd $REPO_ROOT/.worktrees/main-landing-page
 grep -cE 'scene-envelope|scene-reveal|scene-mobile|replay-link|debug-hint|hold-btn|stamp|env-|letter-|paper-noise|wax-seal|is-safari|data-state|runCeremony|skipToMain|rv-|reveal-canvas|mobile-|signature\.png' website/index.html || echo "CLEAN"
 grep -c 'stagger-item' website/index.html
 grep -c 'page-grain-filter' website/index.html
@@ -445,7 +445,7 @@ git commit -m "feat(landing): Remarc hero with tilt+shine icon and release subti
 - [ ] **Step 1: Extract poster candidates**
 
 ```bash
-SRC="/Users/mete/Developer/remarc-hero-animation/renders/2026-08-06-soundtrack-1920.mp4"
+SRC="/path/to/remarc-hero-animation/renders/2026-08-06-soundtrack-1920.mp4"
 OUT="$(mktemp -d)"
 for t in 5 20 44; do ffmpeg -y -ss "$t" -i "$SRC" -frames:v 1 -q:v 2 "$OUT/poster-$t.jpg" 2>/dev/null; done
 ls -lh "$OUT"
@@ -931,7 +931,7 @@ git commit -m "feat(landing): responsive mobile layout, reduced-motion and no-JS
 - [ ] **Step 1: Isolation check - only the landing page changed**
 
 ```bash
-cd /Users/mete/Developer/Remarc/.worktrees/main-landing-page
+cd $REPO_ROOT/.worktrees/main-landing-page
 git diff --stat main...HEAD            # expect exactly one file: website/index.html
 git diff main...HEAD -- website/invite # expect empty output
 ```

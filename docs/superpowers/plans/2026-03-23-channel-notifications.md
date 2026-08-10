@@ -104,7 +104,7 @@ export function startChannelWatcher(_server: McpServer): void {}
 
 - [ ] **Step 3: Build and verify no errors**
 
-Run: `cd /Users/mete/Developer/Remarc/mcp && npm run build:mcp`
+Run: `cd $REPO_ROOT/mcp && npm run build:mcp`
 Expected: Build succeeds
 
 - [ ] **Step 4: Commit**
@@ -337,7 +337,7 @@ function formatNewComment(comment: Comment): string {
 
 - [ ] **Step 2: Build and verify**
 
-Run: `cd /Users/mete/Developer/Remarc/mcp && npm run build:mcp`
+Run: `cd $REPO_ROOT/mcp && npm run build:mcp`
 Expected: Build succeeds
 
 - [ ] **Step 3: Commit**
@@ -407,7 +407,7 @@ if (channelEnabled) {
 
 - [ ] **Step 3: Build and verify**
 
-Run: `cd /Users/mete/Developer/Remarc/mcp && npm run build:mcp`
+Run: `cd $REPO_ROOT/mcp && npm run build:mcp`
 Expected: Build succeeds
 
 - [ ] **Step 4: Commit**
@@ -448,7 +448,7 @@ self.claudeCodeChannelEnabled = defaults.bool(forKey: Keys.claudeCodeChannelEnab
 
 - [ ] **Step 2: Build and verify**
 
-Run: `cd /Users/mete/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 - [ ] **Step 3: Commit**
@@ -516,7 +516,7 @@ Divider()
 
 - [ ] **Step 2: Build and verify**
 
-Run: `cd /Users/mete/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData" 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 - [ ] **Step 3: Relaunch and verify UI**
@@ -545,7 +545,7 @@ Open Remarc Settings > Claude Integration. Toggle on "Enable channel notificatio
 - [ ] **Step 2: Rebuild MCP server**
 
 ```bash
-cd /Users/mete/Developer/Remarc/mcp && npm run build:mcp
+cd $REPO_ROOT/mcp && npm run build:mcp
 ```
 
 - [ ] **Step 3: Verify MCP server reads the setting**

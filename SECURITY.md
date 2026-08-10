@@ -17,10 +17,11 @@ In scope:
 - The shipped Remarc app (this repository)
 - The bundled MCP server (`mcp/vendor/`) and its source in [remarc-agent-plugins](https://github.com/metedata/remarc-agent-plugins)
 - The Chrome extension (`extension/`)
+- The Cloudflare Worker and waitlist API (`website/worker/`)
 
 Out of scope:
 
-- The static website content (`website/`)
+- Static presentation copy and assets (`website/public/`), unless they create a security impact
 - Third-party dependencies (report upstream, but a heads-up is appreciated if Remarc's usage is affected)
 
 Remarc runs with Accessibility, Screen Recording, and Microphone permissions, so reports about ways a malicious process or web page could abuse Remarc's access are particularly valuable.

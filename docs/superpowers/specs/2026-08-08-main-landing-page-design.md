@@ -27,9 +27,9 @@ Approved decisions:
 |---|---|
 | Page being adapted | `website/invite/index.html` (1818 lines) |
 | Page being replaced | `website/index.html` ("Coming Soon" placeholder) |
-| Tilt+shine effect | `/Users/mete/Developer/CaAML/website/styles.css` lines 156-197, `script.js` lines 1-59, markup `index.html` 179-182 |
-| Launch video | `/Users/mete/Developer/remarc-hero-animation/renders/2026-08-06-soundtrack-1920.mp4` (45.5s, 1920x1200 = 16:10, h264+aac soundtrack, 14 MB) |
-| Head/JSON-LD model | `/Users/mete/Developer/CaAML/website/index.html` (SoftwareApplication + FAQPage JSON-LD) |
+| Tilt+shine effect | `/path/to/reference-project/website/styles.css` lines 156-197, `script.js` lines 1-59, markup `index.html` 179-182 |
+| Launch video | `/path/to/remarc-hero-animation/renders/2026-08-06-soundtrack-1920.mp4` (45.5s, 1920x1200 = 16:10, h264+aac soundtrack, 14 MB) |
+| Head/JSON-LD model | `/path/to/reference-project/website/index.html` (SoftwareApplication + FAQPage JSON-LD) |
 | Copy sources | `Metedata-Obsidian-Vault/metedata-ventures/remarc/product-marketing-context.md` (objections table; note stale pricing/hooks claims), `landing-page-structure.md` |
 
 ## What is deleted from the invite page

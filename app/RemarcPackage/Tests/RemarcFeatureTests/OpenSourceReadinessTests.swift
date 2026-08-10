@@ -104,6 +104,9 @@ final class OpenSourceReadinessTests: XCTestCase {
 
         let requiredMarkers = [
             "refs/heads/main",
+            "repos/${GITHUB_REPOSITORY}",
+            "--jq .visibility",
+            "Repository visibility must be public before publishing a release",
             "cancel-in-progress: false",
             "-onlyUsePackageVersionsFromResolvedFile",
             "Sparkle/bin/sign_update",
@@ -122,6 +125,16 @@ final class OpenSourceReadinessTests: XCTestCase {
         for marker in requiredMarkers {
             XCTAssertTrue(workflow.contains(marker), "Release workflow is missing safeguard: \(marker)")
         }
+
+        let visibilityGuard = try XCTUnwrap(
+            workflow.range(of: "Repository visibility must be public before publishing a release")
+        )
+        let checkoutStep = try XCTUnwrap(workflow.range(of: "uses: actions/checkout@"))
+        XCTAssertLessThan(
+            visibilityGuard.lowerBound,
+            checkoutStep.lowerBound,
+            "Repository visibility must be checked before source checkout and all publishing work"
+        )
     }
 
     private func sourceFiles(beneath root: URL) throws -> [URL] {

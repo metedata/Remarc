@@ -10,12 +10,6 @@ vendored MCP bundle) from the exact dependency tree used at the provenance
 commit recorded in `mcp/vendor/PROVENANCE.json`. Markdown fencing and
 normalization of insignificant trailing whitespace do not alter their terms.
 
-> **Publication status:** The software notices are complete for the resolved
-> dependencies listed below. The final section records bundled media for which
-> the repository does not establish complete provenance. Those assets and marks
-> remain subject to any rights held by their respective owners and are not
-> licensed under Remarc's MIT license merely because they are listed here.
-
 ## Swift package dependencies linked into Remarc
 
 ### Sparkle 2.9.5

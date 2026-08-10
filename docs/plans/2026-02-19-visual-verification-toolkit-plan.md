@@ -21,10 +21,10 @@
 **Step 1: Create directory structure**
 
 ```bash
-mkdir -p /Users/metepolat/Developer/Remarc/tests/screenshots
-touch /Users/metepolat/Developer/Remarc/tests/screenshots/.gitkeep
-mkdir -p /Users/metepolat/Developer/Remarc/tools/ax-inspect/Sources
-mkdir -p /Users/metepolat/Developer/Remarc/scripts
+mkdir -p $REPO_ROOT/tests/screenshots
+touch $REPO_ROOT/tests/screenshots/.gitkeep
+mkdir -p $REPO_ROOT/tools/ax-inspect/Sources
+mkdir -p $REPO_ROOT/scripts
 ```
 
 **Step 2: Create ax-inspect Package.swift**
@@ -65,7 +65,7 @@ tests/screenshots/*.jpg
 
 **Step 5: Verify the SPM package resolves**
 
-Run: `cd /Users/metepolat/Developer/Remarc/tools/ax-inspect && swift build`
+Run: `cd $REPO_ROOT/tools/ax-inspect && swift build`
 Expected: Build succeeds
 
 **Step 6: Commit**
@@ -315,7 +315,7 @@ func printUsage() {
 
 **Step 3: Build and test**
 
-Run: `cd /Users/metepolat/Developer/Remarc/tools/ax-inspect && swift build`
+Run: `cd $REPO_ROOT/tools/ax-inspect && swift build`
 Expected: Build succeeds
 
 Run: `.build/debug/ax-inspect list-windows --app "Remarc"`
@@ -496,7 +496,7 @@ case "frame":
 
 **Step 3: Build and test**
 
-Run: `cd /Users/metepolat/Developer/Remarc/tools/ax-inspect && swift build`
+Run: `cd $REPO_ROOT/tools/ax-inspect && swift build`
 Expected: Build succeeds
 
 Run: `.build/debug/ax-inspect tree --app "Remarc" --window 0 --depth 3`
@@ -582,7 +582,7 @@ On `detailColumn`, add:
 
 **Step 5: Build to verify no compile errors**
 
-Run: `cd /Users/metepolat/Developer/Remarc/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
+Run: `cd $REPO_ROOT/app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -quiet 2>&1 | tail -5`
 Expected: BUILD SUCCEEDED
 
 **Step 6: Commit**
@@ -765,12 +765,12 @@ esac
 **Step 2: Make it executable**
 
 ```bash
-chmod +x /Users/metepolat/Developer/Remarc/scripts/verify.sh
+chmod +x $REPO_ROOT/scripts/verify.sh
 ```
 
 **Step 3: Test help output**
 
-Run: `/Users/metepolat/Developer/Remarc/scripts/verify.sh help`
+Run: `$REPO_ROOT/scripts/verify.sh help`
 Expected: Usage message printed
 
 **Step 4: Commit**
@@ -788,22 +788,22 @@ git commit -m "feat: add verify.sh orchestration script for visual verification"
 
 **Step 1: Build ax-inspect**
 
-Run: `cd /Users/metepolat/Developer/Remarc/tools/ax-inspect && swift build`
+Run: `cd $REPO_ROOT/tools/ax-inspect && swift build`
 Expected: Build succeeds
 
 **Step 2: Build the app**
 
-Run: `/Users/metepolat/Developer/Remarc/scripts/verify.sh build`
+Run: `$REPO_ROOT/scripts/verify.sh build`
 Expected: `[OK] Build succeeded`
 
 **Step 3: Launch the app**
 
-Run: `/Users/metepolat/Developer/Remarc/scripts/verify.sh launch`
+Run: `$REPO_ROOT/scripts/verify.sh launch`
 Expected: `[OK] App launched (pid: XXXXX)`
 
 **Step 4: Run smoke test**
 
-Run: `/Users/metepolat/Developer/Remarc/scripts/verify.sh smoke-test`
+Run: `$REPO_ROOT/scripts/verify.sh smoke-test`
 Expected: Windows listed, screenshot taken, all [OK]
 
 **Step 5: Test ax-inspect commands**
@@ -841,7 +841,7 @@ No commit needed unless fixes were required.
 
 **Step 1: Save verification workflow to Claude memory**
 
-Document the standard verification commands in `/Users/metepolat/.claude/projects/-Users-metepolat-Developer-Remarc/memory/MEMORY.md`:
+Document the standard verification commands in `~/.claude/projects/<project>/memory/MEMORY.md`:
 
 ```markdown
 ## Verification Toolkit

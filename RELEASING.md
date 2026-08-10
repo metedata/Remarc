@@ -67,7 +67,7 @@ gh workflow run release.yml \
 
 ### What the workflow does (in order)
 
-1. Require a dispatch from `main`, validate semantic-version/build inputs against the live appcast, and fail closed if that version/build or a conflicting tag or GitHub Release already exists.
+1. Require the repository to be public and the dispatch to come from `main`, validate semantic-version/build inputs against the live appcast, and fail closed if that version/build or a conflicting tag or GitHub Release already exists.
 2. Checkout the current `main`, select Xcode 26.2, and bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Shared.xcconfig`.
 3. Install the Developer ID certificate and provisioning profile into an ephemeral keychain.
 4. Archive and export the Release configuration using only versions pinned in `Package.resolved`. A build phase verifies the committed `mcp/vendor/remarc-mcp.js` against its recorded SHA-256 and bundles it; there is no npm build.

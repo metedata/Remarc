@@ -29,11 +29,17 @@ jobs:
     timeout-minutes: 90
 
     steps:
-    - name: Require the main branch
+    - name: Require a public repository and the main branch
       env:
         DISPATCH_REF: ${{ github.ref }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -euo pipefail
+        VISIBILITY="$(gh api "repos/${GITHUB_REPOSITORY}" --jq .visibility)"
+        if [[ "$VISIBILITY" != "public" ]]; then
+          echo "Repository visibility must be public before publishing a release; received $VISIBILITY" >&2
+          exit 1
+        fi
         if [[ "$DISPATCH_REF" != "refs/heads/main" ]]; then
           echo "Releases must be dispatched from main; received $DISPATCH_REF" >&2
           exit 1
