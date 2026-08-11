@@ -45,24 +45,23 @@ The recreated public repository begins with source fields `0.5.1` / `12`, but
 that exact shipped build is already in the live appcast and remains available
 from the historical R2 URL. Do **not** rebuild or republish `0.5.1` / `12` from
 the newer open-source snapshot. The first automated source release must use a
-genuinely newer pair, such as `0.6.0` / `13`.
+genuinely newer pair, such as `1.0.0` / `14`.
 
 ### Via GitHub Actions (normal path)
 
 1. **Actions** tab → **Release** workflow → **Run workflow**
 2. Fill in:
-   - **Version:** e.g. `0.6.0` (marketing version)
+   - **Version:** e.g. `1.0.0` (marketing version)
    - **Build number:** must be higher than previous (check `app/Config/Shared.xcconfig`)
-   - **Release notes:** markdown bullet list, one `- ` prefixed line per change. The workflow fails if no `- ` bullet is present.
+   - **Release notes:** one non-empty plain line for a single announcement, or one `- ` prefixed line per change for a list.
 3. Run.
 
 Or via CLI:
 ```bash
 gh workflow run release.yml \
-  -f version="0.6.0" \
-  -f build_number="13" \
-  -f release_notes="- Remarc is now free and open source
-- Removed telemetry and the server feedback form"
+  -f version="1.0.0" \
+  -f build_number="14" \
+  -f release_notes="Remarc's public release."
 ```
 
 ### What the workflow does (in order)
@@ -145,8 +144,8 @@ The automated path pushes its version commit directly to `main`. If branch prote
 - Gist ID is hardcoded as `0bbb8342e141a8c41a9f1c0bfaab8f81`; verify it still belongs to the right account.
 
 ### Empty release notes in Sparkle's update dialog
-- Release notes must be `- ` prefixed bullet lines; plain paragraphs are not converted.
-- The workflow fails the release if the generated appcast has no `<li>` items.
+- Release notes may be one plain line or one or more `- ` prefixed bullet lines.
+- The workflow rejects blank input, mixed plain text and bullets, and multiline plain text.
 
 ### Users not seeing updates
 - Check the binary's `Info.plist` has the correct `SUFeedURL` and `SUPublicEDKey`.

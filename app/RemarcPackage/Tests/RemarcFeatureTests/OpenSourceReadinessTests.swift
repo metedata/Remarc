@@ -97,6 +97,7 @@ final class OpenSourceReadinessTests: XCTestCase {
             "npm ci",
             "--clobber",
             "Sparkle-2.6.4",
+            "release notes must contain at least one '- ' bullet",
         ]
         for marker in forbiddenMarkers {
             XCTAssertFalse(workflow.contains(marker), "Release workflow contains retired marker: \(marker)")
@@ -116,6 +117,10 @@ final class OpenSourceReadinessTests: XCTestCase {
             "Remarc.zip.sha256",
             "current-appcast.xml",
             "appcast already advertises version",
+            "release_notes cannot be empty",
+            "<p>{escape(note_lines[0], quote=False)}</p>",
+            "draft release notes differ from the requested notes",
+            "published appcast release notes differ from the requested notes",
             "HEAD is not the workflow's release commit",
             "Verify published release assets",
             "Verify published appcast",
