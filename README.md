@@ -4,39 +4,55 @@ Remarc is a macOS menu bar app for contextual commenting on anything on your scr
 
 https://github.com/user-attachments/assets/4393066b-1a22-484c-8703-c55ebef7edbb
 
-## Features
+## How it works
 
-### Comment on any text
+### 1. Comment on anything
 
-Select text in any Mac app and attach a comment to that exact selection. Remarc keeps the quote and source app with your note, so your agent can find what you mean without a separate explanation. If there is no selection, open a [Quick Note](https://docs.remarc.app/basics/quick-notes/).
+Remarc runs from the menu bar, ready whenever you spot something worth changing. Comment on selected text, screenshots, web elements, or speak your feedback. Remarc keeps the original selection, screenshot, web context, or recording with your note, so your agent works from what you saw instead of a paraphrase.
 
-### Work through comments with your agent
+#### Text comments
 
-Connect Claude Code, Codex, Cursor, Claude Desktop, or another MCP client. Agents can read the full context, move each comment from Open to In-Progress, and resolve it with a summary of what changed. See the [agent integrations guide](https://docs.remarc.app/agents/overview/) for setup.
+Select text in any app and attach a comment to that exact selection. Remarc saves the quote and source app with your note. The [text comments guide](https://docs.remarc.app/basics/commenting-on-selections/) covers the tooltip, keyboard shortcut, and app exclusions.
 
-### Capture and mark up screenshots
+#### Screenshot comments
 
-Grab any region of the screen, adjust the selection, then add arrows, shapes, text, counters, blur, or pixelation. The screenshot stays attached to the comment, and you can reopen it to add or edit annotations. The [screenshot capture](https://docs.remarc.app/screenshots/capturing/) and [annotation and redaction](https://docs.remarc.app/screenshots/annotating-and-redacting/) guides cover the workflow.
+Grab any region of the screen, adjust the selection, then add arrows, shapes, text, counters, blur, or pixelation. The screenshot stays attached to the comment, and you can reopen it to add or edit annotations. Read about [screenshot capture](https://docs.remarc.app/screenshots/capturing/) and [annotation and redaction](https://docs.remarc.app/screenshots/annotating-and-redacting/).
 
-### Capture browser context
+#### Web element comments
 
-The [companion Chrome extension](https://remarc.app/chrome-extension/) captures the page URL, selected element, CSS, layout, accessibility data, and React component details when available. Your agent gets the captured web context with the comment. Installation and capture shortcuts are in the [extension guide](https://docs.remarc.app/chrome-extension/).
+The [companion Chrome extension](https://remarc.app/chrome-extension/) captures the page URL, selected element or page region, CSS, layout, accessibility data, and React component details when available. The captured web context stays with the comment. Installation and capture shortcuts are in the [extension guide](https://docs.remarc.app/chrome-extension/).
 
-### Speak your feedback
+#### Voice comments and Crit Mode
 
-On macOS 26 or later, dictate one comment or record a longer review in [Crit Mode](https://docs.remarc.app/voice/voice-comments-and-crit-mode/). Crit Mode transcribes the recording and splits it into separate comment cards. Remarc can also [dictate into any focused text field](https://docs.remarc.app/voice/dictation/) with push-to-talk or hands-free recording. Apple Speech, WhisperKit, and Parakeet all run transcription on your Mac.
+On macOS 26 or later, dictate one comment or record a longer review in [Crit Mode](https://docs.remarc.app/voice/voice-comments-and-crit-mode/). Crit Mode transcribes the recording and splits it into separate comment cards. Apple Speech, WhisperKit, and Parakeet all run transcription on your Mac. Separate from comments, Remarc can also [dictate into any focused text field](https://docs.remarc.app/voice/dictation/) with push-to-talk or hands-free recording.
 
-### Organize feedback into sessions
+#### Quick Notes
 
-Group comments into [sessions](https://docs.remarc.app/basics/sessions/) by review, project, or agent conversation. Each comment moves through Open, Handed Off, In-Progress, and Resolved, while resolved items keep the agent's summary of what changed. Deleted comments go to searchable [History](https://docs.remarc.app/basics/statuses-and-history/) instead of disappearing.
+Open a [Quick Note](https://docs.remarc.app/basics/quick-notes/) when there is nothing to select or capture. It creates a standalone comment for a thought, task, or piece of feedback.
 
-### Copy, export, or automate the handoff
+### 2. Your agent picks up the comments
+
+Comments land in a session. Once you connect an agent, it can read each one with the attached context and work through the list. You do not have to rebuild that context in a separate prompt.
+
+#### Sessions keep each review together
+
+Group comments into [sessions](https://docs.remarc.app/basics/sessions/) by review, project, or agent conversation. The permanent Inbox catches anything you do not file elsewhere, and connected agents can create sessions for their own conversations.
+
+#### MCP and plugins carry the context
+
+Claude Code and Codex connect through plugins, Cursor is configured by the app, and Claude Desktop or another MCP client can connect manually. Every supported client gets the same context and MCP tools for reading comments, managing sessions, and resolving work. The [agent integrations guide](https://docs.remarc.app/agents/overview/) covers each setup path.
+
+#### Statuses close the loop
+
+Each comment can move through Open, Handed Off, In-Progress, and Resolved. Agents can update the status as they work and leave a resolution summary when they finish. Deleted comments go to searchable [History](https://docs.remarc.app/basics/statuses-and-history/) instead of disappearing.
+
+#### Copy, export, or automate the handoff
 
 Copy a session into an agent prompt, paste it into the app you are using, or [export it as Markdown or JSON](https://docs.remarc.app/basics/export-comments/) with control over references and metadata. You can also send comment events to automation tools through [webhooks](https://docs.remarc.app/agents/webhooks/).
 
-### Keep your work local
+#### Local until you hand it off
 
-Remarc lives in the menu bar and makes its capture tools available through global shortcuts. Comments and screenshots stay on your Mac unless you hand them to an agent or send them through a webhook you configured. There are no accounts or telemetry. The [data and privacy guide](https://docs.remarc.app/reference/data-and-privacy/) explains what is stored and which features use the network.
+Comments and screenshots stay on your Mac unless you hand them to an agent or send them through a webhook you configured. There are no accounts or telemetry. The [data and privacy guide](https://docs.remarc.app/reference/data-and-privacy/) explains what is stored and which features use the network.
 
 ## Documentation
 
