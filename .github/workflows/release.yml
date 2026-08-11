@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       release_notes:
-        description: "Release notes with at least one '- ' bullet"
+        description: "One plain line or one or more '- ' bullet lines"
         required: true
         type: string
 
@@ -69,10 +69,17 @@ jobs:
           echo "build_number must be a positive integer" >&2
           exit 1
         fi
-        if ! grep -q '^-[[:space:]]' <<< "$NOTES"; then
-          echo "release_notes must contain at least one line beginning with '- '" >&2
-          exit 1
-        fi
+        python3 <<'PYTHON_EOF'
+        import os
+
+        lines = [line.strip() for line in os.environ["NOTES"].splitlines() if line.strip()]
+        if not lines:
+            raise SystemExit("release_notes cannot be empty")
+        if not all(line.startswith("- ") for line in lines) and len(lines) != 1:
+            raise SystemExit(
+                "release_notes must be one plain line or one or more '- ' bullet lines"
+            )
+        PYTHON_EOF
 
         CURRENT_VERSION="$(awk -F'= ' '/^MARKETING_VERSION =/ { print $2; exit }' app/Config/Shared.xcconfig)"
         CURRENT_BUILD="$(awk -F'= ' '/^CURRENT_PROJECT_VERSION =/ { print $2; exit }' app/Config/Shared.xcconfig)"
@@ -401,9 +408,10 @@ jobs:
           --notes "$NOTES"
 
         RELEASE_JSON="$RUNNER_TEMP/release.json"
-        gh release view "$TAG" --json isDraft,assets > "$RELEASE_JSON"
+        gh release view "$TAG" --json isDraft,assets,body > "$RELEASE_JSON"
         python3 - "$RELEASE_JSON" "$(stat -f '%z' Remarc.zip)" "$(stat -f '%z' Remarc.zip.sha256)" <<'PYTHON_EOF'
         import json
+        import os
         import sys
 
         release_path, zip_size, checksum_size = sys.argv[1:]
@@ -411,6 +419,8 @@ jobs:
             release = json.load(handle)
         if release.get("isDraft") is not True:
             raise SystemExit("release was not created as a draft")
+        if (release.get("body") or "").strip() != os.environ["NOTES"].strip():
+            raise SystemExit("draft release notes differ from the requested notes")
         expected = {"Remarc.zip": int(zip_size), "Remarc.zip.sha256": int(checksum_size)}
         actual = {asset["name"]: asset["size"] for asset in release.get("assets", [])}
         if actual != expected:
@@ -475,41 +485,26 @@ jobs:
         ):
             raise SystemExit(f"appcast already contains version {version}")
 
-        def appcast_section_key(section: str) -> str:
-            title_match = re.search(r"<h2>\s*(.*?)\s*</h2>", section, re.DOTALL)
-            title = title_match.group(1).strip() if title_match else section
-            version_match = re.search(r"(\d+(?:\.\d+)+)", title)
-            return version_match.group(1) if version_match else title
+        note_lines = [line.strip() for line in notes.splitlines() if line.strip()]
+        if not note_lines:
+            raise SystemExit("release notes cannot be empty")
 
-        previous_match = re.search(
-            r"<description><!\[CDATA\[(.*?)\]\]></description>", content, re.DOTALL
-        )
-        previous_notes = ""
-        if previous_match:
-            sections = re.findall(r"(<h2>.*?</ul>)", previous_match.group(1), re.DOTALL)
-            seen = {version}
-            unique_sections = []
-            for section in sections:
-                key = appcast_section_key(section)
-                if key not in seen:
-                    seen.add(key)
-                    unique_sections.append(section)
-            previous_notes = "\n".join(unique_sections)
-
-        list_items = [
-            f"                    <li>{escape(line.strip()[2:], quote=False)}</li>"
-            for line in notes.splitlines()
-            if line.strip().startswith("- ")
-        ]
-        if not list_items:
-            raise SystemExit("release notes must contain at least one '- ' bullet")
+        if all(line.startswith("- ") for line in note_lines):
+            list_items = [
+                f"                    <li>{escape(line[2:], quote=False)}</li>"
+                for line in note_lines
+            ]
+            note_body = "\n".join(["<ul>", "\n".join(list_items), "</ul>"])
+        else:
+            if len(note_lines) != 1:
+                raise SystemExit(
+                    "release notes must be one plain line or one or more '- ' bullet lines"
+                )
+            note_body = f"<p>{escape(note_lines[0], quote=False)}</p>"
 
         description_parts = [
             f"<h2>What's New in Remarc {version}</h2>",
-            "<ul>",
-            "\n".join(list_items),
-            "</ul>",
-            previous_notes,
+            note_body,
         ]
         description = "\n                ".join(description_parts)
         item = f"""        <item>
@@ -581,6 +576,7 @@ jobs:
     - name: Verify published appcast
       env:
         GH_TOKEN: ${{ secrets.GIST_PAT }}
+        NOTES: ${{ inputs.release_notes }}
       run: |
         set -euo pipefail
         PUBLISHED_APPCAST="$RUNNER_TEMP/published-appcast.xml"
@@ -589,6 +585,9 @@ jobs:
         xmllint --noout "$PUBLISHED_APPCAST"
         python3 - "$PUBLISHED_APPCAST" "$VERSION" "$BUILD_NUMBER" \
           "$ED_SIGNATURE" "$FILE_LENGTH" <<'PYTHON_EOF'
+        from html import unescape
+        import os
+        import re
         import sys
         import xml.etree.ElementTree as ET
 
@@ -615,6 +614,26 @@ jobs:
             raise SystemExit("published appcast has the wrong Sparkle signature")
         if enclosure.get("length") != length:
             raise SystemExit("published appcast has the wrong archive length")
+
+        description = item.findtext("description") or ""
+        section = re.fullmatch(
+            rf"\s*<h2>What's New in Remarc {re.escape(version)}</h2>\s*(.*?)\s*",
+            description,
+            re.DOTALL,
+        )
+        if section is None:
+            raise SystemExit("published appcast contains unexpected release-note sections")
+        rendered = unescape(re.sub(r"<[^>]+>", " ", section.group(1)))
+        rendered = " ".join(rendered.split())
+        note_lines = [
+            line.strip() for line in os.environ["NOTES"].splitlines() if line.strip()
+        ]
+        bullets = all(line.startswith("- ") for line in note_lines)
+        expected_notes = " ".join(
+            line[2:] if bullets else line for line in note_lines
+        )
+        if rendered != expected_notes:
+            raise SystemExit("published appcast release notes differ from the requested notes")
         PYTHON_EOF
 
     - name: Clean up signing material
