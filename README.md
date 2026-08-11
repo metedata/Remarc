@@ -105,7 +105,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and pull requests are welcom
 
 ## Support
 
-If Remarc is useful to you, you can [support its continued development on Buy Me a Coffee](https://buymeacoffee.com/metedata). Remarc remains free and open source.
+If Remarc is useful to you, you can [Buy Me a Coffee](https://buymeacoffee.com/metedata) to support its continued development. Remarc remains free and open source.
 
 ## Security
 
