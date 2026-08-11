@@ -1122,7 +1122,7 @@ body{
       <rect class="countdown-pointer-stroke" pathLength="1"/>
     </svg>
     <div class="countdown-copy" id="launch-countdown" aria-hidden="true">
-      <span class="countdown-fallback">Launching <time datetime="2026-08-11T10:00:00-04:00">Tuesday at 10 AM ET</time></span>
+      <span class="countdown-fallback">Launching <time datetime="2026-08-11T03:00:00-04:00">Tuesday at 3 AM ET</time></span>
       <span class="countdown-live" id="countdown-live" aria-hidden="true" hidden>
         <span class="countdown-prefix">Launching in</span>
         <span class="countdown-time">
@@ -1136,7 +1136,7 @@ body{
         </span>
       </span>
     </div>
-    <time class="sr-only" id="launch-date-at" datetime="2026-08-11T10:00:00-04:00">Launching Tuesday, August 11, 2026 at 10 AM Eastern Time</time>
+    <time class="sr-only" id="launch-date-at" datetime="2026-08-11T03:00:00-04:00">Launching Tuesday, August 11, 2026 at 3 AM Eastern Time</time>
   </div>
   <button class="notify-trigger" id="notify-trigger" type="button"
     aria-label="Get notified when Remarc launches" aria-expanded="false" aria-controls="notify-form">
@@ -1405,14 +1405,14 @@ body{
   syncMotion();
 })();
 
-/* Launch countdown: Tuesday, August 11, 2026 at 10:00 AM Eastern (EDT). */
+/* Launch countdown: Tuesday, August 11, 2026 at 3:00 AM Eastern (EDT). */
 (function(){
   var countdown=document.getElementById('launch-countdown'),
       live=document.getElementById('countdown-live'),
       fallback=countdown&&countdown.querySelector('.countdown-fallback'),
       motionQuery=window.matchMedia('(prefers-reduced-motion: reduce)');
   if(!countdown||!live||!fallback)return;
-  var target=new Date('2026-08-11T10:00:00-04:00').getTime(),
+  var target=new Date('2026-08-11T03:00:00-04:00').getTime(),
       names=['days','hours','minutes','seconds'],
       values={days:null,hours:null,minutes:null,seconds:null},
       timer=null,cutoverTimer=null,probeTimer=null,clockOffset=0;

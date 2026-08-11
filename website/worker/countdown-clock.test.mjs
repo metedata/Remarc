@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const LAUNCH_AT = '2026-08-11T14:00:00Z';
+const LAUNCH_AT = '2026-08-11T07:00:00Z';
 const LAUNCH_AT_MS = Date.parse(LAUNCH_AT);
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const scriptStart = html.indexOf('/* Launch countdown:');
