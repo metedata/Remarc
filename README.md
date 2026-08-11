@@ -4,12 +4,43 @@ Remarc is a macOS menu bar app for contextual commenting on anything on your scr
 
 https://github.com/user-attachments/assets/4393066b-1a22-484c-8703-c55ebef7edbb
 
-- **Comment anywhere.** Select text in any application and attach a comment to that exact selection.
-- **Speak instead of typing.** On-device voice dictation with WhisperKit or Parakeet transcription.
-- **Screenshot and annotate.** Capture a region, draw on it, redact it, and comment on it.
-- **Built for agent workflows.** Comments flow to Claude Code, Codex, and Cursor through an MCP server and plugins, so an agent can pick up your feedback session and address it item by item.
-- **Web context.** A [companion Chrome extension](https://remarc.app/chrome-extension/) captures the page URL and element context when you comment on web content.
-- **Private by default.** No accounts, no telemetry, no server. Comments live in a local JSON file on your Mac.
+## Features
+
+### Comment on any text
+
+Select text in any Mac app and attach a comment to that exact selection. Remarc keeps the quote and source app with your note, so your agent can find what you mean without a separate explanation. If there is no selection, open a [Quick Note](https://docs.remarc.app/basics/quick-notes/).
+
+### Work through comments with your agent
+
+Connect Claude Code, Codex, Cursor, Claude Desktop, or another MCP client. Agents can read the full context, move each comment from Open to In-Progress, and resolve it with a summary of what changed. See the [agent integrations guide](https://docs.remarc.app/agents/overview/) for setup.
+
+### Capture and mark up screenshots
+
+Grab any region of the screen, adjust the selection, then add arrows, shapes, text, counters, blur, or pixelation. The screenshot stays attached to the comment, and you can reopen it to add or edit annotations. The [screenshot capture](https://docs.remarc.app/screenshots/capturing/) and [annotation and redaction](https://docs.remarc.app/screenshots/annotating-and-redacting/) guides cover the workflow.
+
+### Capture browser context
+
+The [companion Chrome extension](https://remarc.app/chrome-extension/) captures the page URL, selected element, CSS, layout, accessibility data, and React component details when available. Your agent gets the captured web context with the comment. Installation and capture shortcuts are in the [extension guide](https://docs.remarc.app/chrome-extension/).
+
+### Speak your feedback
+
+On macOS 26 or later, dictate one comment or record a longer review in [Crit Mode](https://docs.remarc.app/voice/voice-comments-and-crit-mode/). Crit Mode transcribes the recording and splits it into separate comment cards. Remarc can also [dictate into any focused text field](https://docs.remarc.app/voice/dictation/) with push-to-talk or hands-free recording. Apple Speech, WhisperKit, and Parakeet all run transcription on your Mac.
+
+### Organize feedback into sessions
+
+Group comments into [sessions](https://docs.remarc.app/basics/sessions/) by review, project, or agent conversation. Each comment moves through Open, Handed Off, In-Progress, and Resolved, while resolved items keep the agent's summary of what changed. Deleted comments go to searchable [History](https://docs.remarc.app/basics/statuses-and-history/) instead of disappearing.
+
+### Copy, export, or automate the handoff
+
+Copy a session into an agent prompt, paste it into the app you are using, or [export it as Markdown or JSON](https://docs.remarc.app/basics/export-comments/) with control over references and metadata. You can also send comment events to automation tools through [webhooks](https://docs.remarc.app/agents/webhooks/).
+
+### Keep your work local
+
+Remarc lives in the menu bar and makes its capture tools available through global shortcuts. Comments and screenshots stay on your Mac unless you hand them to an agent or send them through a webhook you configured. There are no accounts or telemetry. The [data and privacy guide](https://docs.remarc.app/reference/data-and-privacy/) explains what is stored and which features use the network.
+
+## Documentation
+
+Read the [full Remarc documentation](https://docs.remarc.app/getting-started/what-is-remarc/) for setup and feature guides. Useful starting points include [installation](https://docs.remarc.app/getting-started/installation/), [permissions](https://docs.remarc.app/getting-started/permissions/), [agent integrations](https://docs.remarc.app/agents/overview/), [keyboard shortcuts](https://docs.remarc.app/reference/keyboard-shortcuts/), and [troubleshooting](https://docs.remarc.app/reference/troubleshooting/).
 
 ## Install
 
