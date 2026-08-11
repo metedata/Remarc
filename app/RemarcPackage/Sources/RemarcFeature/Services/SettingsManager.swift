@@ -14,6 +14,10 @@ public final class SettingsManager: ObservableObject {
     nonisolated static let fnKeyHandsFreeKey = "dictationHandsFreeUsesFnKey"
     nonisolated static let dictationEnabledKey = "dictationEnabled"
 
+    nonisolated static func isDictationEnabled(in defaults: UserDefaults) -> Bool {
+        defaults.bool(forKey: dictationEnabledKey)
+    }
+
     private enum Keys {
         static let isPaused = "isPaused"
         static let outputFormat = "outputFormat"
@@ -723,9 +727,8 @@ public final class SettingsManager: ObservableObject {
         self.dictationUsesFnKey = defaults.bool(forKey: Keys.dictationUsesFnKey)
         self.dictationHandsFreeUsesFnKey = defaults.bool(forKey: Keys.dictationHandsFreeUsesFnKey)
 
-        // Dictation toggle — defaults to enabled
-        self.dictationEnabled = defaults.object(forKey: Keys.dictationEnabled) == nil
-            ? true : defaults.bool(forKey: Keys.dictationEnabled)
+        // Standalone dictation is opt-in. An explicit saved choice still wins.
+        self.dictationEnabled = Self.isDictationEnabled(in: defaults)
 
         // Keep model in memory — defaults to off
         self.keepModelInMemory = defaults.bool(forKey: Keys.keepModelInMemory)
