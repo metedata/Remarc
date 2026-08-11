@@ -1,6 +1,6 @@
 # Remarc
 
-Remarc is the feedback layer between you and your coding agent. Point at something on your Mac, talk through a review, or jot down a quick note. Remarc keeps the relevant context with each comment so your agent can take it from there.
+Remarc is the feedback layer between you and your coding agent. Point at anything on your Mac: text, a screenshot, or a web element. Talk through a review or jot down a quick note. Remarc keeps the relevant context with each comment so your agent can take it from there.
 
 https://github.com/user-attachments/assets/4393066b-1a22-484c-8703-c55ebef7edbb
 
