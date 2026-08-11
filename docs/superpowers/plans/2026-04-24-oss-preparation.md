@@ -174,7 +174,7 @@ Critical for an app with accessibility + mic permissions.
 
 Sections:
 1. Supported versions (latest release only)
-2. Reporting a vulnerability: email (metepolat.a@gmail.com), expected response SLA (7 days acknowledgement, 30 days fix for critical)
+2. Reporting a vulnerability: email (mete@metedata.com), expected response SLA (7 days acknowledgement, 30 days fix for critical)
 3. Scope (in-scope: the shipped app, `mcp/`, `supabase/functions/`; out-of-scope: Chrome extension if shipped via store, website static content)
 4. Please do NOT open public GitHub Issues for vulnerabilities
 

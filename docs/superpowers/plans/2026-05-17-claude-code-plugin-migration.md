@@ -166,7 +166,7 @@ mkdir -p .claude-plugin plugins/shared
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "remarc",
-  "owner": { "name": "Mete Polat", "email": "metepolat.a@gmail.com" },
+  "owner": { "name": "Mete Polat", "email": "mete@metedata.com" },
   "description": "Plugins for the Remarc macOS contextual commenting app.",
   "plugins": [
     {
@@ -266,7 +266,7 @@ git commit -m "feat(shared): canonical data layer + JSON schema fixture"
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "remarc",
   "description": "Read, address, and resolve Remarc comments from Claude Code.",
-  "author": { "name": "Mete Polat", "email": "metepolat.a@gmail.com" },
+  "author": { "name": "Mete Polat", "email": "mete@metedata.com" },
   "homepage": "https://remarc.app",
   "repository": "https://github.com/metedata/remarc-agent-plugins",
   "license": "MIT",
@@ -734,7 +734,7 @@ git commit -m "feat(remarc-hooks): hook orchestrator with vitest coverage"
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "remarc-hooks",
   "description": "EXPERIMENTAL session-lifecycle hooks for Remarc. Auto-creates a Remarc session linked to each Claude Code session and injects open comments on session start. Install only if you want automatic context injection.",
-  "author": { "name": "Mete Polat", "email": "metepolat.a@gmail.com" },
+  "author": { "name": "Mete Polat", "email": "mete@metedata.com" },
   "homepage": "https://remarc.app",
   "repository": "https://github.com/metedata/remarc-agent-plugins",
   "license": "MIT",

@@ -6,7 +6,7 @@ Only the latest release receives security fixes.
 
 ## Reporting a vulnerability
 
-Please email **metepolat.a@gmail.com** with a description of the issue, steps to reproduce, and the Remarc version. Do **not** open a public GitHub issue for security problems.
+Please email **mete@metedata.com** with a description of the issue, steps to reproduce, and the Remarc version. Do **not** open a public GitHub issue for security problems.
 
 You can expect an acknowledgement within 7 days. Critical issues are prioritized for a fix release; you will be kept informed of progress.
 
