@@ -1,7 +1,7 @@
 import AppKit
 import AVFAudio
 import SwiftUI
-import ApplicationServices
+@preconcurrency import ApplicationServices
 
 @MainActor
 public final class OnboardingWindowController: NSObject, ObservableObject {
@@ -75,11 +75,23 @@ public final class OnboardingWindowController: NSObject, ObservableObject {
     // MARK: - Permission Requests
 
     public func requestAccessibility() {
+        let options = [
+            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true,
+        ] as CFDictionary
+
+        if AXIsProcessTrustedWithOptions(options) {
+            accessibilityState = .granted
+            return
+        }
+
         accessibilityState = .waitingForGrant
+        startAccessibilityPolling()
+    }
+
+    public func openAccessibilitySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
-        startAccessibilityPolling()
     }
 
     public func requestMicrophone() {
@@ -97,7 +109,17 @@ public final class OnboardingWindowController: NSObject, ObservableObject {
 
     public func requestScreenRecording() {
         screenRecordingState = .waitingForGrant
-        ScreenRecordingPermissionController.shared.registerInTCCAndOpenSettings()
+        let permissionController = ScreenRecordingPermissionController.shared
+        if permissionController.requestSystemPermission() {
+            screenRecordingState = .granted
+            permissionController.preAuthorizeCapture()
+            return
+        }
+        startScreenRecordingPolling()
+    }
+
+    public func openScreenRecordingSettings() {
+        ScreenRecordingPermissionController.shared.openSystemSettingsPane()
         startScreenRecordingPolling()
     }
 

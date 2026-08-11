@@ -11,7 +11,7 @@ Accessibility is the permission behind Remarc's core feature. Remarc uses the Ac
 
 Without it, [commenting on selections](/basics/commenting-on-selections/) does not work and the fn/globe key option is unavailable. Screenshot comments, quick notes, and the Chrome extension still work.
 
-To grant it later, open System Settings > Privacy & Security > Accessibility and enable Remarc. During onboarding, the Allow button takes you straight to this pane; macOS shows no system prompt for this one.
+During onboarding, click Allow and macOS will ask you to open Accessibility settings. Enable Remarc there. If the alert was previously dismissed, use the Open Settings fallback in Remarc or go to System Settings > Privacy & Security > Accessibility.
 
 ## Microphone
 
@@ -37,7 +37,7 @@ Screen Recording enables screenshot comments only. Remarc captures just the regi
 
 Without it, screenshot capture fails. Every other feature works.
 
-To grant it later, open System Settings > Privacy & Security > Screen & System Audio Recording and enable Remarc. Remarc does not need to relaunch after you grant it.
+To grant it later, open System Settings > Privacy & Security > Screen & System Audio Recording and enable Remarc. If macOS offers Quit & Reopen after you change the setting, accept it; Remarc resumes onboarding after relaunch.
 
 ## Not a permission: the local WebSocket
 

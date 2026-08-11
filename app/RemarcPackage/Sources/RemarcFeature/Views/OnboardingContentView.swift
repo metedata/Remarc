@@ -79,7 +79,8 @@ struct OnboardingContentView: View {
                 title: "Accessibility",
                 description: "Remarc reads your selected text so it can attach comments to it.",
                 state: controller.accessibilityState,
-                action: { controller.requestAccessibility() }
+                action: { controller.requestAccessibility() },
+                waitingAction: { controller.openAccessibilitySettings() }
             )
 
             permissionRow(
@@ -95,7 +96,8 @@ struct OnboardingContentView: View {
                 title: "Screen Recording",
                 description: "Used to capture screenshots of selected regions alongside your comments.",
                 state: controller.screenRecordingState,
-                action: { controller.requestScreenRecording() }
+                action: { controller.requestScreenRecording() },
+                waitingAction: { controller.openScreenRecordingSettings() }
             )
 
             pluginRow
@@ -227,7 +229,8 @@ struct OnboardingContentView: View {
         title: String,
         description: String,
         state: PermissionRowState,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        waitingAction: (() -> Void)? = nil
     ) -> some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
@@ -248,7 +251,7 @@ struct OnboardingContentView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            permissionStatusButton(state: state, action: action)
+            permissionStatusButton(state: state, action: action, waitingAction: waitingAction)
                 .frame(width: 130)
         }
         .padding(.horizontal, 16)
@@ -262,19 +265,34 @@ struct OnboardingContentView: View {
     @ViewBuilder
     private func permissionStatusButton(
         state: PermissionRowState,
-        action: @escaping () -> Void
+        action: @escaping () -> Void,
+        waitingAction: (() -> Void)?
     ) -> some View {
         switch state {
         case .needsPermission:
             AllowButton(colorScheme: colorScheme, action: action)
 
         case .waitingForGrant:
-            HStack(spacing: 6) {
-                ProgressView()
-                    .scaleEffect(0.55)
-                Text("Waiting...")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
+            if let waitingAction {
+                Button(action: waitingAction) {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .scaleEffect(0.55)
+                        Text("Open Settings")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(Color.remarcPrimary(for: colorScheme))
+            } else {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.55)
+                    Text("Waiting...")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
             }
 
         case .granted:
