@@ -1,6 +1,6 @@
 # Remarc
 
-Remarc is a macOS menu bar app for contextual commenting on anything on your screen. Select text in any app, attach a comment to it, and hand your notes to a coding agent - or keep them for yourself.
+Remarc is the feedback layer between you and your coding agent. Point at something on your Mac, talk through a review, or jot down a quick note. Remarc keeps the relevant context with each comment so your agent can take it from there.
 
 https://github.com/user-attachments/assets/4393066b-1a22-484c-8703-c55ebef7edbb
 
