@@ -24,7 +24,7 @@ The [companion Chrome extension](https://remarc.app/chrome-extension/) captures 
 
 #### Voice comments and Crit Mode
 
-On macOS 26 or later, dictate one comment or record a longer review in [Crit Mode](https://docs.remarc.app/voice/voice-comments-and-crit-mode/). Crit Mode transcribes the recording and splits it into separate comment cards. Apple Speech, WhisperKit, and Parakeet all run transcription on your Mac. Separate from comments, Remarc can also [dictate into any focused text field](https://docs.remarc.app/voice/dictation/) with push-to-talk or hands-free recording.
+On macOS 26 or later, dictate one comment or record a longer review in [Crit Mode](https://docs.remarc.app/voice/voice-comments-and-crit-mode/). Crit Mode transcribes the recording and splits it into separate comment cards. Apple Speech, WhisperKit, and Parakeet all run transcription on your Mac.
 
 #### Quick Notes
 
