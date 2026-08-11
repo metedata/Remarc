@@ -41,13 +41,21 @@ public final class ScreenRecordingPermissionController: NSObject, ObservableObje
         showPanel()
     }
 
-    /// Register the app in the TCC database and open System Settings to the Screen Recording pane.
-    /// Uses SCShareableContent to register (avoids CGRequestScreenCaptureAccess which forces
-    /// quit-and-reopen on macOS 15+).
-    public func registerInTCCAndOpenSettings() {
-        Task {
-            _ = try? await SCShareableContent.current
+    /// Ask macOS to register this process and request Screen Recording access.
+    /// Keep the request separate from the Settings fallback so the native prompt
+    /// is not raced or covered by System Settings.
+    @discardableResult
+    public func requestSystemPermission() -> Bool {
+        if hasPermission() {
+            return true
         }
+
+        let granted = CGRequestScreenCaptureAccess()
+        debugLog("ScreenRecordingPermission: System request returned \(granted)")
+        return granted || hasPermission()
+    }
+
+    public func openSystemSettingsPane() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
             NSWorkspace.shared.open(url)
         }
@@ -75,7 +83,10 @@ public final class ScreenRecordingPermissionController: NSObject, ObservableObje
     /// Open System Settings to the Screen Recording privacy pane and start polling.
     public func openSystemSettings() {
         state = .waitingForGrant
-        registerInTCCAndOpenSettings()
+        if requestSystemPermission() {
+            handlePermissionGranted()
+            return
+        }
         startPolling()
     }
 
@@ -251,7 +262,7 @@ struct ScreenRecordingPermissionView: View {
         case .needsPermission:
             VStack(spacing: 12) {
                 Button(action: { controller.openSystemSettings() }) {
-                    Text("Open System Settings")
+                    Text("Allow Screen Recording")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                         .frame(maxWidth: 240)
@@ -275,12 +286,30 @@ struct ScreenRecordingPermissionView: View {
             }
 
         case .waitingForGrant:
-            HStack(spacing: 8) {
-                ProgressView()
-                    .scaleEffect(0.7)
-                Text("Waiting for permission...")
-                    .font(.system(size: 13))
-                    .foregroundColor(.primary.opacity(0.6))
+            VStack(spacing: 12) {
+                Button(action: { controller.openSystemSettingsPane() }) {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text("Open System Settings")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                    .frame(maxWidth: 240)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.remarcPrimary(for: colorScheme).opacity(0.14))
+                    )
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(Color.remarcPrimary(for: colorScheme))
+
+                Button(action: { controller.skip() }) {
+                    Text("Skip")
+                        .font(.system(size: 13))
+                        .foregroundColor(.primary.opacity(0.45))
+                }
+                .buttonStyle(.plain)
             }
 
         case .granted:

@@ -12,5 +12,7 @@
     <string>Remarc uses the microphone to transcribe your voice critiques into comments.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>Remarc uses speech recognition to transcribe your voice critiques into comments.</string>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>Remarc uses screen recording access to capture regions you select for screenshot comments.</string>
 </dict>
 </plist>

@@ -48,7 +48,7 @@ A harness can list the plugin as installed even when the MCP server fails to sta
 
 ## Screenshot capture fails
 
-Screenshot comments require the Screen Recording permission. Grant it in System Settings > Privacy & Security > Screen & System Audio Recording (called Screen Recording on older macOS), then try again; Remarc does not need to relaunch.
+Screenshot comments require the Screen Recording permission. Grant it in System Settings > Privacy & Security > Screen & System Audio Recording (called Screen Recording on older macOS), then try again. If macOS offers Quit & Reopen after you change the setting, accept it.
 
 ## Quick answers
 

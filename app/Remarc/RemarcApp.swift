@@ -25,12 +25,58 @@ struct RemarcApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    private var shouldSkipSetup = false
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
         #if !DEBUG
-        AppMover.moveIfNecessary()
+        // AppMover copies the quarantined download into Applications, then
+        // schedules this process to exit and relaunch from the stable path.
+        // Do not let the transient Downloads/App Translocation process begin
+        // onboarding or register itself with TCC in the meantime.
+        let moveStarted = AppMover.moveIfNecessary()
+        let installedCopyIsAlreadyRunning = installedRemarcCopyIsAlreadyRunning
+        shouldSkipSetup = moveStarted || installedCopyIsAlreadyRunning
+
+        // AppMover activates an existing Applications copy and returns false.
+        // Terminate this downloaded copy so it cannot register a second TCC
+        // identity while the installed app is already serving the user.
+        if !moveStarted && installedCopyIsAlreadyRunning {
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        }
         #endif
+    }
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        guard !shouldSkipSetup else { return }
 
         AppController.shared.setup()
+    }
+
+    private var installedRemarcCopyIsAlreadyRunning: Bool {
+        guard !Self.isInApplicationsDirectory(Bundle.main.bundleURL) else { return false }
+        guard let bundleIdentifier = Bundle.main.bundleIdentifier else { return false }
+        let currentProcessIdentifier = ProcessInfo.processInfo.processIdentifier
+
+        return NSWorkspace.shared.runningApplications.contains { application in
+            guard application.bundleIdentifier == bundleIdentifier,
+                  application.processIdentifier != currentProcessIdentifier,
+                  let bundleURL = application.bundleURL
+            else { return false }
+
+            return Self.isInApplicationsDirectory(bundleURL)
+        }
+    }
+
+    private static func isInApplicationsDirectory(_ bundleURL: URL) -> Bool {
+        let standardizedBundleURL = bundleURL.resolvingSymlinksInPath().standardizedFileURL
+
+        return FileManager.default.urls(for: .applicationDirectory, in: .allDomainsMask).contains { directory in
+            let standardizedDirectory = directory.resolvingSymlinksInPath().standardizedFileURL
+            return standardizedBundleURL.path == standardizedDirectory.path
+                || standardizedBundleURL.path.hasPrefix(standardizedDirectory.path + "/")
+        }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

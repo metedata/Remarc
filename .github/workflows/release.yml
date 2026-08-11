@@ -301,6 +301,11 @@ jobs:
         xcrun stapler validate "$APP"
         test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO_PLIST")" = "$VERSION"
         test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO_PLIST")" = "$BUILD_NUMBER"
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$INFO_PLIST")" = "Remarc"
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$INFO_PLIST")" = "Remarc"
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$INFO_PLIST")" = "Remarc"
+        test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")" = "com.metepolat.Remarc"
+        test -n "$(/usr/libexec/PlistBuddy -c 'Print :NSScreenCaptureUsageDescription' "$INFO_PLIST")"
 
         ditto -c -k --sequesterRsrc --keepParent "$APP" Remarc.zip
         test -s Remarc.zip
