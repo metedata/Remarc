@@ -2,6 +2,8 @@
 
 Remarc is a macOS menu bar app for contextual commenting on anything on your screen. Select text in any app, attach a comment to it, and hand your notes to a coding agent - or keep them for yourself.
 
+https://github.com/user-attachments/assets/4393066b-1a22-484c-8703-c55ebef7edbb
+
 - **Comment anywhere.** Select text in any application and attach a comment to that exact selection.
 - **Speak instead of typing.** On-device voice dictation with WhisperKit or Parakeet transcription.
 - **Screenshot and annotate.** Capture a region, draw on it, redact it, and comment on it.
