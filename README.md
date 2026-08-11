@@ -6,7 +6,7 @@ Remarc is a macOS menu bar app for contextual commenting on anything on your scr
 - **Speak instead of typing.** On-device voice dictation with WhisperKit or Parakeet transcription.
 - **Screenshot and annotate.** Capture a region, draw on it, redact it, and comment on it.
 - **Built for agent workflows.** Comments flow to Claude Code, Codex, and Cursor through an MCP server and plugins, so an agent can pick up your feedback session and address it item by item.
-- **Web context.** A companion Chrome extension captures the page URL and element context when you comment on web content.
+- **Web context.** A [companion Chrome extension](https://remarc.app/chrome-extension/) captures the page URL and element context when you comment on web content.
 - **Private by default.** No accounts, no telemetry, no server. Comments live in a local JSON file on your Mac.
 
 ## Install
@@ -15,6 +15,7 @@ Download the latest signed and notarized build:
 
 - [remarc.app/download](https://remarc.app/download)
 - or grab `Remarc.zip` from [GitHub Releases](https://github.com/metedata/Remarc/releases/latest)
+- [Install the companion Chrome extension](https://remarc.app/chrome-extension/) for web context in Chrome and other Chromium browsers.
 
 Requires macOS 14.0 (Sonoma) or later. The app updates itself via Sparkle.
 
@@ -61,4 +62,4 @@ To report a vulnerability, please see [SECURITY.md](SECURITY.md). Do not open a 
 
 Remarc is released under the [MIT License](LICENSE).
 
-The Remarc name, logo, and app icon are trademarks of Mete Polat and are not covered by the MIT license. Third-party software notices are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). If you distribute a fork, ship it under a different name and icon.
+The Remarc name, logo, and app icon belong to Metedata LLC and are not covered by the MIT license. Third-party software notices are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). If you distribute a fork, ship it under a different name and icon.
