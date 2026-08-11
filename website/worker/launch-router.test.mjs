@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import worker, { parseLaunchAt, routeRequest, siteStateAt } from './launch-router.mjs';
 
-const LAUNCH_AT = '2026-08-11T14:00:00Z';
+const LAUNCH_AT = '2026-08-11T07:00:00Z';
 const LAUNCH_AT_MS = Date.parse(LAUNCH_AT);
 
 function makeEnv() {
@@ -39,8 +39,17 @@ test('keeps the Worker deadline aligned with the visible countdown', () => {
   const config = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'));
   const countdown = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
   assert.equal(config.vars.LAUNCH_AT, LAUNCH_AT);
-  assert.match(countdown, /2026-08-11T10:00:00-04:00/);
-  assert.equal(Date.parse(config.vars.LAUNCH_AT), Date.parse('2026-08-11T10:00:00-04:00'));
+  assert.match(
+    countdown,
+    /<time datetime="2026-08-11T03:00:00-04:00">Tuesday at 3 AM ET<\/time>/,
+  );
+  assert.match(
+    countdown,
+    /datetime="2026-08-11T03:00:00-04:00">Launching Tuesday, August 11, 2026 at 3 AM Eastern Time<\/time>/,
+  );
+  assert.match(countdown, /new Date\('2026-08-11T03:00:00-04:00'\)/);
+  assert.doesNotMatch(countdown, /2026-08-11T10:00:00-04:00|10 AM ET|10 AM Eastern Time/);
+  assert.equal(Date.parse(config.vars.LAUNCH_AT), Date.parse('2026-08-11T03:00:00-04:00'));
 });
 
 test('selects launch at the exact deadline', () => {
