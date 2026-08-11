@@ -486,7 +486,7 @@ public final class AppController: NSObject, ObservableObject {
         let contactLink = NSAttributedString(
             string: "Contact",
             attributes: [
-                .link: URL(string: "mailto:support@metedata.com")!,
+                .link: URL(string: "mailto:mete@metedata.com")!,
                 .font: footerFont
             ]
         )
