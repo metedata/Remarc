@@ -71,7 +71,7 @@ final class FnKeyMonitor {
     nonisolated var shouldConsume: Bool {
         // Read directly from UserDefaults to avoid @MainActor issues in the C callback
         let defaults = UserDefaults.standard
-        guard defaults.object(forKey: SettingsManager.dictationEnabledKey) == nil || defaults.bool(forKey: SettingsManager.dictationEnabledKey) else {
+        guard SettingsManager.isDictationEnabled(in: defaults) else {
             return false
         }
         return defaults.bool(forKey: SettingsManager.fnKeyDictationKey)
