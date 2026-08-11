@@ -1,7 +1,7 @@
 # Cloudflare Pages redirects
 
-# Temporary fallback to the currently shipped build until the GitHub release is restored
-/download  https://releases.remarc.app/Remarc-0.5.1.zip  302
+# Latest signed macOS release
+/download  https://github.com/metedata/Remarc/releases/latest/download/Remarc.zip  302
 
 # Public support and release history
 /support  https://github.com/metedata/Remarc/issues  302
