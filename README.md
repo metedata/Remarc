@@ -103,6 +103,10 @@ Swift 6, SwiftUI + AppKit, [Sparkle](https://github.com/sparkle-project/Sparkle)
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Bug reports and pull requests are welcome.
 
+## Support
+
+If Remarc is useful to you, you can [support its continued development on Buy Me a Coffee](https://buymeacoffee.com/metedata). Remarc remains free and open source.
+
 ## Security
 
 To report a vulnerability, please see [SECURITY.md](SECURITY.md). Do not open a public issue for security problems.
