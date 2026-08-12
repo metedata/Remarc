@@ -13,6 +13,7 @@ run_default_install() {
 
   [[ -L "$agent/skills/remarc" ]]
   [[ -L "$agent/skills/remarc-review" ]]
+  [[ -L "$agent/extensions/remarc-wake" ]]
   node - "$agent/mcp.json" "$REPO/mcp/vendor/remarc-mcp.js" <<'NODE'
 const fs = require("node:fs");
 const [, , configPath, bundlePath] = process.argv;
@@ -70,6 +71,7 @@ JSON
   fi
   [[ ! -e "$agent/skills/remarc" ]]
   [[ ! -e "$agent/skills/remarc-review" ]]
+  [[ ! -e "$agent/extensions/remarc-wake" ]]
 }
 
 run_skills_only_test() {
@@ -77,6 +79,7 @@ run_skills_only_test() {
   OMP_AGENT_DIR="$agent" bash "$INSTALLER" --skills-only >/dev/null
   [[ -L "$agent/skills/remarc" ]]
   [[ -L "$agent/skills/remarc-review" ]]
+  [[ -L "$agent/extensions/remarc-wake" ]]
   [[ ! -e "$agent/mcp.json" ]]
 }
 
@@ -84,5 +87,8 @@ run_default_install
 run_merge_test
 run_refusal_test
 run_skills_only_test
+
+echo "Installer tests passed; running wake protocol tests"
+node --test "$REPO/integrations/omp/remarc-wake/index.test.ts" "$REPO/integrations/omp/remarc-wake/index.lifecycle.test.ts"
 
 echo "OMP installer tests passed"

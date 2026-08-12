@@ -57,10 +57,44 @@ from Claude, Codex, or another configuration:
 - symlinks `mcp/skill/` to `skills/remarc`;
 - symlinks `integrations/omp/skills/remarc-review/` to
   `skills/remarc-review`;
+- symlinks `integrations/omp/remarc-wake/` to `extensions/remarc-wake`;
 - safely merges a `remarc` stdio server into OMP's `mcp.json`;
 - refuses to replace unmanaged files, symlinks, or an existing different MCP
   server named `remarc`;
 - creates one `mcp.json.bak` before the first managed edit of an existing file.
+
+## Wake delivery
+
+The `remarc-wake` OMP extension mirrors the Claude Code hook's wake path for
+OMP sessions. Run `/remarc-pair` once in the OMP session you want woken to
+bind it to the app's active Remarc session (pairing is explicit; nothing
+pairs silently, and a pairing owned by another live session is refused).
+After that, the app's Send-Instantly / wake CTA delivers flagged comments
+into this session as a user message that starts a turn.
+
+Protocol conformance follows
+`docs/superpowers/specs/2026-08-06-wake-on-comment-design.md` plus the
+vendored marker tooling in `mcp/vendor/remarc-mcp.js`:
+
+- markers live in `Remarc/claude/markers/omp-<session>.json` with a
+  directory lock (`<marker>.lock/`) and abandoned-owner recovery
+- dedup is `wakedAt[commentId] = wakeRequestedAt` generation, recorded
+  AFTER emit (duplicates benign, loss not); re-wake works when the comment
+  is woken again (newer generation)
+- OMP wake delivery is scoped to the paired session, matching the app's
+  per-pairing wake CTA (the Claude-side global arbitration does not apply)
+- payloads wrap user comment text and session names in per-render
+  randomized sentinels and cap at 10 comments / 6,000 characters total
+
+`/remarc-unpair` detaches. On exit the session flips its marker to
+`wakeCapable: false` immediately so the app stops offering wake to a dead
+target; resuming the same OMP session re-arms the pairing automatically.
+
+Run the protocol tests directly with:
+
+```bash
+node --test integrations/omp/remarc-wake/index.test.ts
+```
 
 ## Verify
 

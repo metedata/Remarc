@@ -59,10 +59,11 @@ fi
 
 GENERIC_SKILL="$REPO/mcp/skill"
 REVIEW_SKILL="$REPO/integrations/omp/skills/remarc-review"
+WAKE_EXTENSION="$REPO/integrations/omp/remarc-wake"
 MCP_BUNDLE="$REPO/mcp/vendor/remarc-mcp.js"
 MCP_CONFIG="$AGENT_DIR/mcp.json"
 
-for required in "$GENERIC_SKILL/SKILL.md" "$REVIEW_SKILL/SKILL.md"; do
+for required in "$GENERIC_SKILL/SKILL.md" "$REVIEW_SKILL/SKILL.md" "$WAKE_EXTENSION/index.ts"; do
   [[ -f "$required" ]] || { echo "missing required file: $required" >&2; exit 1; }
 done
 
@@ -94,8 +95,10 @@ link_managed() {
 
 REMARC_SKILL_DEST="$AGENT_DIR/skills/remarc"
 REVIEW_SKILL_DEST="$AGENT_DIR/skills/remarc-review"
+WAKE_EXTENSION_DEST="$AGENT_DIR/extensions/remarc-wake"
 check_linkable "$GENERIC_SKILL" "$REMARC_SKILL_DEST"
 check_linkable "$REVIEW_SKILL" "$REVIEW_SKILL_DEST"
+check_linkable "$WAKE_EXTENSION" "$WAKE_EXTENSION_DEST"
 
 if ((INSTALL_MCP)); then
   command -v node >/dev/null 2>&1 || {
@@ -187,6 +190,7 @@ fi
 
 link_managed "$GENERIC_SKILL" "$REMARC_SKILL_DEST"
 link_managed "$REVIEW_SKILL" "$REVIEW_SKILL_DEST"
+link_managed "$WAKE_EXTENSION" "$WAKE_EXTENSION_DEST"
 
 cat <<REPORT
 
