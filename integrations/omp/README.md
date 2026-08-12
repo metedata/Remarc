@@ -70,7 +70,9 @@ OMP sessions. Run `/remarc-pair` once in the OMP session you want woken to
 bind it to the app's active Remarc session (pairing is explicit; nothing
 pairs silently, and a pairing owned by another live session is refused).
 After that, the app's Send-Instantly / wake CTA delivers flagged comments
-into this session as a user message that starts a turn.
+into this session as a user message that starts a turn. If OMP is busy, the
+extension waits for the current run to settle instead of queuing a stale
+follow-up.
 
 Protocol conformance follows
 `docs/superpowers/specs/2026-08-06-wake-on-comment-design.md` plus the
@@ -78,6 +80,9 @@ vendored marker tooling in `mcp/vendor/remarc-mcp.js`:
 
 - markers live in `Remarc/claude/markers/omp-<session>.json` with a
   directory lock (`<marker>.lock/`) and abandoned-owner recovery
+- OMP markers carry a process ID and random owner token. A live leased owner
+  cannot be replaced, even when its activity timestamp is old; ownerless
+  legacy markers use timestamp liveness and are never adopted while live
 - dedup is `wakedAt[commentId] = wakeRequestedAt` generation, recorded
   AFTER emit (duplicates benign, loss not); re-wake works when the comment
   is woken again (newer generation)

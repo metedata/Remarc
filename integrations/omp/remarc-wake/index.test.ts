@@ -255,6 +255,34 @@ describe("markerIsLive + liveMarkersRanked", () => {
 		assert.deepEqual(ranked, ["old.json"]); // dead and off excluded
 		fs.rmSync(dir, { recursive: true, force: true });
 	});
+
+	test("uses PID liveness for leased markers regardless of activity time", () => {
+		const dir = tmpdir();
+		fs.writeFileSync(
+			path.join(dir, "live-stale.json"),
+			JSON.stringify({
+				wakeCapable: true,
+				ownerPid: process.pid,
+				ownerToken: "live",
+				lastActivity: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+			}),
+		);
+		fs.writeFileSync(
+			path.join(dir, "dead-fresh.json"),
+			JSON.stringify({
+				wakeCapable: true,
+				ownerPid: 999_999_999,
+				ownerToken: "dead",
+				lastActivity: new Date().toISOString(),
+			}),
+		);
+
+		const ranked = liveMarkersRanked(dir).map((marker) =>
+			path.basename(marker.file),
+		);
+		assert.deepEqual(ranked, ["live-stale.json"]);
+		fs.rmSync(dir, { recursive: true, force: true });
+	});
 });
 
 describe("Sol review findings coverage", () => {

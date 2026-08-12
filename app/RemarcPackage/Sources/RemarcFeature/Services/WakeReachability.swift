@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Decides whether pressing the wake button could actually reach an agent.
 ///
@@ -89,6 +90,18 @@ enum WakeReachability {
     }
 
     private static func isLive(raw: [String: Any], now: Date) -> Bool {
+        // OMP markers carry a process lease. For these markers the process is
+        // authoritative: activity can be old while the watcher is still armed,
+        // and a fresh marker can survive an abnormal process exit.
+        if let ownerToken = raw["ownerToken"] as? String,
+           !ownerToken.isEmpty,
+           let ownerPID = raw["ownerPid"] as? NSNumber {
+            let pid = pid_t(truncating: ownerPID)
+            guard pid > 0 else { return false }
+            if kill(pid, 0) == 0 { return true }
+            return errno == EPERM
+        }
+
         // A named transcript settles it on its own, present or absent.
         //
         // Absent is the interesting case. `claude plugin list --json` - which

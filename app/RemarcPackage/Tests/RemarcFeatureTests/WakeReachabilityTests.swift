@@ -52,10 +52,14 @@ final class WakeReachabilityTests: XCTestCase {
         wakeCapable: Bool,
         lastActivity: Date?,
         fractionalSeconds: Bool = true,
-        transcriptPath: String? = nil
+        transcriptPath: String? = nil,
+        ownerPid: Int32? = nil,
+        ownerToken: String? = nil
     ) throws {
         var raw: [String: Any] = ["remarcSessionId": "S1", "wakeCapable": wakeCapable]
         if let transcriptPath { raw["transcriptPath"] = transcriptPath }
+        if let ownerPid { raw["ownerPid"] = ownerPid }
+        if let ownerToken { raw["ownerToken"] = ownerToken }
         if let lastActivity {
             raw["lastActivity"] = fractionalSeconds
                 ? nodeISOString(lastActivity)
@@ -121,6 +125,28 @@ final class WakeReachabilityTests: XCTestCase {
         XCTAssertTrue(isLive())
     }
 
+
+    func testLiveLeasedOMPSessionIgnoresStaleActivityTimestamp() throws {
+        try writeMarker(
+            "omp-live-stale",
+            wakeCapable: true,
+            lastActivity: Date(timeIntervalSinceNow: -60 * 60 * 5),
+            ownerPid: ProcessInfo.processInfo.processIdentifier,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertTrue(isLive())
+    }
+
+    func testDeadLeasedOMPSessionIgnoresFreshActivityTimestamp() throws {
+        try writeMarker(
+            "omp-dead-fresh",
+            wakeCapable: true,
+            lastActivity: Date(),
+            ownerPid: 999_999_999,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertFalse(isLive())
+    }
     /// A marker with no usable timestamp at all must not be treated as live:
     /// an abandoned marker would otherwise offer a button that reaches nobody.
     func testMarkerWithNoTimestampIsNotReachable() throws {

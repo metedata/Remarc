@@ -59,11 +59,17 @@ export const MARKERS_DIR = path.join(REMARC_DIR, "claude", "markers");
 
 const POLL_INTERVAL_MS = 15_000;
 const DRAIN_DEBOUNCE_MS = 300;
+const RESUME_RETRY_MS = 250;
 export const LIVE_WINDOW_MS = 4 * 60 * 60 * 1000;
 const BACKOFF_STEP_MS = 300;
 const BACKOFF_MAX_RANK = 3;
 export const WAKE_MAX_COMMENTS = 10;
 export const WAKE_MAX_CHARS = 6_000;
+const configuredPendingTtl = Number(process.env.REMARC_WAKE_PENDING_TTL_MS);
+const PENDING_WAKE_TTL_MS =
+	Number.isFinite(configuredPendingTtl) && configuredPendingTtl > 0
+		? configuredPendingTtl
+		: 60_000;
 
 // Marker-lock convention mirrored from the vendored tooling.
 const LOCK_TIMEOUT_MS = 2_000;
@@ -114,6 +120,9 @@ export type Marker = Record<string, unknown> & {
 	deliveredIds: string[];
 	/** commentId -> last woken wakeRequestedAt (Apple reference-date seconds). */
 	wakedAt: Record<string, number>;
+	/** OMP process-instance lease; ignored by the app and legacy tooling. */
+	ownerPid?: number;
+	ownerToken?: string;
 };
 
 function emptyMarker(): Omit<Marker, "harness" | "remarcSessionId"> {
@@ -308,21 +317,23 @@ export function liveMarkersRanked(
 		return [];
 	}
 	const ranked: { file: string; lastActivity: number }[] = [];
-	for (const e of entries) {
-		if (!e.isFile() || !e.name.endsWith(".json")) continue;
-		const file = path.join(markersDir, e.name);
+	for (const entry of entries) {
+		if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+		const file = path.join(markersDir, entry.name);
 		const raw = readJsonFile(file);
-		if (
-			!raw ||
-			typeof raw !== "object" ||
-			(raw as Record<string, unknown>).wakeCapable !== true ||
-			!markerIsLive(raw as Record<string, unknown>, now)
-		) {
-			continue;
-		}
-		const at = Date.parse(
-			(String((raw as Record<string, unknown>).lastActivity) as string) ?? "",
-		);
+		if (!raw || typeof raw !== "object") continue;
+		const marker = raw as Record<string, unknown>;
+		if (marker.wakeCapable !== true) continue;
+		const isLive =
+			typeof marker.ownerPid === "number" &&
+			typeof marker.ownerToken === "string"
+				? pidAlive(marker.ownerPid)
+				: markerIsLive(marker, now);
+		if (!isLive) continue;
+		const at =
+			typeof marker.lastActivity === "string"
+				? Date.parse(marker.lastActivity)
+				: NaN;
 		ranked.push({ file, lastActivity: Number.isFinite(at) ? at : 0 });
 	}
 	ranked.sort((a, b) => b.lastActivity - a.lastActivity);
@@ -441,9 +452,22 @@ interface PendingWake {
 	snap: PairingSnap;
 	emitted: RemarcComment[];
 	acknowledged: boolean;
+	queuedAt: number;
 }
 
 export default function remarcWakeExtension(pi: ExtensionAPI) {
+	const ownerToken = crypto.randomUUID();
+	const isLiveForeignOwner = (marker: Marker): boolean => {
+		if (!marker.wakeCapable || marker.ownerToken === ownerToken) return false;
+		if (
+			typeof marker.ownerPid === "number" &&
+			typeof marker.ownerToken === "string"
+		) {
+			return pidAlive(marker.ownerPid);
+		}
+		// Legacy markers have no process lease, so activity is the only signal.
+		return markerIsLive(marker);
+	};
 	// The ONLY mutable ownership state. Every async continuation validates an
 	// immutable snapshot captured at pair/resume time; a stale snap can never
 	// write against a newer lifecycle.
@@ -453,6 +477,8 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 	let watcher: fs.FSWatcher | null = null;
 	let pollTimer: NodeJS.Timeout | undefined;
 	let drainTimer: NodeJS.Timeout | undefined;
+	let resumeRetryTimer: NodeJS.Timeout | undefined;
+	const markerRetireTimers = new Map<string, NodeJS.Timeout>();
 	let draining = false;
 	let epoch = 0;
 	// Emitted but unconfirmed wakes. Register each delivery before sendMessage,
@@ -480,13 +506,40 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 	async function persistLiveness(
 		s: PairingSnap,
 		ctx: ExtensionContext | null,
-		opts: { create?: boolean; wakeCapable: boolean },
+		opts: {
+			create?: boolean;
+			claimOwnerless?: boolean;
+			claimDeadOwner?: boolean;
+			wakeCapable: boolean;
+		},
 	): Promise<boolean> {
 		if (s.epoch !== epoch) return false; // stale lifecycle snapshot
 		const sessionFile = ctx?.sessionManager.getSessionFile() ?? null;
 		const now = new Date().toISOString();
 		const result = await enqueueWrite(() =>
 			updateMarker(s.file, (onDisk) => {
+				if (
+					opts.create &&
+					onDisk &&
+					(onDisk.harness !== "omp" ||
+						onDisk.remarcSessionId !== s.pairing)
+				)
+					return null;
+				const ownsMarker = onDisk?.ownerToken === ownerToken;
+				const hasDeadLease =
+					typeof onDisk?.ownerToken === "string" &&
+					typeof onDisk.ownerPid === "number" &&
+					!pidAlive(onDisk.ownerPid);
+				if (opts.claimDeadOwner) {
+					if (!ownsMarker && !hasDeadLease) return null;
+				} else if (opts.claimOwnerless) {
+					const ownerless = onDisk?.ownerToken === undefined;
+					if (!ownsMarker && !ownerless && !hasDeadLease) return null;
+				} else if (!opts.create) {
+					if (!ownsMarker) return null;
+				} else if (onDisk && isLiveForeignOwner(onDisk)) {
+					return null;
+				}
 				if (!opts.create) {
 					if (
 						!onDisk ||
@@ -500,6 +553,8 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 						wakeCapable: opts.wakeCapable,
 						lastActivity: now,
 						dataFilePath: COMMENTS_FILE,
+						ownerPid: process.pid,
+						ownerToken,
 						...(sessionFile ? { transcriptPath: sessionFile } : {}),
 					};
 				}
@@ -510,6 +565,8 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 					remarcSessionId: s.pairing,
 					dataFilePath: COMMENTS_FILE,
 					wakeCapable: true,
+					ownerPid: process.pid,
+					ownerToken,
 					lastActivity: now,
 					transcriptPath: sessionFile,
 				};
@@ -519,20 +576,26 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 	}
 
 	/** Locked delete that only removes OUR marker, never a repurposed one.
-	 * Runs on the write chain so queued operations of this lifecycle land first. */
-	async function deleteOwnMarker(s: PairingSnap): Promise<void> {
-		await enqueueWrite(async () => {
+	 * Runs on the write chain so queued operations of this lifecycle land first.
+	 * Returns false only when cleanup must be retried. */
+	async function deleteOwnMarker(s: PairingSnap): Promise<boolean> {
+		return enqueueWrite(async () => {
 			const release = await acquireMarkerLock(s.file);
-			if (!release) return; // owner busy; the stale marker decays via timestamps
+			if (!release) return false;
 			try {
 				const onDisk = coerceMarker(readJsonFile(s.file));
-				if (onDisk?.harness === "omp" && onDisk.remarcSessionId === s.pairing) {
+				if (
+					onDisk?.harness === "omp" &&
+					onDisk.remarcSessionId === s.pairing &&
+					onDisk.ownerToken === ownerToken
+				) {
 					try {
 						fs.unlinkSync(s.file);
-					} catch {
-						/* already gone */
+					} catch (error) {
+						if ((error as NodeJS.ErrnoException).code !== "ENOENT") return false;
 					}
 				}
+				return true;
 			} finally {
 				try {
 					release();
@@ -540,7 +603,21 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 					/* per vendored convention */
 				}
 			}
-		}).catch(() => {});
+		}).catch(() => false);
+	}
+
+	function scheduleMarkerRetirement(s: PairingSnap): void {
+		clearTimeout(markerRetireTimers.get(s.file));
+		const timer = setTimeout(() => {
+			if (markerRetireTimers.get(s.file) !== timer) return;
+			markerRetireTimers.delete(s.file);
+			void enqueueLifecycle(async () => {
+				if (armed && snap?.file === s.file) return;
+				if (!(await deleteOwnMarker(s))) scheduleMarkerRetirement(s);
+			});
+		}, RESUME_RETRY_MS);
+		timer.unref();
+		markerRetireTimers.set(s.file, timer);
 	}
 
 	/**
@@ -569,6 +646,7 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 					!onDisk ||
 					onDisk.harness !== "omp" ||
 					onDisk.remarcSessionId !== s.pairing ||
+					onDisk.ownerToken !== ownerToken ||
 					!onDisk.wakeCapable
 				) {
 					return null; // pairing changed/shutdown mid-flight: benign re-wake
@@ -578,7 +656,8 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 					if (eligible.has(id)) wakedAt[id] = gen;
 				}
 				for (const c of emitted) {
-					wakedAt[c.id] = c.wakeRequestedAt as number;
+					const generation = c.wakeRequestedAt as number;
+					wakedAt[c.id] = Math.max(wakedAt[c.id] ?? -Infinity, generation);
 				}
 				return {
 					...onDisk,
@@ -591,8 +670,13 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 	}
 
 	function generationIsPending(s: PairingSnap, comment: RemarcComment): boolean {
-		for (const pending of pendingWakes.values()) {
+		const now = Date.now();
+		for (const [deliveryId, pending] of pendingWakes) {
 			if (pending.snap !== s) continue;
+			if (!pending.acknowledged && now - pending.queuedAt >= PENDING_WAKE_TTL_MS) {
+				pendingWakes.delete(deliveryId);
+				continue;
+			}
 			if (
 				pending.emitted.some(
 					(emitted) =>
@@ -614,7 +698,7 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 	/** Full wake election + delivery; re-entrant guarded. */
 	async function drain(): Promise<void> {
 		const s = snap;
-		if (draining || !armed || !s || !currentCtx) return;
+		if (draining || !armed || !s || !currentCtx || !currentCtx.isIdle()) return;
 		draining = true;
 		try {
 			const data = readJsonFile(COMMENTS_FILE) as CommentsFile | null;
@@ -633,6 +717,7 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 				!us ||
 				us.harness !== "omp" ||
 				us.remarcSessionId !== s.pairing ||
+				us.ownerToken !== ownerToken ||
 				us.wakeCapable !== true
 			) {
 				return;
@@ -656,6 +741,7 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 				!freshMarker ||
 				freshMarker.harness !== "omp" ||
 				freshMarker.remarcSessionId !== s.pairing ||
+				freshMarker.ownerToken !== ownerToken ||
 				freshMarker.wakeCapable !== true
 			) {
 				return;
@@ -675,6 +761,16 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 
 			const ctx = currentCtx;
 			if (!ctx) return;
+			const emitMarker = coerceMarker(readJsonFile(s.file));
+			if (
+				!emitMarker ||
+				emitMarker.harness !== "omp" ||
+				emitMarker.remarcSessionId !== s.pairing ||
+				emitMarker.ownerToken !== ownerToken ||
+				emitMarker.wakeCapable !== true
+			) {
+				return;
+			}
 			// sendMessage can emit message_end synchronously. Register before the
 			// call and correlate the acknowledgement with this delivery only.
 			const deliveryId = crypto.randomUUID();
@@ -682,6 +778,7 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 				snap: s,
 				emitted: payload.emitted,
 				acknowledged: false,
+				queuedAt: Date.now(),
 			});
 			try {
 				pi.sendMessage(
@@ -724,15 +821,27 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 		watcher = null;
 		clearInterval(pollTimer);
 		clearTimeout(drainTimer);
+		clearTimeout(resumeRetryTimer);
 		pendingWakes.clear();
 	}
 
-	let resumeTask: Promise<void> = Promise.resolve();
+	let lifecycleQueue: Promise<void> = Promise.resolve();
+	function enqueueLifecycle<T>(operation: () => Promise<T>): Promise<T> {
+		// Keep lifecycle events in arrival order, even when one operation rejects.
+		const next = lifecycleQueue.then(operation, operation);
+		lifecycleQueue = next.then(
+			() => {},
+			() => {},
+		);
+		return next;
+	}
+
 	pi.on("session_start", (_event, ctx) => {
 		if (ctx.mode !== "tui") return; // headless sessions never pair or deliver
-		const myEpoch = ++epoch;
-		currentCtx = ctx;
-		const resume = async () => {
+		return enqueueLifecycle(async () => {
+			const myEpoch = ++epoch;
+			clearTimeout(resumeRetryTimer);
+			currentCtx = ctx;
 			const sid = sessionIdOf(ctx);
 			if (!sid) return;
 			const file = path.join(MARKERS_DIR, `omp-${sid}.json`);
@@ -744,46 +853,55 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 				pairing: existing.remarcSessionId,
 				epoch: myEpoch,
 			};
-			// Resume re-arms an existing pairing under the SAME arbitration lock
-			// as /remarc-pair.
-			const release = await acquireMarkerLock(path.join(MARKERS_DIR, "pairing"));
-			if (!release) return;
-			let lostOwnership = false;
-			let published = false;
-			try {
-				lostOwnership = liveMarkersRanked().some((marker) => {
-					if (marker.file === file) return false;
-					const raw = readJsonFile(marker.file);
-					return (
-						raw !== null &&
-						typeof raw === "object" &&
-						(raw as Record<string, unknown>).remarcSessionId ===
-							existing.remarcSessionId
-					);
-				});
-				if (!lostOwnership) {
-					published = await persistLiveness(s, ctx, { wakeCapable: true });
+			const resume = async (): Promise<void> => {
+				if (epoch !== myEpoch) return;
+				// Resume and /remarc-pair use the same cross-process arbitration lock.
+				const release = await acquireMarkerLock(
+					path.join(MARKERS_DIR, "pairing"),
+				);
+				if (!release) {
+					clearTimeout(resumeRetryTimer);
+					resumeRetryTimer = setTimeout(() => {
+						resumeRetryTimer = undefined;
+						if (epoch === myEpoch) void enqueueLifecycle(resume);
+					}, RESUME_RETRY_MS);
+					return;
 				}
-			} finally {
+				let lostOwnership = false;
+				let published = false;
 				try {
-					release();
-				} catch {
-					/* per vendored convention */
+					lostOwnership = liveMarkersRanked().some((marker) => {
+						if (marker.file === file) return false;
+						const raw = readJsonFile(marker.file);
+						return (
+							raw !== null &&
+							typeof raw === "object" &&
+							(raw as Record<string, unknown>).remarcSessionId === s.pairing
+						);
+					});
+					if (!lostOwnership) {
+						published = await persistLiveness(s, ctx, {
+							claimDeadOwner: true,
+							wakeCapable: true,
+						});
+					}
+				} finally {
+					try {
+						release();
+					} catch {
+						/* per vendored convention */
+					}
 				}
-			}
-			if (lostOwnership) {
-				// Cleanup uses the marker lock after releasing the global pairing
-				// lock, so a slow stale-marker write cannot block all pairings.
-				await deleteOwnMarker(s);
-				return;
-			}
-			if (!published) return;
-			if (epoch !== myEpoch || armed) return;
-			ctx.ui.notify(`Remarc Wake armed (paired to ${s.pairing})`, "info");
-			arm(s, ctx);
-		};
-		resumeTask = resumeTask.then(resume, resume);
-		return resumeTask;
+				if (lostOwnership) {
+					await deleteOwnMarker(s);
+					return;
+				}
+				if (!published || epoch !== myEpoch || armed) return;
+				ctx.ui.notify(`Remarc Wake armed (paired to ${s.pairing})`, "info");
+				arm(s, ctx);
+			};
+			await resume();
+		});
 	});
 
 	// The runtime persists a custom message at message_end. Correlate the event
@@ -808,6 +926,10 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 		});
 	});
 
+
+	pi.on("agent_settled", () => {
+		if (armed) scheduleDrain();
+	});
 	// Heartbeat: only while armed; a resume that never published liveness must
 	// not advertise wakeability without a delivery loop behind it.
 	pi.on("turn_end", (_event, ctx) => {
@@ -816,122 +938,129 @@ export default function remarcWakeExtension(pi: ExtensionAPI) {
 			void persistLiveness(s, ctx, { wakeCapable: true }).catch(() => {});
 	});
 
-	pi.on("session_shutdown", async () => {
-		await resumeTask;
-		const s = snap;
-		teardown();
-		if (s) {
-			// Cleanup runs at THIS lifecycle's epoch; bump it only when our writes
-			// are complete, otherwise the epoch guard would swallow the disable.
-			for (let attempt = 0; attempt < 2; attempt++) {
-				try {
-					if (await persistLiveness(s, null, { wakeCapable: false })) break;
-				} catch {
-					/* fall through */
+	pi.on("session_shutdown", () =>
+		enqueueLifecycle(async () => {
+			const s = snap;
+			teardown();
+			if (s) {
+				// Cleanup runs at THIS lifecycle's epoch; bump it only when our writes
+				// are complete, otherwise the epoch guard would swallow the disable.
+				let disabled = false;
+				for (let attempt = 0; attempt < 2; attempt++) {
+					try {
+						disabled = await persistLiveness(s, null, {
+							wakeCapable: false,
+						});
+					} catch {
+						/* fall through */
+					}
+					if (disabled) break;
 				}
-				if (attempt === 1) await deleteOwnMarker(s);
+				if (!disabled && !(await deleteOwnMarker(s)))
+					scheduleMarkerRetirement(s);
 			}
-		}
-		epoch++;
-		currentCtx = null;
-	});
+			epoch++;
+			currentCtx = null;
+		}),
+	);
 
 	pi.registerCommand("remarc-pair", {
 		description:
 			"Pair this OMP session to the app's active Remarc session for wake delivery.",
-		handler: async (_args, ctx) => {
-			await resumeTask;
-			const data = readJsonFile(COMMENTS_FILE) as CommentsFile | null;
-			const activeSessionID = data?.activeSessionID ?? data?.activeStackID;
-			if (!activeSessionID) {
-				ctx.ui.notify(
-					"No Remarc data file found - launch Remarc first",
-					"warning",
-				);
-				return;
-			}
-			const existing = snap;
-			if (existing && armed && existing.pairing === activeSessionID) {
-				ctx.ui.notify("Remarc Wake already paired to this session", "info");
-				return;
-			}
-			if (existing) {
-				// Re-pair under a new pairing: clean teardown of the old lifecycle,
-				// ownership-validated delete, then continue below.
-				const old = existing;
-				teardown();
-				await deleteOwnMarker(old);
-				epoch++;
-			}
-			const sid = sessionIdOf(ctx);
-			if (!sid) return;
-			const file = path.join(MARKERS_DIR, `omp-${sid}.json`);
-			const myEpoch = epoch;
-			const s: PairingSnap = { file, pairing: activeSessionID, epoch: myEpoch };
+		handler: (_args, ctx) =>
+			enqueueLifecycle(async () => {
+				const data = readJsonFile(COMMENTS_FILE) as CommentsFile | null;
+				const activeSessionID = data?.activeSessionID ?? data?.activeStackID;
+				if (!activeSessionID) {
+					ctx.ui.notify(
+						"No Remarc data file found - launch Remarc first",
+						"warning",
+					);
+					return;
+				}
+				const existing = snap;
+				if (existing && armed && existing.pairing === activeSessionID) {
+					ctx.ui.notify("Remarc Wake already paired to this session", "info");
+					return;
+				}
+				if (existing) {
+					// Re-pair under a new pairing: clean teardown of the old lifecycle,
+					// ownership-validated delete, then continue below.
+					const old = existing;
+					teardown();
+					if (!(await deleteOwnMarker(old))) scheduleMarkerRetirement(old);
+					epoch++;
+				}
+				const sid = sessionIdOf(ctx);
+				if (!sid) return;
+				const file = path.join(MARKERS_DIR, `omp-${sid}.json`);
+				const myEpoch = epoch;
+				const s: PairingSnap = { file, pairing: activeSessionID, epoch: myEpoch };
 
-			// The pairing lock serializes ownership SCAN + PUBLICATION across all
-			// processes: a concurrent /remarc-pair or resume cannot interleave a
-			// second owner between our check and our marker write.
-			const release = await acquireMarkerLock(path.join(MARKERS_DIR, "pairing"));
-			if (!release) {
-				ctx.ui.notify("Remarc Wake pairing failed (pair lock busy)", "warning");
-				return;
-			}
-			try {
-				const owner = liveMarkersRanked().find((m) => {
-					if (m.file === file) return false;
-					const raw = readJsonFile(m.file);
-					return (
-						raw !== null &&
-						typeof raw === "object" &&
-						(raw as Record<string, unknown>).remarcSessionId === activeSessionID
-					);
-				});
-				if (owner) {
-					ctx.ui.notify(
-						`Refusing: another live session owns that pairing (${path.basename(owner.file)})`,
-						"warning",
-					);
+				// The pairing lock serializes ownership SCAN + PUBLICATION across all
+				// processes: a concurrent /remarc-pair or resume cannot interleave a
+				// second owner between our check and our marker write.
+				const release = await acquireMarkerLock(path.join(MARKERS_DIR, "pairing"));
+				if (!release) {
+					ctx.ui.notify("Remarc Wake pairing failed (pair lock busy)", "warning");
 					return;
 				}
-				const ok = await persistLiveness(s, ctx, {
-					create: true,
-					wakeCapable: true,
-				});
-				if (!ok) {
-					ctx.ui.notify(
-						"Remarc Wake pairing failed (marker lock busy)",
-						"warning",
-					);
-					return;
-				}
-			} finally {
 				try {
-					release();
-				} catch {
-					/* per vendored convention */
+					const owner = liveMarkersRanked().find((m) => {
+						if (m.file === file) return false;
+						const raw = readJsonFile(m.file);
+						return (
+							raw !== null &&
+							typeof raw === "object" &&
+							(raw as Record<string, unknown>).remarcSessionId === activeSessionID
+						);
+					});
+					if (owner) {
+						ctx.ui.notify(
+							`Refusing: another live session owns that pairing (${path.basename(owner.file)})`,
+							"warning",
+						);
+						return;
+					}
+					const ok = await persistLiveness(s, ctx, {
+						create: true,
+						claimOwnerless: true,
+						wakeCapable: true,
+					});
+					if (!ok) {
+						ctx.ui.notify(
+							"Remarc Wake pairing failed (marker lock busy)",
+							"warning",
+						);
+						return;
+					}
+				} finally {
+					try {
+						release();
+					} catch {
+						/* per vendored convention */
+					}
 				}
-			}
 
-			// Only visible effects happen outside the lock, epoch-guarded. The
-			// already-armed same-pairing case returned before publication, so a
-			// stale continuation only means our marker was superseded - nothing to
-			// fix; the successor lifecycle owns it now.
-			if (epoch !== myEpoch || armed) return;
-			ctx.ui.notify("Remarc Wake paired to the active Remarc session", "info");
-			arm(s, ctx);
-		},
+				// Only visible effects happen outside the lock, epoch-guarded. The
+				// already-armed same-pairing case returned before publication, so a
+				// stale continuation only means our marker was superseded - nothing to
+				// fix; the successor lifecycle owns it now.
+				if (epoch !== myEpoch || armed) return;
+				ctx.ui.notify("Remarc Wake paired to the active Remarc session", "info");
+				arm(s, ctx);
+			}),
 	});
 
 	pi.registerCommand("remarc-unpair", {
 		description: "Stop wake delivery into this session.",
-		handler: async (_args, ctx) => {
-			await resumeTask;
-			const s = snap;
-			teardown();
-			if (s) await deleteOwnMarker(s);
-			epoch++;
-			ctx.ui.notify("Remarc Wake unpaired", "info");
-		},
+		handler: (_args, ctx) =>
+			enqueueLifecycle(async () => {
+				const s = snap;
+				teardown();
+				epoch++;
+				if (s && !(await deleteOwnMarker(s))) scheduleMarkerRetirement(s);
+				ctx.ui.notify("Remarc Wake unpaired", "info");
+			}),
 	});
 }
