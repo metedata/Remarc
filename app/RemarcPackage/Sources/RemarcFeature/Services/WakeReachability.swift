@@ -47,7 +47,62 @@ enum WakeReachability {
         in directory: URL? = nil,
         now: Date = Date()
     ) -> Bool {
-        liveWakeCapableSessionExists(pairedTo: nil, in: directory, now: now)
+        liveMarkerExists(
+            pairedTo: nil,
+            in: directory,
+            now: now,
+            requiresOMPHarness: false
+        )
+    }
+
+    /// True when a live OMP process has a wake-capable marker paired to a Remarc session.
+    static func anyLiveOMPPairingExists(
+        in directory: URL? = nil,
+        now: Date = Date()
+    ) -> Bool {
+        liveMarkerExists(
+            pairedTo: nil,
+            in: directory,
+            now: now,
+            requiresOMPHarness: true
+        )
+    }
+
+    private static func liveMarkerExists(
+        pairedTo remarcSessionID: UUID?,
+        in directory: URL?,
+        now: Date,
+        requiresOMPHarness: Bool
+    ) -> Bool {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(
+            at: directory ?? markersDirectory,
+            includingPropertiesForKeys: nil
+        ) else { return false }
+
+        let wanted = remarcSessionID?.uuidString.uppercased()
+
+        for url in entries where url.pathExtension == "json" {
+            guard let data = try? Data(contentsOf: url),
+                  let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  raw["wakeCapable"] as? Bool == true
+            else { continue }
+            guard let paired = raw["remarcSessionId"] as? String, !paired.isEmpty
+            else { continue }
+            if let wanted, paired.uppercased() != wanted { continue }
+            if requiresOMPHarness, raw["harness"] as? String != "omp" {
+                continue
+            }
+
+            if requiresOMPHarness {
+                guard hasLiveLease(raw: raw) else { continue }
+            } else if !isLive(raw: raw, now: now) {
+                continue
+            }
+
+            return true
+        }
+        return false
     }
 
     /// True when the agent paired with `remarcSessionID` is live and wakeable.
@@ -64,35 +119,32 @@ enum WakeReachability {
         in directory: URL? = nil,
         now: Date = Date()
     ) -> Bool {
-        let fm = FileManager.default
-        guard let entries = try? fm.contentsOfDirectory(
-            at: directory ?? markersDirectory,
-            includingPropertiesForKeys: nil
-        ) else { return false }
+        liveMarkerExists(
+            pairedTo: remarcSessionID,
+            in: directory,
+            now: now,
+            requiresOMPHarness: false
+        )
+    }
 
-        let wanted = remarcSessionID?.uuidString.uppercased()
-
-        for url in entries where url.pathExtension == "json" {
-            guard let data = try? Data(contentsOf: url),
-                  let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  raw["wakeCapable"] as? Bool == true
-            else { continue }
-
-            // An agent with no paired session is not a wake target, so it is
-            // not evidence of reachability either - it cannot be sent anything.
-            guard let paired = raw["remarcSessionId"] as? String, !paired.isEmpty
-            else { continue }
-            if let wanted, paired.uppercased() != wanted { continue }
-
-            if isLive(raw: raw, now: now) { return true }
+    private static func hasLiveLease(raw: [String: Any]) -> Bool {
+        guard let ownerToken = raw["ownerToken"] as? String,
+              !ownerToken.isEmpty,
+              let ownerPID = raw["ownerPid"] as? NSNumber else {
+            return false
         }
-        return false
+
+        let pid = pid_t(truncating: ownerPID)
+        guard pid > 0 else { return false }
+        if kill(pid, 0) == 0 { return true }
+        return errno == EPERM
     }
 
     private static func isLive(raw: [String: Any], now: Date) -> Bool {
         // OMP markers carry a process lease. For these markers the process is
         // authoritative: activity can be old while the watcher is still armed,
         // and a fresh marker can survive an abnormal process exit.
+
         if let ownerToken = raw["ownerToken"] as? String,
            !ownerToken.isEmpty,
            let ownerPID = raw["ownerPid"] as? NSNumber {

@@ -156,6 +156,9 @@ struct PreferencesView: View {
     @State private var codexInstalling = false
     @State private var codexInstallError: String?
     private let codexDetector = CodexPluginDetector()
+    @State private var ompIntegrationState = OMPIntegrationState(profiles: [])
+    @State private var ompIntegrationChecked = false
+    @State private var ompLiveWakePairing = false
     @ObservedObject private var webSocketService = WebSocketService.shared
     @State private var pendingHarnesses: Set<SkillInstaller.Harness> = []
     @ObservedObject private var updateManager = UpdateManager.shared
@@ -1534,6 +1537,10 @@ struct PreferencesView: View {
             VStack(alignment: .leading, spacing: Self.sectionSpacing) {
                 claudeCodeIntegrationSection
                 Divider()
+                ompIntegrationSection
+                Divider()
+                instantDeliverySection
+                Divider()
                 codexIntegrationSection
                 Divider()
                 harnessIntegrationSection(.cursor)
@@ -1550,6 +1557,19 @@ struct PreferencesView: View {
             Task { await harnessManager.installAll() }
         }
         .task {
+            let ompDirectory = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".omp", isDirectory: true)
+            let ompRefresh = Task.detached(priority: nil) {
+                (
+                    OMPIntegrationDetector.read(ompDirectory: ompDirectory),
+                    WakeReachability.anyLiveOMPPairingExists()
+                )
+            }
+            let (ompState, ompLivePairing) = await ompRefresh.value
+            ompIntegrationState = ompState
+            ompLiveWakePairing = ompLivePairing
+            ompIntegrationChecked = true
+
             await refreshPluginState()
             codexPluginState = await codexDetector.read()
             codexPluginChecked = true
@@ -1788,6 +1808,113 @@ struct PreferencesView: View {
             }
         }
     }
+    private var ompIntegrationSection: some View {
+        let remarcHealthy = !ompIntegrationState.remarcProfiles.isEmpty
+        let wakeHealthy = !ompIntegrationState.wakeProfiles.isEmpty
+
+        return VStack(alignment: .leading, spacing: Self.itemSpacing) {
+            sectionHeader(
+                "OMP",
+                description: "Remarc integrates through OMP profiles."
+            )
+
+            ompIntegrationRow(
+                title: "remarc",
+                subtitle: ompProfileSubtitle(
+                    "MCP server and skill for managing comments.",
+                    summary: ompIntegrationState.remarcProfileSummary
+                ),
+                installed: ompIntegrationState.hasRemarcArtifacts,
+                healthy: remarcHealthy,
+                checked: ompIntegrationChecked
+            )
+
+            Divider()
+                .padding(.vertical, 4)
+
+            ompIntegrationRow(
+                title: "remarc-wake",
+                subtitle: ompProfileSubtitle(
+                    "Wake extension and review skill for OMP sessions.",
+                    summary: ompIntegrationState.wakeProfileSummary
+                ),
+                installed: ompIntegrationState.hasWakeArtifacts,
+                healthy: wakeHealthy,
+                checked: ompIntegrationChecked,
+                installedStatus: wakeHealthy && ompLiveWakePairing ? "Active" : "Installed"
+            )
+        }
+    }
+
+    private var instantDeliverySection: some View {
+        VStack(alignment: .leading, spacing: Self.itemSpacing) {
+            sectionHeader("Instant delivery")
+
+            toggleRow(
+                "Allow comments to wake paired agent sessions",
+                isOn: $settings.wakeOnCommentEnabled
+            )
+
+            settingsHint(
+                "Adds Send Instantly beside Save for Remarc sessions paired with a running Claude Code or OMP agent.",
+                tint: .primary.opacity(0.35)
+            )
+
+            if settings.wakeOnCommentEnabled && !settings.wakeHooksAvailable {
+                settingsHint(
+                    "Send Instantly appears only when the selected Remarc session has a live pairing.",
+                    tint: .primary.opacity(0.35)
+                )
+            }
+        }
+    }
+
+    private func ompProfileSubtitle(_ base: String, summary: String?) -> String {
+        guard let summary else { return base }
+        return "\(base) Profiles: \(summary)."
+    }
+
+    @ViewBuilder
+    private func ompIntegrationRow(
+        title: String,
+        subtitle: String,
+        installed: Bool,
+        healthy: Bool,
+        checked: Bool,
+        installedStatus: String = "Installed"
+    ) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .medium))
+                    integrationStatusLabel(
+                        pluginRowStatus(
+                            checked: checked,
+                            installed: installed,
+                            enabled: true,
+                            healthy: healthy,
+                            installedStatus: installedStatus,
+                            unhealthyStatus: "Needs setup"
+                        )
+                    )
+                }
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.primary.opacity(0.45))
+                    .fixedSize(horizontal: false, vertical: true)
+                if checked && !healthy {
+                    Link(
+                        "Open OMP setup instructions",
+                        destination: URL(string: "https://github.com/metedata/Remarc/tree/main/integrations/omp#readme")!
+                    )
+                    .font(.system(size: 11))
+                }
+            }
+
+            Spacer(minLength: 8)
+        }
+    }
 
     private var codexHealthy: Bool {
         codexPluginState.remarcInstalled
@@ -1814,10 +1941,17 @@ struct PreferencesView: View {
         }
     }
 
-    private func pluginRowStatus(checked: Bool, installed: Bool, enabled: Bool, healthy: Bool) -> IntegrationRowStatus {
+    private func pluginRowStatus(
+        checked: Bool,
+        installed: Bool,
+        enabled: Bool,
+        healthy: Bool,
+        installedStatus: String = "Installed",
+        unhealthyStatus: String = "Needs repair"
+    ) -> IntegrationRowStatus {
         if !checked { return .pending("Checking") }
-        if installed && enabled && healthy { return .installed("Installed") }
-        if installed && enabled { return .warning("Needs repair") }
+        if installed && enabled && healthy { return .installed(installedStatus) }
+        if installed && enabled { return .warning(unhealthyStatus) }
         if installed { return .warning("Installed (disabled)") }
         return .inactive("Not installed")
     }
@@ -1840,14 +1974,23 @@ struct PreferencesView: View {
         checked: Bool,
         installing: Bool,
         manualCommands: String,
-        installAction: @escaping () -> Void
+        installAction: @escaping () -> Void,
+        installedStatus: String = "Installed"
     ) -> some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(title)
                         .font(.system(size: 13, weight: .medium))
-                    integrationStatusLabel(pluginRowStatus(checked: checked, installed: installed, enabled: enabled, healthy: healthy))
+                    integrationStatusLabel(
+                        pluginRowStatus(
+                            checked: checked,
+                            installed: installed,
+                            enabled: enabled,
+                            healthy: healthy,
+                            installedStatus: installedStatus
+                        )
+                    )
                 }
                 Text(subtitle)
                     .font(.system(size: 11))
@@ -1898,18 +2041,6 @@ struct PreferencesView: View {
 
             if !settings.claudeCodeAutoCreateSession {
                 settingsHint("Use the remarc_create_session MCP tool to create sessions manually", tint: .primary.opacity(0.35))
-            }
-
-            toggleRow("Allow comments to wake Claude Code sessions", isOn: $settings.wakeOnCommentEnabled)
-
-            if settings.wakeOnCommentEnabled {
-                settingsHint("Adds a Send Instantly button beside Save that hands the comment to the session's own Claude Code agent right away", tint: .primary.opacity(0.35))
-            } else {
-                settingsHint("Experimental. Turn on to add a Send Instantly button beside Save that interrupts a session's Claude Code agent with the comment", tint: .primary.opacity(0.35))
-            }
-
-            if settings.wakeOnCommentEnabled && !settings.wakeHooksAvailable {
-                settingsHint("Send Instantly appears only for a session paired with a running Claude Code agent, and interrupts that one agent. Inbox comments and Codex sessions cannot be woken, so it stays hidden there and comments arrive at your next prompt instead.", tint: .primary.opacity(0.35))
             }
 
             settingsHint("Quitting an agent only unlinks its session - the session and its comments stay. This applies when you clear the conversation, which is the one ending that means the work is done.", tint: .primary.opacity(0.35))

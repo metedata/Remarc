@@ -53,10 +53,13 @@ final class WakeReachabilityTests: XCTestCase {
         lastActivity: Date?,
         fractionalSeconds: Bool = true,
         transcriptPath: String? = nil,
+        remarcSessionId: String = "S1",
+        harness: String? = nil,
         ownerPid: Int32? = nil,
         ownerToken: String? = nil
     ) throws {
-        var raw: [String: Any] = ["remarcSessionId": "S1", "wakeCapable": wakeCapable]
+        var raw: [String: Any] = ["remarcSessionId": remarcSessionId, "wakeCapable": wakeCapable]
+        if let harness { raw["harness"] = harness }
         if let transcriptPath { raw["transcriptPath"] = transcriptPath }
         if let ownerPid { raw["ownerPid"] = ownerPid }
         if let ownerToken { raw["ownerToken"] = ownerToken }
@@ -262,5 +265,115 @@ final class WakeReachabilityTests: XCTestCase {
         try Data("not json".utf8).write(to: dir.appending(path: "test-broken.json"))
         try writeMarker("claude", wakeCapable: true, lastActivity: Date())
         XCTAssertTrue(isLive())
+    }
+
+    func testLiveOMPStatusRequiresOMPHarnessAndLiveLease() throws {
+        let livePID = ProcessInfo.processInfo.processIdentifier
+
+        try writeMarker(
+            "claude-harness",
+            wakeCapable: true,
+            lastActivity: Date(),
+            harness: "claude-code",
+            ownerPid: livePID,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "omp-no-lease",
+            wakeCapable: true,
+            lastActivity: Date(),
+            harness: "omp"
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "omp-missing-pid",
+            wakeCapable: true,
+            lastActivity: Date(),
+            harness: "omp",
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "omp-missing-token",
+            wakeCapable: true,
+            lastActivity: Date(),
+            harness: "omp",
+            ownerPid: livePID
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "omp-empty-token",
+            wakeCapable: true,
+            lastActivity: Date(),
+            harness: "omp",
+            ownerPid: livePID,
+            ownerToken: ""
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+
+        try removeMarkers()
+        try writeMarker(
+            "not-wake-capable",
+            wakeCapable: false,
+            lastActivity: Date(),
+            harness: "omp",
+            ownerPid: livePID,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "unpaired-omp",
+            wakeCapable: true,
+            lastActivity: Date(),
+            remarcSessionId: "",
+            harness: "omp",
+            ownerPid: livePID,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "dead-omp-lease",
+            wakeCapable: true,
+            lastActivity: Date(),
+            harness: "omp",
+            ownerPid: 999_999_999,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertFalse(WakeReachability.anyLiveOMPPairingExists(in: dir))
+
+        try removeMarkers()
+        try writeMarker(
+            "live-omp",
+            wakeCapable: true,
+            lastActivity: Date(timeIntervalSinceNow: -60 * 60 * 5),
+            harness: "omp",
+            ownerPid: livePID,
+            ownerToken: UUID().uuidString
+        )
+        XCTAssertTrue(WakeReachability.anyLiveOMPPairingExists(in: dir))
+    }
+
+    private func removeMarkers() throws {
+        let entries = try FileManager.default.contentsOfDirectory(
+            at: dir,
+            includingPropertiesForKeys: nil
+        )
+        for entry in entries where entry.pathExtension == "json" {
+            try FileManager.default.removeItem(at: entry)
+        }
     }
 }
