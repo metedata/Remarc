@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remarc Review"
+  short_description: "Route situated feedback through OMP"
+  default_prompt: "Use $remarc-review to process the active Remarc session through project memory, durable task tracking, implementation, and candidate-bound verification."
