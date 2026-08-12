@@ -85,6 +85,9 @@ jobs:
         fi
         gitleaks dir . --config .gitleaks.toml --redact --no-banner
 
+    - name: Test OMP integration installer
+      run: bash integrations/omp/test-install.sh
+
     - name: Select Xcode
       run: sudo xcode-select -s /Applications/Xcode_26.2.app
 
