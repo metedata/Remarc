@@ -29,6 +29,17 @@ final class SessionOriginTests: XCTestCase {
         XCTAssertEqual(try decodeSession(origin: "claudeCode").origin, .claudeCode)
     }
 
+    func testOMPOriginRoundTrips() throws {
+        let session = try decodeSession(origin: "omp")
+        XCTAssertEqual(session.origin, .omp)
+
+        let data = try JSONEncoder().encode(session)
+        let raw = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        XCTAssertEqual(raw["origin"] as? String, "omp")
+    }
+
     func testAbsentOriginFallsBackToManual() throws {
         XCTAssertEqual(try decodeSession(origin: nil).origin, .manual)
     }

@@ -27,6 +27,7 @@ struct SessionOriginBadge: View {
                 .frame(width: side, height: side)
                 .foregroundStyle(Color.claudeMarkOrange)
                 .help("Created by Claude Code")
+                .accessibilityLabel("Created by Claude Code")
 
         case .codex:
             // Template-rendered, so it takes the foreground colour rather than
@@ -39,6 +40,17 @@ struct SessionOriginBadge: View {
                 .frame(width: side, height: side)
                 .foregroundStyle(.primary.opacity(0.75))
                 .help("Created by Codex")
+                .accessibilityLabel("Created by Codex")
+
+        case .omp:
+            // OMP's dark rounded square and gradient pi are one full-colour
+            // mark. Template rendering would collapse it into a solid block.
+            Image("OMPLogo")
+                .resizable()
+                .renderingMode(.original)
+                .frame(width: side, height: side)
+                .help("Created by OMP")
+                .accessibilityLabel("Created by OMP")
         }
     }
 }

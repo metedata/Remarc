@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import XCTest
 
 final class ThirdPartyNoticesTests: XCTestCase {
@@ -57,7 +58,7 @@ final class ThirdPartyNoticesTests: XCTestCase {
             "ajv 8.20.0",
             "ajv-formats 3.0.1",
             "fast-deep-equal 3.1.3",
-            "fast-uri 3.1.2",
+            "fast-uri 3.1.5",
             "json-schema-traverse 1.0.0",
             "zod 3.25.76",
             "zod-to-json-schema 3.25.2",
@@ -68,6 +69,37 @@ final class ThirdPartyNoticesTests: XCTestCase {
                 notice.contains(packageEntry),
                 "THIRD-PARTY-NOTICES.md is missing \(packageEntry)."
             )
+        }
+    }
+
+    func testOMPLogoHasPinnedProvenanceAndOriginalRendering() throws {
+        let assetDirectory = repositoryRoot
+            .appendingPathComponent("app/Remarc/Assets.xcassets/OMPLogo.imageset")
+        let logo = try Data(contentsOf: assetDirectory.appendingPathComponent("OMPLogo.svg"))
+        let digest = SHA256.hash(data: logo).map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(
+            digest,
+            "9419975a0c24961341221c4cec18703db26a989fa037768f92cda74e3769fe05"
+        )
+
+        let contents = try XCTUnwrap(
+            JSONSerialization.jsonObject(
+                with: Data(contentsOf: assetDirectory.appendingPathComponent("Contents.json"))
+            ) as? [String: Any]
+        )
+        let properties = try XCTUnwrap(contents["properties"] as? [String: Any])
+        XCTAssertEqual(properties["preserves-vector-representation"] as? Bool, true)
+        XCTAssertEqual(properties["template-rendering-intent"] as? String, "original")
+
+        let notice = try canonicalNotice()
+        for expected in [
+            "packages/collab-web/public/favicon.svg",
+            "ffd53ff92a6f575d499730475a73460dd7cc2eea",
+            "9419975a0c24961341221c4cec18703db26a989fa037768f92cda74e3769fe05",
+            "Copyright (c) 2025 Mario Zechner",
+            "Copyright (c) 2025-2026 Can Bölük",
+        ] {
+            XCTAssertTrue(notice.contains(expected), "OMP logo notice is missing \(expected)")
         }
     }
 

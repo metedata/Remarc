@@ -6,7 +6,11 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __export = (target, all) => {
   for (var name in all)
@@ -3640,7 +3644,12 @@ var require_fast_uri = __commonJS({
     }
     function resolve(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
-      const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
+      const { parsed: baseParsed, malformedAuthorityOrPort: baseMalformed } = parseWithStatus(baseURI, schemelessOptions);
+      const { parsed: relativeParsed, malformedAuthorityOrPort: relativeMalformed } = parseWithStatus(relativeURI, schemelessOptions);
+      if (baseMalformed || relativeMalformed) {
+        throw new Error(baseParsed.error || relativeParsed.error || "URI is malformed.");
+      }
+      const resolved = resolveComponent(baseParsed, relativeParsed, schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
@@ -3765,6 +3774,8 @@ var require_fast_uri = __commonJS({
       return uriTokens.join("");
     }
     var URI_PARSE = /^(?:([^#/:?]+):)?(?:\/\/((?:([^#/?@]*)@)?(\[[^#/?\]]+\]|[^#/:?]*)(?::(\d*))?))?([^#?]*)(?:\?([^#]*))?(?:#((?:.|[\n\r])*))?/u;
+    var AUTHORITY_PREFIX = /^(?:[^#/:?]+:)?\/\/([^/?#]*)/;
+    var AUTHORITY_INTRODUCER_REGION = /^(?:[^#/:?]+:)?([/\\\t\n\r]*)/;
     function getParseError(parsed, matches) {
       if (matches[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
         return 'URI path must start with "/" when authority is present.';
@@ -3792,6 +3803,25 @@ var require_fast_uri = __commonJS({
           uri = options.scheme + ":" + uri;
         } else {
           uri = "//" + uri;
+        }
+      }
+      const authorityMatch = uri.match(AUTHORITY_PREFIX);
+      if (authorityMatch !== null && authorityMatch[1].indexOf("\\") !== -1) {
+        parsed.error = "URI authority must not contain a literal backslash.";
+        malformedAuthorityOrPort = true;
+      }
+      const introducerMatch = uri.match(AUTHORITY_INTRODUCER_REGION);
+      if (introducerMatch !== null) {
+        const region = introducerMatch[1];
+        const normalizedRegion = region.replace(/[\t\n\r]/g, "");
+        if (normalizedRegion.length >= 2) {
+          if (normalizedRegion.slice(0, 2) !== "//") {
+            parsed.error = parsed.error || "URI authority must not contain a literal backslash.";
+            malformedAuthorityOrPort = true;
+          } else if (region.length !== normalizedRegion.length) {
+            parsed.error = parsed.error || "URI authority introducer must not contain whitespace.";
+            malformedAuthorityOrPort = true;
+          }
         }
       }
       const matches = uri.match(URI_PARSE);
@@ -3837,7 +3867,7 @@ var require_fast_uri = __commonJS({
         if (!options.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport)) {
           if (parsed.host && (options.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
             try {
-              parsed.host = URL.domainToASCII(parsed.host.toLowerCase());
+              parsed.host = new URL("http://" + parsed.host).hostname;
             } catch (e) {
               parsed.error = parsed.error || "Host's domain name can not be converted to ASCII: " + e;
             }
@@ -21394,12 +21424,12 @@ async function withDocument(mutate) {
     await releaseLock(lockPath);
   }
 }
-function applyStatusUpdate(comment, status, summary, now) {
+function applyStatusUpdate(comment, status, summary, now, resolvedBy = "claude") {
   comment.status = status;
   comment.updatedAt = now;
   if (status === "resolved") {
     comment.resolutionSummary = summary;
-    comment.resolvedBy = "claude";
+    comment.resolvedBy = resolvedBy;
     comment.resolvedAt = now;
   } else {
     comment.resolutionSummary = null;
@@ -21571,8 +21601,16 @@ function notifyRemarcReload() {
 }
 
 // ../../shared/marker.ts
-import { readFile as readFile2, writeFile as writeFile2, rename as rename2, mkdir as mkdir2, rm as rm2, stat as stat2 } from "node:fs/promises";
-import { existsSync as existsSync2 } from "node:fs";
+import {
+  lstat,
+  mkdir as mkdir2,
+  readFile as readFile2,
+  readdir,
+  rename as rename2,
+  rm as rm2,
+  unlink,
+  writeFile as writeFile2
+} from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
 import { join as join2 } from "node:path";
 import { randomBytes as randomBytes2 } from "node:crypto";
@@ -21602,9 +21640,12 @@ function emptyMarker() {
   };
 }
 function coerce2(raw) {
-  if (raw == null || typeof raw !== "object") return null;
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return null;
   const r = raw;
-  return {
+  const marker = {
+    // Keep fields introduced by a newer runtime. Known fields below are
+    // normalised independently so malformed legacy data cannot poison callers.
+    ...r,
     remarcSessionId: typeof r.remarcSessionId === "string" ? r.remarcSessionId : "",
     dataFilePath: typeof r.dataFilePath === "string" ? r.dataFilePath : "",
     transcriptPath: typeof r.transcriptPath === "string" ? r.transcriptPath : null,
@@ -21612,39 +21653,128 @@ function coerce2(raw) {
     wakeCapable: r.wakeCapable === true,
     deliveredIds: Array.isArray(r.deliveredIds) ? r.deliveredIds.filter((x) => typeof x === "string") : [],
     // Migrate the earlier id-array shape: treat prior wakes as generation 0.
-    wakedAt: r.wakedAt && typeof r.wakedAt === "object" ? r.wakedAt : Array.isArray(r.wakedIds) ? Object.fromEntries(
+    wakedAt: r.wakedAt && typeof r.wakedAt === "object" && !Array.isArray(r.wakedAt) ? Object.fromEntries(
+      Object.entries(r.wakedAt).filter(
+        (entry) => typeof entry[1] === "number" && Number.isFinite(entry[1])
+      )
+    ) : Array.isArray(r.wakedIds) ? Object.fromEntries(
       r.wakedIds.filter((x) => typeof x === "string").map((id) => [id, 0])
     ) : {}
   };
+  if (typeof r.protocolVersion !== "number" || !Number.isFinite(r.protocolVersion)) {
+    delete marker.protocolVersion;
+  }
+  if (typeof r.harness !== "string") delete marker.harness;
+  if (typeof r.ownerPid !== "number" || !Number.isFinite(r.ownerPid)) {
+    delete marker.ownerPid;
+  }
+  if (typeof r.ownerToken !== "string") delete marker.ownerToken;
+  if (typeof r.leaseHeartbeatAt !== "string") delete marker.leaseHeartbeatAt;
+  if (r.pendingWake === null) {
+    marker.pendingWake = null;
+  } else if (typeof r.pendingWake === "object" && !Array.isArray(r.pendingWake)) {
+    marker.pendingWake = Object.fromEntries(
+      Object.entries(r.pendingWake).filter(
+        (entry) => typeof entry[1] === "number" && Number.isFinite(entry[1])
+      )
+    );
+  } else {
+    delete marker.pendingWake;
+  }
+  return marker;
 }
-async function readMarker(claudeSessionId) {
+function errorReason(err) {
+  return err instanceof Error ? err.message : String(err);
+}
+async function inspectRegularFile(path) {
+  try {
+    const info = await lstat(path);
+    if (info.isSymbolicLink() || !info.isFile()) return "unsafe";
+    return "regular";
+  } catch (err) {
+    if (err?.code === "ENOENT") return "missing";
+    throw err;
+  }
+}
+async function readMarkerOutcome(claudeSessionId) {
   const path = markerPath(claudeSessionId);
-  if (existsSync2(path)) {
+  let fileKind;
+  try {
+    fileKind = await inspectRegularFile(path);
+  } catch (err) {
+    return { kind: "invalid", reason: `Cannot inspect marker: ${errorReason(err)}` };
+  }
+  if (fileKind === "unsafe") {
+    return { kind: "unsafe", reason: `Marker path is not a regular file: ${path}` };
+  }
+  if (fileKind === "regular") {
     try {
-      return coerce2(JSON.parse(await readFile2(path, "utf8")));
-    } catch {
-      return null;
+      const marker = coerce2(JSON.parse(await readFile2(path, "utf8")));
+      return marker ? { kind: "valid", marker, source: "json" } : { kind: "invalid", reason: `Marker JSON is not an object: ${path}` };
+    } catch (err) {
+      return { kind: "invalid", reason: `Cannot parse marker: ${errorReason(err)}` };
     }
   }
   const legacy = legacyMarkerPath(claudeSessionId);
-  if (existsSync2(legacy)) {
-    try {
-      const [remarcSessionId, dataFilePath] = (await readFile2(legacy, "utf8")).split("\n");
-      if (!remarcSessionId) return null;
-      return { ...emptyMarker(), remarcSessionId, dataFilePath: dataFilePath ?? "" };
-    } catch {
-      return null;
-    }
+  let legacyKind;
+  try {
+    legacyKind = await inspectRegularFile(legacy);
+  } catch (err) {
+    return { kind: "invalid", reason: `Cannot inspect legacy marker: ${errorReason(err)}` };
   }
-  return null;
+  if (legacyKind === "unsafe") {
+    return {
+      kind: "unsafe",
+      reason: `Legacy marker path is not a regular file: ${legacy}`
+    };
+  }
+  if (legacyKind === "missing") return { kind: "missing" };
+  try {
+    const [remarcSessionId, dataFilePath] = (await readFile2(legacy, "utf8")).split("\n");
+    return remarcSessionId ? {
+      kind: "valid",
+      source: "legacy",
+      marker: { ...emptyMarker(), remarcSessionId, dataFilePath: dataFilePath ?? "" }
+    } : { kind: "invalid", reason: `Legacy marker has no session id: ${legacy}` };
+  } catch (err) {
+    return { kind: "invalid", reason: `Cannot read legacy marker: ${errorReason(err)}` };
+  }
 }
 var LOCK_TIMEOUT_MS2 = 2e3;
 var LOCK_POLL_MS2 = 20;
 var LOCK_STALE_MS2 = 1e4;
-function sleep2(ms) {
-  return new Promise((r) => setTimeout(r, ms));
+var UnsafeMarkerPathError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "UnsafeMarkerPathError";
+  }
+};
+function markerAbortError() {
+  const error2 = new Error("Marker lock wait aborted");
+  error2.name = "AbortError";
+  return error2;
 }
-function pidAlive2(pid) {
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw markerAbortError();
+}
+function sleep2(ms, signal) {
+  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+      reject(markerAbortError());
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+function isProcessAlive(pid) {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
@@ -21652,29 +21782,63 @@ function pidAlive2(pid) {
     return err?.code === "EPERM";
   }
 }
-async function acquire(lockPath) {
-  const deadline = Date.now() + LOCK_TIMEOUT_MS2;
+function newOwnerToken() {
+  return randomBytes2(16).toString("hex");
+}
+function lockDeadline(options) {
+  const now = Date.now();
+  const timeout = options.timeoutMs ?? LOCK_TIMEOUT_MS2;
+  if (!Number.isFinite(timeout) || timeout < 0) {
+    throw new RangeError("Marker lock timeoutMs must be a non-negative finite number");
+  }
+  const relative = now + timeout;
+  if (options.deadlineMs == null) return relative;
+  if (!Number.isFinite(options.deadlineMs)) {
+    throw new RangeError("Marker lock deadlineMs must be a finite epoch timestamp");
+  }
+  return Math.min(relative, options.deadlineMs);
+}
+async function acquire(lockPath, options = {}) {
+  const deadline = lockDeadline(options);
   for (; ; ) {
+    throwIfAborted(options.signal);
+    const token = newOwnerToken();
     try {
       await mkdir2(lockPath);
-      await writeFile2(
-        join2(lockPath, "owner.json"),
-        JSON.stringify({ pid: process.pid, at: Date.now() }),
-        "utf8"
-      ).catch(() => {
-      });
-      return;
+      try {
+        await writeFile2(
+          join2(lockPath, "owner.json"),
+          JSON.stringify({ pid: process.pid, token, at: Date.now() }),
+          { encoding: "utf8", flag: "wx" }
+        );
+      } catch (err) {
+        await rm2(lockPath, { recursive: true, force: true }).catch(() => {
+        });
+        throw err;
+      }
+      return { path: lockPath, token };
     } catch (err) {
       if (err?.code !== "EEXIST") throw err;
       try {
-        const info = await stat2(lockPath);
-        let abandoned = false;
-        try {
-          const owner = JSON.parse(
-            await readFile2(join2(lockPath, "owner.json"), "utf8")
+        const info = await lstat(lockPath);
+        if (info.isSymbolicLink() || !info.isDirectory()) {
+          throw new UnsafeMarkerPathError(
+            `Marker lock path is not a real directory: ${lockPath}`
           );
-          abandoned = typeof owner.pid === "number" && !pidAlive2(owner.pid);
-        } catch {
+        }
+        let abandoned = false;
+        const ownerPath = join2(lockPath, "owner.json");
+        try {
+          const ownerInfo = await lstat(ownerPath);
+          if (ownerInfo.isSymbolicLink() || !ownerInfo.isFile()) {
+            throw new UnsafeMarkerPathError(
+              `Marker lock owner is not a regular file: ${ownerPath}`
+            );
+          }
+          const owner = JSON.parse(await readFile2(ownerPath, "utf8"));
+          abandoned = Number.isSafeInteger(owner.pid) && owner.pid > 0 && !isProcessAlive(owner.pid);
+        } catch (err2) {
+          if (err2 instanceof UnsafeMarkerPathError) throw err2;
           abandoned = Date.now() - info.mtimeMs > LOCK_STALE_MS2;
         }
         if (abandoned) {
@@ -21684,38 +21848,97 @@ async function acquire(lockPath) {
           } catch {
           }
         }
-      } catch {
-        continue;
+      } catch (err2) {
+        if (err2 instanceof UnsafeMarkerPathError) throw err2;
+        if (err2?.code === "ENOENT") continue;
       }
-      if (Date.now() > deadline) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
         throw new Error(`Timed out waiting for marker lock ${lockPath}`);
       }
-      await sleep2(LOCK_POLL_MS2);
+      await sleep2(Math.min(LOCK_POLL_MS2, remaining), options.signal);
     }
   }
 }
-async function updateMarker(claudeSessionId, mutate) {
-  const path = markerPath(claudeSessionId);
-  const dir = markersDir();
-  if (!existsSync2(dir)) await mkdir2(dir, { recursive: true });
-  const lockPath = path + ".lock";
-  await acquire(lockPath);
+async function release(lock) {
   try {
-    const current = await readMarker(claudeSessionId) ?? emptyMarker();
-    mutate(current);
-    const tmp = `${path}.${process.pid}.${randomBytes2(4).toString("hex")}.tmp`;
-    await writeFile2(tmp, JSON.stringify(current, null, 2), "utf8");
+    const info = await lstat(lock.path);
+    if (info.isSymbolicLink() || !info.isDirectory()) return;
+    const ownerPath = join2(lock.path, "owner.json");
+    const ownerInfo = await lstat(ownerPath);
+    if (ownerInfo.isSymbolicLink() || !ownerInfo.isFile()) return;
+    const owner = JSON.parse(await readFile2(ownerPath, "utf8"));
+    if (owner.token === lock.token) {
+      await rm2(lock.path, { recursive: true, force: true });
+    }
+  } catch {
+  }
+}
+async function ensureMarkersDirectory() {
+  const dir = markersDir();
+  try {
+    const info = await lstat(dir);
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw new UnsafeMarkerPathError(`Markers path is not a real directory: ${dir}`);
+    }
+  } catch (err) {
+    if (err?.code !== "ENOENT") throw err;
+    await mkdir2(dir, { recursive: true });
+    const info = await lstat(dir);
+    if (info.isSymbolicLink() || !info.isDirectory()) {
+      throw new UnsafeMarkerPathError(`Markers path is not a real directory: ${dir}`);
+    }
+  }
+}
+function outcomeError(outcome) {
+  const error2 = new Error(outcome.reason);
+  error2.name = outcome.kind === "unsafe" ? "UnsafeMarkerPathError" : "InvalidMarkerError";
+  return error2;
+}
+async function atomicWrite(path, marker) {
+  const kind = await inspectRegularFile(path);
+  if (kind === "unsafe") {
+    throw new UnsafeMarkerPathError(`Marker path is not a regular file: ${path}`);
+  }
+  const tmp = `${path}.${process.pid}.${randomBytes2(8).toString("hex")}.tmp`;
+  try {
+    await writeFile2(tmp, JSON.stringify(marker, null, 2), {
+      encoding: "utf8",
+      flag: "wx"
+    });
+    const beforeRename = await inspectRegularFile(path);
+    if (beforeRename === "unsafe") {
+      throw new UnsafeMarkerPathError(`Marker path became unsafe: ${path}`);
+    }
     await rename2(tmp, path);
-    return current;
   } finally {
-    await rm2(lockPath, { recursive: true, force: true }).catch(() => {
+    await unlink(tmp).catch(() => {
     });
   }
 }
-async function writeMarker(claudeSessionId, m) {
+async function updateMarker(claudeSessionId, mutate, options = {}) {
+  const path = markerPath(claudeSessionId);
+  await ensureMarkersDirectory();
+  const lockPath = path + ".lock";
+  const lock = await acquire(lockPath, options);
+  try {
+    const outcome = await readMarkerOutcome(claudeSessionId);
+    if (outcome.kind === "invalid" || outcome.kind === "unsafe") {
+      throw outcomeError(outcome);
+    }
+    const current = outcome.kind === "valid" ? outcome.marker : emptyMarker();
+    await mutate(current);
+    throwIfAborted(options.signal);
+    await atomicWrite(path, current);
+    return current;
+  } finally {
+    await release(lock);
+  }
+}
+async function writeMarker(claudeSessionId, m, options = {}) {
   await updateMarker(claudeSessionId, (cur) => {
     Object.assign(cur, m);
-  });
+  }, options);
 }
 var MARKER_MAX_AGE_MS = 24 * 60 * 60 * 1e3;
 var TRANSCRIPT_GRACE_MS = 5 * 60 * 1e3;
@@ -21725,7 +21948,7 @@ var declared = null;
 function setHarnessFromArgv(argv) {
   const i = argv.indexOf("--harness");
   const value = i >= 0 ? argv[i + 1] : void 0;
-  declared = value === "codex" || value === "claudeCode" ? value : null;
+  declared = value === "codex" || value === "claudeCode" || value === "omp" ? value : null;
 }
 function currentHarness(env = process.env) {
   if (declared) return declared;
@@ -21741,6 +21964,10 @@ function currentHarness(env = process.env) {
 import { randomUUID } from "node:crypto";
 function textResult(text) {
   return { content: [{ type: "text", text }] };
+}
+function currentResolver() {
+  const harness = currentHarness();
+  return harness === "claudeCode" ? "claude" : harness;
 }
 function errorResult(text) {
   return { content: [{ type: "text", text }], isError: true };
@@ -21969,7 +22196,7 @@ ${formatted.join("\n\n")}${nudge}`);
         if (comment.status === status) {
           return { kind: "noop", shortID: comment.shortID };
         }
-        applyStatusUpdate(comment, status, summary, /* @__PURE__ */ new Date());
+        applyStatusUpdate(comment, status, summary, /* @__PURE__ */ new Date(), currentResolver());
         return { kind: "ok", shortID: comment.shortID };
       });
       if (outcome.kind === "missing") {
@@ -22066,7 +22293,7 @@ Summary: ${summary}`);
         const results = [];
         for (const { comment, summary: commentSummary } of targets) {
           if (comment.status === status) continue;
-          applyStatusUpdate(comment, status, commentSummary, now);
+          applyStatusUpdate(comment, status, commentSummary, now, currentResolver());
           results.push(comment.shortID);
         }
         if (results.length === 0) {
@@ -22113,15 +22340,22 @@ Summary: ${summary}`);
     }
   });
   server2.registerTool("remarc_create_session", {
-    description: "Create a new Remarc session and link it to this agent session. Use when the user asks to start a Remarc session mid-conversation. Comments made in Remarc will be attached to subsequent messages.",
+    description: "Create a new Remarc session for Claude Code, Codex, or OMP. OMP sessions use the trusted server identity and pair separately for instant delivery.",
     inputSchema: {
       name: external_exports.string().describe("Session name (e.g. directory name or task description)."),
-      claude_session_id: external_exports.string().describe("Your agent session ID (provided in your session context)."),
+      claude_session_id: external_exports.string().optional().describe("Your agent session ID. Required for Claude Code and Codex; OMP pairing is owned by remarc-wake."),
       harness: external_exports.enum(["claudeCode", "codex"]).optional().describe(
         "Which agent you are. Pass this - the server cannot tell. One MCP server serves whichever agent connects to it, so a Codex agent running inside Claude Code reaches Claude Code's server and would otherwise be labelled Claude Code."
       )
     }
   }, async ({ name, claude_session_id, harness }) => {
+    const serverHarness = currentHarness();
+    const sessionOrigin = serverHarness === "omp" ? "omp" : harness ?? serverHarness;
+    if (serverHarness !== "omp" && !claude_session_id) {
+      return errorResult(
+        "claude_session_id is required when creating a Claude Code or Codex session."
+      );
+    }
     try {
       const created = await withDocument((state) => {
         const MAX_ACTIVE_SESSIONS = 8;
@@ -22129,7 +22363,7 @@ Summary: ${summary}`);
           (s) => !s.isDeleted && !s.isAutoDismissed
         );
         const existingNames = new Set(
-          activeSessions.filter((s) => s.origin === "claudeCode").map((s) => s.name)
+          activeSessions.filter((s) => s.origin === sessionOrigin).map((s) => s.name)
         );
         let finalName = name;
         if (existingNames.has(name)) {
@@ -22143,9 +22377,9 @@ Summary: ${summary}`);
           }
         }
         if (activeSessions.length >= MAX_ACTIVE_SESSIONS) {
-          const claudeSessions = activeSessions.filter((s) => s.origin === "claudeCode").sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-          if (claudeSessions.length > 0) {
-            const oldest = claudeSessions[0];
+          const integrationSessions = activeSessions.filter((s) => s.origin === sessionOrigin).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+          if (integrationSessions.length > 0) {
+            const oldest = integrationSessions[0];
             const idx = state.sessions.findIndex((s) => s.id === oldest.id);
             if (idx !== -1) {
               state.sessions[idx].isAutoDismissed = true;
@@ -22165,14 +22399,11 @@ Summary: ${summary}`);
           deletedAt: null,
           isAutoDismissed: false,
           autoDismissedAt: null,
-          // The caller's own answer wins, because only the caller knows. Server
-          // detection reads the process it was launched in, which is the harness
-          // that *started the server*, not the agent on the other end of the
-          // connection - and those differ whenever one agent runs inside another.
-          // `claudeCodeSessionId` keeps its name for schema compatibility but
-          // holds whichever harness's session id this is.
-          origin: harness ?? currentHarness(),
-          claudeCodeSessionId: claude_session_id,
+          // `claudeCodeSessionId` keeps its legacy name for schema compatibility.
+          // OMP's optional wake extension owns its session-scoped lease instead,
+          // so core OMP creation deliberately leaves this field empty.
+          origin: sessionOrigin,
+          claudeCodeSessionId: serverHarness === "omp" ? null : claude_session_id,
           unknownFields: {}
         });
         state.activeSessionID = sessionId;
@@ -22182,12 +22413,19 @@ Summary: ${summary}`);
         return errorResult("Max sessions reached. Delete a session first.");
       }
       notifyRemarcReload();
-      await writeMarker(claude_session_id, {
-        remarcSessionId: created.sessionId,
-        dataFilePath: getDataFilePath()
-      });
+      if (serverHarness !== "omp") {
+        await writeMarker(claude_session_id, {
+          remarcSessionId: created.sessionId,
+          dataFilePath: getDataFilePath()
+        });
+      }
+      if (serverHarness === "omp") {
+        return textResult(
+          `Created Remarc session "${created.finalName}" (id: ${created.sessionId}). It is now active. If the optional remarc-wake plugin is installed, run /remarc-pair in this OMP session to enable instant delivery; otherwise use MCP on demand.`
+        );
+      }
       return textResult(
-        `Created Remarc session "${created.finalName}" (id: ${created.sessionId}). It's now the active session \u2014 comments you make in Remarc will be attached to your messages.`
+        `Created Remarc session "${created.finalName}" (id: ${created.sessionId}). It is now active. Future comments can be fetched through the Remarc MCP tools; an installed lifecycle integration may attach them automatically.`
       );
     } catch (err) {
       return errorResult(String(err));
@@ -22200,7 +22438,7 @@ setHarnessFromArgv(process.argv);
 var server = new McpServer(
   {
     name: "remarc",
-    version: "0.1.0"
+    version: "0.3.0"
   },
   {
     instructions: `Remarc is a macOS contextual commenting app. Comments have short IDs (first 5 UUID chars, e.g. 'a3f2b'). After addressing a comment, call remarc_set_status with status "resolved" and a brief summary of what you did. When resolving multiple comments, use remarc_bulk_set_status to save context.`

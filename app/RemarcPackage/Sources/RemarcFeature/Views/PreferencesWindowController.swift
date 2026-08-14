@@ -1532,6 +1532,8 @@ struct PreferencesView: View {
     private var mcpIntegrationsSection: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Self.sectionSpacing) {
+                instantDeliverySection
+                Divider()
                 claudeCodeIntegrationSection
                 Divider()
                 codexIntegrationSection
@@ -1760,6 +1762,38 @@ struct PreferencesView: View {
         }
     }
 
+    private var instantDeliverySection: some View {
+        VStack(alignment: .leading, spacing: Self.itemSpacing) {
+            sectionHeader(
+                "Instant delivery",
+                description: "Let a live, paired agent receive a newly saved comment without waiting for the next prompt."
+            )
+
+            toggleRow(
+                "Allow comments to wake paired agent sessions",
+                isOn: $settings.wakeOnCommentEnabled
+            )
+
+            settingsHint(
+                "Send Instantly appears only when the selected Remarc session has a live pairing.",
+                tint: .primary.opacity(0.35)
+            )
+
+            if settings.wakeOnCommentEnabled && !settings.wakeHooksAvailable {
+                settingsHint(
+                    "No live pairing is currently reachable. Pair from a supported agent session, then return to Remarc.",
+                    tint: .primary.opacity(0.35)
+                )
+            }
+
+            Link(
+                "Set up OMP instant delivery",
+                destination: URL(string: "https://github.com/metedata/remarc-agent-plugins/blob/main/docs/integrations/omp.md")!
+            )
+            .font(.system(size: 11))
+        }
+    }
+
     private var codexIntegrationSection: some View {
         VStack(alignment: .leading, spacing: Self.itemSpacing) {
             sectionHeader(
@@ -1898,18 +1932,6 @@ struct PreferencesView: View {
 
             if !settings.claudeCodeAutoCreateSession {
                 settingsHint("Use the remarc_create_session MCP tool to create sessions manually", tint: .primary.opacity(0.35))
-            }
-
-            toggleRow("Allow comments to wake Claude Code sessions", isOn: $settings.wakeOnCommentEnabled)
-
-            if settings.wakeOnCommentEnabled {
-                settingsHint("Adds a Send Instantly button beside Save that hands the comment to the session's own Claude Code agent right away", tint: .primary.opacity(0.35))
-            } else {
-                settingsHint("Experimental. Turn on to add a Send Instantly button beside Save that interrupts a session's Claude Code agent with the comment", tint: .primary.opacity(0.35))
-            }
-
-            if settings.wakeOnCommentEnabled && !settings.wakeHooksAvailable {
-                settingsHint("Send Instantly appears only for a session paired with a running Claude Code agent, and interrupts that one agent. Inbox comments and Codex sessions cannot be woken, so it stays hidden there and comments arrive at your next prompt instead.", tint: .primary.opacity(0.35))
             }
 
             settingsHint("Quitting an agent only unlinks its session - the session and its comments stay. This applies when you clear the conversation, which is the one ending that means the work is done.", tint: .primary.opacity(0.35))

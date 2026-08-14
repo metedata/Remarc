@@ -1,0 +1,252 @@
+{
+  "fixtureVersion": 1,
+  "now": "2033-05-18T03:33:20.000Z",
+  "requestedRemarcSessionId": "11111111-1111-1111-1111-111111111111",
+  "cases": [
+    {
+      "name": "valid-v1",
+      "ownerAlive": true,
+      "expectedReachable": true,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "dead-owner-pid",
+      "ownerAlive": false,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "oldest-live-heartbeat-boundary",
+      "ownerAlive": true,
+      "expectedReachable": true,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:32:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:32:20.000Z"
+      }
+    },
+    {
+      "name": "stale-heartbeat",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:32:19.999Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:32:19.999Z"
+      }
+    },
+    {
+      "name": "furthest-future-heartbeat-boundary",
+      "ownerAlive": true,
+      "expectedReachable": true,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:50.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:50.000Z"
+      }
+    },
+    {
+      "name": "too-far-future-heartbeat",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:50.001Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:50.001Z"
+      }
+    },
+    {
+      "name": "missing-owner-token",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "blank-owner-token",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "   ",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "wrong-harness",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "claudeCode",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "missing-harness",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "unknown-protocol",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 2,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "non-boolean-wake-capable",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "11111111-1111-1111-1111-111111111111",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": 1,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    },
+    {
+      "name": "wrong-remarc-session",
+      "ownerAlive": true,
+      "expectedReachable": false,
+      "marker": {
+        "remarcSessionId": "22222222-2222-2222-2222-222222222222",
+        "dataFilePath": "/tmp/comments.json",
+        "transcriptPath": null,
+        "wakeCapable": true,
+        "lastActivity": "2033-05-18T03:33:20.000Z",
+        "deliveredIds": [],
+        "wakedAt": {},
+        "protocolVersion": 1,
+        "harness": "omp",
+        "ownerPid": 4242,
+        "ownerToken": "0123456789abcdef0123456789abcdef",
+        "leaseHeartbeatAt": "2033-05-18T03:33:20.000Z"
+      }
+    }
+  ]
+}

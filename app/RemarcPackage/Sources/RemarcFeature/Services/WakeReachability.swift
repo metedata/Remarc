@@ -1,22 +1,22 @@
 import Foundation
+import Darwin
 
 /// Decides whether pressing the wake button could actually reach an agent.
 ///
-/// Plugin-install state is the wrong signal: it says the Claude Code plugin
-/// exists, not which harness the user is working in right now. Someone in Codex
-/// with the plugin installed would see a button promising instant delivery that
-/// Codex cannot honour - Codex has no file-watch or rewake hook - while a
-/// Codex-only user would see no button at all.
+/// Plugin-install state is the wrong signal: it does not say which harness the
+/// user is working in right now, or whether that process owns a live pairing.
 ///
-/// The sessions themselves are the authority. Each hook writes a marker saying
-/// whether it can be woken, so this just asks: is any wake-capable session
-/// currently alive?
+/// The sessions themselves are the authority. Each paired integration writes
+/// a marker saying whether it can be woken, so this just asks: is any
+/// wake-capable session currently alive?
 enum WakeReachability {
     /// A session that has shown no activity for this long is treated as gone.
     /// Markers are also removed at SessionEnd; this covers abnormal exits.
     private static let liveWindow: TimeInterval = 60 * 60 * 4
 
     static var markersDirectory: URL {
+        // `claude` is a historical path component retained as the shared
+        // cross-harness marker contract.
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Remarc/claude/markers", isDirectory: true)
     }
@@ -44,9 +44,15 @@ enum WakeReachability {
     /// running on the machine.
     static func anyWakeCapableSessionIsLive(
         in directory: URL? = nil,
-        now: Date = Date()
+        now: Date = .now,
+        processIsLive: (Int32) -> Bool = defaultProcessIsLive
     ) -> Bool {
-        liveWakeCapableSessionExists(pairedTo: nil, in: directory, now: now)
+        liveWakeCapableSessionExists(
+            pairedTo: nil,
+            in: directory,
+            now: now,
+            processIsLive: processIsLive
+        )
     }
 
     /// True when the agent paired with `remarcSessionID` is live and wakeable.
@@ -61,7 +67,8 @@ enum WakeReachability {
     static func liveWakeCapableSessionExists(
         pairedTo remarcSessionID: UUID?,
         in directory: URL? = nil,
-        now: Date = Date()
+        now: Date = .now,
+        processIsLive: (Int32) -> Bool = defaultProcessIsLive
     ) -> Bool {
         let fm = FileManager.default
         guard let entries = try? fm.contentsOfDirectory(
@@ -74,7 +81,7 @@ enum WakeReachability {
         for url in entries where url.pathExtension == "json" {
             guard let data = try? Data(contentsOf: url),
                   let raw = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  raw["wakeCapable"] as? Bool == true
+                  exactBoolean(raw["wakeCapable"]) == true
             else { continue }
 
             // An agent with no paired session is not a wake target, so it is
@@ -83,12 +90,39 @@ enum WakeReachability {
             else { continue }
             if let wanted, paired.uppercased() != wanted { continue }
 
-            if isLive(raw: raw, now: now) { return true }
+            if isLive(raw: raw, now: now, processIsLive: processIsLive) { return true }
         }
         return false
     }
 
-    private static func isLive(raw: [String: Any], now: Date) -> Bool {
+    private static func isLive(
+        raw: [String: Any],
+        now: Date,
+        processIsLive: (Int32) -> Bool
+    ) -> Bool {
+        let hasVersionedLeaseField = [
+            "protocolVersion", "ownerPid", "ownerToken", "leaseHeartbeatAt",
+        ].contains { raw[$0] != nil }
+
+        if let harnessValue = raw["harness"] {
+            guard let harness = harnessValue as? String else { return false }
+            switch harness {
+            case "omp":
+                return isLiveOMPLease(raw: raw, now: now, processIsLive: processIsLive)
+            case "claudeCode":
+                if hasVersionedLeaseField { return false }
+                break
+            default:
+                return false
+            }
+        } else if hasVersionedLeaseField {
+            // A partially written or damaged OMP lease must fail closed. The
+            // extension also refreshes lastActivity, so treating this as a
+            // historical Claude marker would keep a dead owner reachable for
+            // the four-hour legacy window.
+            return false
+        }
+
         // A named transcript settles it on its own, present or absent.
         //
         // Absent is the interesting case. `claude plugin list --json` - which
@@ -110,11 +144,64 @@ enum WakeReachability {
            let date = parseTimestamp(activity) {
             return now.timeIntervalSince(date) < liveWindow
         }
-        // Deliberately no fall back to the marker file's own mtime. Every hook
-        // that writes a marker also stamps `lastActivity`, so a marker without
+        // Deliberately no fall back to the marker file's own mtime. Every
+        // integration that writes a legacy marker also stamps `lastActivity`, so a marker without
         // one is not evidence of anything - and the mtime is rewritten on every
         // delivery, which made it read as "live" unconditionally. That fallback
         // is what hid the timestamps above going unparsed for every real marker.
         return false
+    }
+
+    /// OMP runs extensions in-process, so a marker needs both a live process
+    /// identity and a recently renewed token-owned lease. Neither signal is
+    /// sufficient alone: PID reuse makes process-only checks stale, while a
+    /// heartbeat without a process can outlive a crash.
+    private static func isLiveOMPLease(
+        raw: [String: Any],
+        now: Date,
+        processIsLive: (Int32) -> Bool
+    ) -> Bool {
+        guard exactInteger(raw["protocolVersion"]) == 1,
+              let token = raw["ownerToken"] as? String,
+              !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let ownerPID = exactInteger(raw["ownerPid"]),
+              ownerPID > 0,
+              ownerPID <= Int(Int32.max),
+              processIsLive(Int32(ownerPID)),
+              let heartbeatValue = raw["leaseHeartbeatAt"] as? String,
+              let heartbeat = parseTimestamp(heartbeatValue)
+        else { return false }
+
+        let age = now.timeIntervalSince(heartbeat)
+        return (-30 ... 60).contains(age)
+    }
+
+    /// `JSONSerialization` represents both booleans and numbers as NSNumber,
+    /// so parse through the Objective-C type marker and require an exact,
+    /// finite integer rather than accepting `true`, `1.5`, or an overflow.
+    private static func exactInteger(_ value: Any?) -> Int? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID()
+        else { return nil }
+
+        let double = number.doubleValue
+        guard double.isFinite,
+              double.rounded(.towardZero) == double,
+              double >= Double(Int.min),
+              double <= Double(Int.max)
+        else { return nil }
+        return Int(double)
+    }
+
+    private static func exactBoolean(_ value: Any?) -> Bool? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID()
+        else { return nil }
+        return number.boolValue
+    }
+
+    private static func defaultProcessIsLive(_ pid: Int32) -> Bool {
+        errno = 0
+        return Darwin.kill(pid_t(pid), 0) == 0 || errno == EPERM
     }
 }

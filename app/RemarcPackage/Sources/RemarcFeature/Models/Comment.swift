@@ -19,8 +19,8 @@ public struct Comment: Codable, Identifiable, Equatable, Sendable {
     public var webContext: WebContext?
     public var regionElements: [WebContext]?
     /// Set when the user sends a comment with "Send instantly & save".
-    /// The hooks plugin reads it to decide whether to wake an idle Claude Code
-    /// session. Never cleared - delivery state lives in each session's marker.
+    /// A paired agent integration reads it to decide whether to wake its session.
+    /// Never cleared - delivery state lives in each session's marker.
     public var wakeRequestedAt: Date?
 
     public init(

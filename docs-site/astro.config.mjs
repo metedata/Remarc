@@ -80,6 +80,7 @@ export default defineConfig({
 						{ label: 'Agent overview', slug: 'agents/overview' },
 						{ label: 'Claude Code', slug: 'agents/claude-code' },
 						{ label: 'Codex', slug: 'agents/codex' },
+						{ label: 'OMP', slug: 'agents/omp' },
 						{ label: 'Cursor', slug: 'agents/cursor' },
 						{ label: 'Claude Desktop & MCP clients', slug: 'agents/claude-desktop-and-mcp-clients' },
 						{ label: 'MCP tools reference', slug: 'agents/mcp-tools-reference' },

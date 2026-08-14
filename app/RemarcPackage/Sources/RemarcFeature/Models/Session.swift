@@ -4,6 +4,7 @@ public enum SessionOrigin: String, Codable, Sendable {
     case manual
     case claudeCode
     case codex
+    case omp
 }
 
 public struct Session: Codable, Identifiable, Equatable, Sendable {
