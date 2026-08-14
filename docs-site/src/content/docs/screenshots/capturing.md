@@ -35,6 +35,6 @@ Remarc keeps images longer than comment history so exported references stay vali
 
 ## Screenshot & Send Instantly
 
-A second shortcut, Screenshot & Send Instantly, captures the same way but hands the saved comment to a live Claude Code session immediately instead of waiting for the agent's next prompt.
+A second shortcut, Screenshot & Send Instantly, captures the same way but hands the saved comment to the selected session's live, paired agent immediately instead of waiting for the agent's next read.
 
-The shortcut is unassigned by default, and its row appears in Settings > Shortcuts only when "Allow comments to wake Claude Code sessions" is enabled - see [Claude Code](/agents/claude-code/).
+The shortcut is unassigned by default, and its row appears in Settings > Shortcuts only when **Allow comments to wake paired agent sessions** is enabled. Instant delivery is available for supported pairings such as [Claude Code](/agents/claude-code/) and [OMP](/agents/omp/).

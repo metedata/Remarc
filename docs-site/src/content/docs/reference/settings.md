@@ -118,10 +118,12 @@ This tab manages the [Chrome extension](/chrome-extension/)'s connection and cap
 
 ## MCP Integrations
 
-MCP (Model Context Protocol) is how [agents](/agents/overview/) read and resolve your comments; this tab has one section per harness.
+MCP (Model Context Protocol) is how [agents](/agents/overview/) read and resolve your comments; this tab has shared delivery controls followed by setup sections for integrations Remarc manages directly.
 
-- **[Claude Code](/agents/claude-code/)**: install the required `remarc` plugin and the optional, experimental `remarc-hooks` plugin. Each row shows the exact CLI commands it runs, with a copy button. Once `remarc-hooks` is installed, three settings appear: "Auto-create session for new conversations" (default on), "Allow comments to wake Claude Code sessions" (experimental, default off), and "When a conversation is cleared" (Delete session, Keep session, or Move unresolved to Inbox; default Keep session).
+- **Instant delivery**: "Allow comments to wake paired agent sessions" is off by default. When enabled, Send Instantly appears only for the selected Remarc session when its paired agent owns a live wake connection. The section links to [OMP setup](/agents/omp/).
+- **[Claude Code](/agents/claude-code/)**: install the required `remarc` plugin and the optional, experimental `remarc-hooks` plugin. Each row shows the exact CLI commands it runs, with a copy button. Once `remarc-hooks` is installed, its Claude-specific settings cover automatic session creation and what happens when a conversation is cleared.
 - **[Codex](/agents/codex/)**: an Install button (or Repair, if the plugin is present but unhealthy) plus copyable manual commands.
+- **[OMP](/agents/omp/)**: the Instant delivery section links to setup. Installation and updates stay in OMP's own public marketplace; Remarc does not edit OMP profiles, scan installation directories, or show a file-derived status row.
 - **[Cursor](/agents/cursor/)**: an "Enable integration" toggle with Skill and MCP server status rows. Turning it off uninstalls.
 - **[Claude Desktop](/agents/claude-desktop-and-mcp-clients/)**: a ready-made JSON snippet to paste into Claude Desktop's config.
 - **Other MCP clients**: a generic MCP server JSON snippet and the full skill content, for any JSON-config MCP client.

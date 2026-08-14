@@ -21,7 +21,7 @@ When saving a comment, the composer's session picker chooses which session it go
 
 ## Agent-created sessions
 
-Agent integrations create sessions of their own, so an agent conversation gets a matching Remarc session. These carry a small origin badge next to the session name: the Claude logo for Claude Code sessions, the Codex logo for Codex sessions. See [agent integrations](/agents/overview/).
+Agent integrations create sessions of their own, so an agent conversation gets a matching Remarc session. These carry a small origin badge next to the session name: the Claude logo for Claude Code, the Codex logo for Codex, or OMP's gradient pi mark for OMP. See [agent integrations](/agents/overview/).
 
 ## Auto-delete inactive sessions
 

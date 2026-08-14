@@ -891,11 +891,48 @@ Upstream `LICENSE.txt` (verbatim):
     otherwise be required by Sections 4(a), 4(b) and 4(d) of the License.
 ```
 
+## OMP logo asset
+
+`app/Remarc/Assets.xcassets/OMPLogo.imageset/OMPLogo.svg` is copied from
+`packages/collab-web/public/favicon.svg` in
+https://github.com/can1357/oh-my-pi at commit
+`ffd53ff92a6f575d499730475a73460dd7cc2eea`.
+
+- SHA-256: `9419975a0c24961341221c4cec18703db26a989fa037768f92cda74e3769fe05`
+- Live project asset: https://omp.sh/favicon.svg
+
+Upstream `LICENSE` (verbatim):
+
+```text
+MIT License
+
+Copyright (c) 2025 Mario Zechner
+Copyright (c) 2025-2026 Can Bölük
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Bundled Remarc MCP server
 
 `mcp/vendor/remarc-mcp.js` is a single-file bundle built from
 https://github.com/metedata/remarc-agent-plugins at commit
-`4df0b8a9e4b8f29feac7cf0cbec6cd168b074995` (plugin version `0.10.0`).
+`d09a9552d61287eb52bbb4a63ac3ef54fadee2a3` (plugin version `0.12.0`).
 The following packages are present in that bundle. Build-only and test-only
 packages from the source repository are not redistributed in this file.
 
@@ -1020,7 +1057,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### fast-uri 3.1.2
+### fast-uri 3.1.5
 
 - Source: https://github.com/fastify/fast-uri
 

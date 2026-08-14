@@ -19,6 +19,7 @@ final class CommentsSchemaFixtureTests: XCTestCase {
 
         XCTAssertGreaterThan(state.comments.count, 0, "fixture has comments")
         XCTAssertGreaterThan(state.sessions.count, 0, "fixture has sessions")
+        XCTAssertTrue(state.sessions.contains(where: { $0.origin == .omp }), "fixture covers OMP origin")
 
         // Pin the field name that v1 of the migration plan got wrong: confirm
         // every fixture comment has the `commentText` field populated. If this
@@ -78,6 +79,7 @@ final class CommentsSchemaFixtureTests: XCTestCase {
         XCTAssertEqual(SessionOrigin.manual.rawValue, "manual")
         XCTAssertEqual(SessionOrigin.claudeCode.rawValue, "claudeCode")
         XCTAssertEqual(SessionOrigin.codex.rawValue, "codex")
+        XCTAssertEqual(SessionOrigin.omp.rawValue, "omp")
 
         let session = Session(name: "s", origin: .codex)
         let reencoded = try JSONSerialization.jsonObject(

@@ -40,7 +40,7 @@ Group comments into [sessions](https://docs.remarc.app/basics/sessions/) by revi
 
 #### MCP and plugins carry the context
 
-Claude Code and Codex connect through plugins from the public [Remarc agent integrations repository](https://github.com/metedata/remarc-agent-plugins), Cursor is configured by the app, and Claude Desktop or another MCP client can connect manually. Every supported client gets the same context and MCP tools for reading comments, managing sessions, and resolving work. The [agent integrations guide](https://docs.remarc.app/agents/overview/) covers each setup path.
+Claude Code, Codex, and OMP connect through plugins from the public [Remarc agent integrations repository](https://github.com/metedata/remarc-agent-plugins), Cursor is configured by the app, and Claude Desktop or another MCP client can connect manually. Every supported client gets the same context and MCP tools for reading comments, managing sessions, and resolving work. The [agent integrations guide](https://docs.remarc.app/agents/overview/) covers each setup path.
 
 #### Statuses close the loop
 
@@ -93,7 +93,7 @@ Release builds are signed with a Developer ID certificate and notarized through 
 | `docs-site/` | docs.remarc.app end-user documentation (Astro Starlight) |
 | `docs/` | Design docs and historical planning notes |
 
-The MCP server's source of truth lives in the [remarc-agent-plugins](https://github.com/metedata/remarc-agent-plugins) repository, which also hosts the Claude Code and Codex plugins. This repo vendors the built artifact.
+The MCP server's source of truth lives in the public, MIT-licensed [remarc-agent-plugins](https://github.com/metedata/remarc-agent-plugins) repository, which also hosts the Claude Code, Codex, and OMP integrations plus their compatibility and release documentation. This repo vendors the built artifact.
 
 ## Tech stack
 

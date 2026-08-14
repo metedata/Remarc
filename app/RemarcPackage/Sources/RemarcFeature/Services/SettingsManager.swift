@@ -368,15 +368,15 @@ public final class SettingsManager: ObservableObject {
         didSet { defaults.set(preloadModelOnLaunch, forKey: Keys.preloadModelOnLaunch) }
     }
 
-    // MARK: - Claude Code Integration
+    // MARK: - Agent Integrations
 
     @Published public var claudeCodeEnabled: Bool {
         didSet { defaults.set(claudeCodeEnabled, forKey: Keys.claudeCodeEnabled) }
     }
 
     /// Whether the comment composer offers "Send instantly & save", which hands
-    /// a comment to a live Claude Code session instead of waiting for its next
-    /// prompt. Off means the button is hidden and the flag is never written.
+    /// a comment to its live, paired agent instead of waiting for the agent's
+    /// next prompt. Off means the button is hidden and the flag is never written.
     @Published public var wakeOnCommentEnabled: Bool {
         didSet { defaults.set(wakeOnCommentEnabled, forKey: Keys.wakeOnCommentEnabled) }
     }
@@ -384,10 +384,8 @@ public final class SettingsManager: ObservableObject {
     /// Whether a session that can actually be woken is currently live.
     ///
     /// Deliberately not "is the plugin installed": that says nothing about
-    /// which harness the user is working in. Codex sessions have no file-watch
-    /// or rewake hook, so a Codex user with the Claude Code plugin installed
-    /// would otherwise see a button promising something Codex cannot do.
-    /// Sessions declare their own capability in their marker; see
+    /// which harness the user is working in or whether a process owns a live
+    /// pairing. Sessions declare their own capability in their marker; see
     /// `WakeReachability`.
     @Published public var wakeHooksAvailable: Bool {
         didSet { defaults.set(wakeHooksAvailable, forKey: Keys.wakeHooksAvailable) }
@@ -734,7 +732,7 @@ public final class SettingsManager: ObservableObject {
         self.keepModelInMemory = defaults.bool(forKey: Keys.keepModelInMemory)
         self.preloadModelOnLaunch = defaults.bool(forKey: Keys.preloadModelOnLaunch)
 
-        // Claude Code Integration
+        // Agent integrations
         self.claudeCodeEnabled = defaults.bool(forKey: Keys.claudeCodeEnabled)
         // Off by default while the feature settles: waking an idle agent is a
         // deliberate choice, not something to opt users into silently.

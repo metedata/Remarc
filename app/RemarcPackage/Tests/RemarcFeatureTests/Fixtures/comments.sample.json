@@ -23,6 +23,17 @@
       "autoDismissedAt": null,
       "origin": "claudeCode",
       "claudeCodeSessionId": "claude-session-abc"
+    },
+    {
+      "id": "66666666-7777-4888-9999-AAAAAAAAAAAA",
+      "name": "OMP Sample Session",
+      "createdAt": 800000200,
+      "isDeleted": false,
+      "deletedAt": null,
+      "isAutoDismissed": false,
+      "autoDismissedAt": null,
+      "origin": "omp",
+      "claudeCodeSessionId": null
     }
   ],
   "comments": [

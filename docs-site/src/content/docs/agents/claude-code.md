@@ -32,15 +32,14 @@ Its Install button in Settings appears once `remarc` is installed, or install it
 claude plugin install remarc-hooks@remarc
 ```
 
-With hooks installed, three settings appear under Settings > MCP Integrations:
+With hooks installed, two Claude Code settings appear under Settings > MCP Integrations:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
 | Auto-create session for new conversations | On | Each new Claude Code conversation gets its own Remarc session, so comments you file land with the right agent. |
-| Allow comments to wake Claude Code sessions | Off | Adds a Send Instantly button beside Save in the composer that interrupts the session's Claude Code agent with the comment right away. |
 | When a conversation is cleared | Keep session | Choose Delete session, Keep session, or Move unresolved to Inbox. |
 
-Send Instantly appears only for a session paired with a running Claude Code agent. Inbox comments and Codex sessions cannot be woken; those comments arrive at the agent's next prompt instead.
+The harness-neutral **Instant delivery** section has the separate **Allow comments to wake paired agent sessions** toggle, off by default. With `remarc-hooks` installed, Send Instantly appears for a session paired with a running Claude Code agent. Inbox comments and unpaired sessions continue to arrive at the next agent read.
 
 Quitting an agent only unlinks its session; the session and its comments stay in Remarc. The "When a conversation is cleared" setting applies when you clear the conversation.
 

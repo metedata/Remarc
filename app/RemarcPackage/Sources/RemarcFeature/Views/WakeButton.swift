@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Companion to Save: saves the comment and hands it straight to a running
-/// Claude Code session instead of waiting for its next prompt.
+/// paired agent session instead of waiting for its next prompt.
 ///
 /// A circular send button sitting left of Save, matched to Save's height so
 /// the pair reads as one control group. It keeps its own colour because it
@@ -23,7 +23,7 @@ public struct WakeButton: View {
         Button(action: action) {
             Image(systemName: "arrow.up")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundStyle(.white)
                 // Matches the Save button's height so the two sit on one line.
                 .frame(width: 26, height: 26)
                 .background(
@@ -52,7 +52,7 @@ public struct WakeButton: View {
         )
         .help("Send instantly & save")
         .accessibilityLabel("Send instantly and save")
-        .accessibilityHint("Hands this comment to a running Claude Code session right away")
+        .accessibilityHint("Hands this comment to the selected session's paired agent right away")
         .accessibilityIdentifier("remarc.commentInput.wakeButton")
     }
 }
