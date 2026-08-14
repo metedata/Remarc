@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Remarc Web Context",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Companion extension for Remarc — captures web element context for design comments and annotations",
   "minimum_chrome_version": "120",
   "permissions": ["activeTab", "alarms", "storage", "scripting"],
