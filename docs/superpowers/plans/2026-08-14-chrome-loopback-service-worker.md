@@ -156,11 +156,11 @@
 - [x] Visit two different secure public origins with content scripts active.
 - [x] Assert the real server observes one extension-origin WebSocket, not one connection per tab/origin.
 - [x] Assert each page’s `navigator.permissions.query({ name: "loopback-network" })` remains `prompt`, showing no site grant was consumed.
-- [ ] Exercise popup connection state, Grab Element, Select Region, shortcut update propagation, highlight dismissal, tab close, worker restart, and app-late-start reconnect.
-- [ ] With worker DevTools closed, stop Remarc for more than two minutes, relaunch it without page or popup interaction, and assert the alarm path establishes exactly one socket.
-- [ ] Load 0.3.0 in the same profile, keep several pages open, update to this worktree version, and verify/document the required one-time tab reload; ensure no old socket survives after those pages reload.
-- [ ] Simulate `runtime.onUpdateAvailable` and verify the current bridge closes without reconnect before the worker reloads.
-- [ ] Capture browser-visible evidence that neither origin shows the “Access other apps and services on this device” prompt.
+- [x] Exercise popup connection state, Grab Element, Select Region, shortcut update propagation, highlight dismissal, tab close, worker restart, and app-late-start reconnect — Chrome 151 passed the complete interactive matrix with exactly one active socket.
+- [x] With worker DevTools closed, stop Remarc for more than two minutes, relaunch it without page or popup interaction, and assert the alarm path establishes exactly one socket — a fake server started at 125 seconds received one alarm-driven connection 26 seconds later, with no overlapping socket and the reconnect alarm cleared.
+- [x] Load 0.3.0 in the same profile, keep several pages open, update to this worktree version, and verify/document the required one-time tab reload; ensure no old socket survives after those pages reload — three legacy page sockets closed after their tabs reloaded, leaving one extension-origin socket and `background-bridge-v1` in all three documents.
+- [x] Simulate `runtime.onUpdateAvailable` and verify the current bridge closes without reconnect before the worker reloads — three deterministic controller tests cover the normal drain, alarm-clear failure, and an in-flight alarm-create race.
+- [x] Capture browser-visible evidence that neither origin shows the “Access other apps and services on this device” prompt — both origins retained `loopback-network = prompt`, with no new browser-UI target or dialog during the interaction run.
 
 ### Review gates
 
