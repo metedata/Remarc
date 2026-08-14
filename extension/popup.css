@@ -59,10 +59,6 @@ body {
   background: #22c55e;
 }
 
-.status-dot.blocked {
-  background: #f59e0b;
-}
-
 .status-dot.paused {
   background: #8888a0;
 }
@@ -208,30 +204,6 @@ body {
 
 .reconnect-btn:active {
   background: rgba(99, 102, 241, 0.28);
-}
-
-/* Icon toggle: show reload by default, swap to settings icon when LNA-blocked */
-.reconnect-icon-settings { display: none; }
-.reconnect-hint.lna .reconnect-icon-reload { display: none; }
-.reconnect-hint.lna .reconnect-icon-settings { display: block; }
-
-/* LNA hint uses warning amber to distinguish from "just reload" */
-.reconnect-hint.lna {
-  color: #d4a06a;
-}
-.reconnect-hint.lna .reconnect-text {
-  opacity: 0.95;
-}
-.reconnect-hint.lna .reconnect-btn {
-  background: rgba(212, 160, 106, 0.14);
-  color: #d4a06a;
-}
-.reconnect-hint.lna .reconnect-btn:hover {
-  background: rgba(212, 160, 106, 0.24);
-  color: #e0b388;
-}
-.reconnect-hint.lna .reconnect-btn:active {
-  background: rgba(212, 160, 106, 0.32);
 }
 
 /* --- Footer / Settings Link --- */
