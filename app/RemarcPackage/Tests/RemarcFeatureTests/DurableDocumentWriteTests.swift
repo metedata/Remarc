@@ -117,6 +117,145 @@ final class DurableDocumentWriteTests: XCTestCase {
                         "an entity in ours and absent from base takes the we-created-it branch")
     }
 
+    // MARK: - Export receipt clearing
+
+    func testExportClearRereadsDiskAndSkipsAConcurrentAgentEdit() throws {
+        let s = session()
+        let exportedAt = Date(timeIntervalSince1970: 1_000)
+        let exported = Comment(
+            type: .comment(text: "selected"),
+            commentText: "before",
+            source: "test",
+            appBundleID: nil,
+            updatedAt: exportedAt,
+            sessionID: s.id
+        )
+        let baseline = AppState(
+            sessions: [s],
+            comments: [exported],
+            activeSessionID: s.id,
+            totalCommentsCreated: 1
+        )
+        let receipt = ExportReceipt(sessionID: s.id, comments: [exported])
+
+        var agentState = baseline
+        agentState.comments[0].commentText = "edited by agent"
+        agentState.comments[0].updatedAt = exportedAt.addingTimeInterval(1)
+        try write(agentState)
+
+        let commit = try PersistenceManager.performExportReceiptClear(
+            fileURL: fileURL,
+            receipt: receipt,
+            candidate: baseline,
+            baseline: baseline
+        )
+
+        XCTAssertTrue(commit.clearedIDs.isEmpty)
+        let stored = try XCTUnwrap(try read().comments.first)
+        XCTAssertEqual(stored.commentText, "edited by agent")
+        XCTAssertFalse(stored.isDeleted)
+    }
+
+    func testExportClearSkipsAPendingLocalEditThatHasNotReachedDisk() throws {
+        let s = session()
+        let exportedAt = Date(timeIntervalSince1970: 2_000)
+        let exported = Comment(
+            type: .comment(text: "selected"),
+            commentText: "before",
+            source: "test",
+            appBundleID: nil,
+            updatedAt: exportedAt,
+            sessionID: s.id
+        )
+        let baseline = AppState(
+            sessions: [s],
+            comments: [exported],
+            activeSessionID: s.id,
+            totalCommentsCreated: 1
+        )
+        try write(baseline)
+        let receipt = ExportReceipt(sessionID: s.id, comments: [exported])
+
+        var candidate = baseline
+        candidate.comments[0].commentText = "pending local edit"
+        candidate.comments[0].updatedAt = exportedAt.addingTimeInterval(1)
+
+        let commit = try PersistenceManager.performExportReceiptClear(
+            fileURL: fileURL,
+            receipt: receipt,
+            candidate: candidate,
+            baseline: baseline
+        )
+
+        XCTAssertTrue(commit.clearedIDs.isEmpty)
+        let stored = try XCTUnwrap(try read().comments.first)
+        XCTAssertEqual(stored.commentText, "pending local edit")
+        XCTAssertFalse(stored.isDeleted)
+    }
+
+    func testExportClearDurablyDeletesOnlyTheUnchangedVersion() throws {
+        let s = session()
+        let exportedAt = Date(timeIntervalSince1970: 3_000)
+        let unchanged = Comment(
+            type: .screenshot(imagePath: "images/capture.png"),
+            commentText: "",
+            source: "test",
+            appBundleID: nil,
+            updatedAt: exportedAt,
+            sessionID: s.id
+        )
+        let baseline = AppState(
+            sessions: [s],
+            comments: [unchanged],
+            activeSessionID: s.id,
+            totalCommentsCreated: 1
+        )
+        try write(baseline)
+        let receipt = ExportReceipt(sessionID: s.id, comments: [unchanged])
+
+        let commit = try PersistenceManager.performExportReceiptClear(
+            fileURL: fileURL,
+            receipt: receipt,
+            candidate: baseline,
+            baseline: baseline
+        )
+
+        XCTAssertEqual(commit.clearedIDs, [unchanged.id])
+        let stored = try XCTUnwrap(try read().comments.first)
+        XCTAssertTrue(stored.isDeleted)
+        XCTAssertNotNil(stored.deletedAt)
+        XCTAssertGreaterThan(stored.updatedAt, exportedAt)
+    }
+
+    func testExportClearLeavesAnUnreadableDocumentUntouched() throws {
+        let garbage = Data("{ this is not json".utf8)
+        try garbage.write(to: fileURL)
+
+        let s = session()
+        let exported = comment(in: s.id)
+        let baseline = AppState(
+            sessions: [s],
+            comments: [exported],
+            activeSessionID: s.id,
+            totalCommentsCreated: 1
+        )
+        let receipt = ExportReceipt(sessionID: s.id, comments: [exported])
+
+        XCTAssertThrowsError(try PersistenceManager.performExportReceiptClear(
+            fileURL: fileURL,
+            receipt: receipt,
+            candidate: baseline,
+            baseline: baseline
+        )) { error in
+            guard case PersistenceError.documentUnreadable = error else {
+                return XCTFail("expected documentUnreadable, got \(error)")
+            }
+        }
+
+        XCTAssertEqual(try Data(contentsOf: fileURL), garbage,
+                       "a failed export clear must not overwrite a newer or malformed document")
+    }
+
     // MARK: - Failure paths
 
     func testAnUndecodableDocumentFailsWithoutWriting() throws {

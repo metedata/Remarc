@@ -18,24 +18,21 @@ struct VoiceAutoSaveButtonState {
     let countdownActive: Bool
     let progress: Double
     let remainingSeconds: Int
-    let shake: Bool
+    let feedbackTrigger: Int
     let onHoverChanged: (Bool) -> Void
-    let onPressed: () -> Void
 
     init(
         countdownActive: Bool = false,
         progress: Double = 0,
         remainingSeconds: Int = 0,
-        shake: Bool = false,
-        onHoverChanged: @escaping (Bool) -> Void = { _ in },
-        onPressed: @escaping () -> Void = {}
+        feedbackTrigger: Int = 0,
+        onHoverChanged: @escaping (Bool) -> Void = { _ in }
     ) {
         self.countdownActive = countdownActive
         self.progress = progress
         self.remainingSeconds = remainingSeconds
-        self.shake = shake
+        self.feedbackTrigger = feedbackTrigger
         self.onHoverChanged = onHoverChanged
-        self.onPressed = onPressed
     }
 }
 
@@ -46,6 +43,8 @@ struct VoiceAwareSaveButton: View {
     let colorScheme: ColorScheme
     let onSave: () -> Void
     let appendText: (String) -> Void
+    let transcriptionGeneration: UInt64
+    let acceptsTranscription: (UInt64) -> Bool
     let autoSaveState: VoiceAutoSaveButtonState
 
     init(
@@ -53,28 +52,27 @@ struct VoiceAwareSaveButton: View {
         colorScheme: ColorScheme,
         onSave: @escaping () -> Void,
         appendText: @escaping (String) -> Void,
+        transcriptionGeneration: UInt64,
+        acceptsTranscription: @escaping (UInt64) -> Bool,
         autoSaveState: VoiceAutoSaveButtonState = VoiceAutoSaveButtonState()
     ) {
         _isSaveHovered = isSaveHovered
         self.colorScheme = colorScheme
         self.onSave = onSave
         self.appendText = appendText
+        self.transcriptionGeneration = transcriptionGeneration
+        self.acceptsTranscription = acceptsTranscription
         self.autoSaveState = autoSaveState
     }
 
     @State private var isWaveformHovered = false
-    @State private var shakeCount: CGFloat = 0
-
     private let buttonHeight: CGFloat = 28
     private let buttonMinWidth: CGFloat = 84
 
     var body: some View {
         Group {
             if voiceInput.state == .idle {
-                Button(action: {
-                    autoSaveState.onPressed()
-                    onSave()
-                }) {
+                Button(action: onSave) {
                     HStack(spacing: 6) {
                         if autoSaveState.countdownActive && NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
                             Text("Saving... \(autoSaveState.remainingSeconds)s")
@@ -115,14 +113,6 @@ struct VoiceAwareSaveButton: View {
                     autoSaveState.onHoverChanged(hovering)
                 }
                 .animation(.easeInOut(duration: 0.15), value: isSaveHovered)
-                .modifier(ShakeEffect(animatableData: shakeCount))
-                .onChange(of: autoSaveState.shake) {
-                    if autoSaveState.shake {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.4)) {
-                            shakeCount += 1
-                        }
-                    }
-                }
                 .accessibilityIdentifier("remarc.commentInput.submitButton")
                 .zIndex(1)
                 .transition(.blurReplace)
@@ -130,9 +120,10 @@ struct VoiceAwareSaveButton: View {
                 // Recording mode shell (warmingUp / recording / processing)
                 Button(action: {
                     guard voiceInput.state == .recording else { return }
+                    let generation = transcriptionGeneration
                     Task {
                         let text = try? await VoiceInputService.shared.stopRecording()
-                        if let text, !text.isEmpty {
+                        if let text, !text.isEmpty, acceptsTranscription(generation) {
                             appendText(text)
                         }
                     }
@@ -168,6 +159,10 @@ struct VoiceAwareSaveButton: View {
                 .transition(.blurReplace)
             }
         }
+        // Keep feedback mounted while the visual button switches between Save,
+        // recording, and processing. Otherwise Command-Return can report an
+        // invalid Quick Note while this modifier is absent and the shake is lost.
+        .modifier(SaveButtonFeedbackModifier(trigger: autoSaveState.feedbackTrigger))
     }
 }
 
@@ -177,6 +172,8 @@ struct VoiceMicButton: View {
     @ObservedObject private var voiceInput = VoiceInputService.shared
     @Binding var isMicHovered: Bool
     let appendText: (String) -> Void
+    let transcriptionGeneration: UInt64
+    let acceptsTranscription: (UInt64) -> Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -206,10 +203,11 @@ struct VoiceMicButton: View {
     }
 
     private func toggleRecording() {
+        let generation = transcriptionGeneration
         Task {
             if voiceInput.state == .recording {
                 let text = try? await voiceInput.stopRecording()
-                if let text, !text.isEmpty {
+                if let text, !text.isEmpty, acceptsTranscription(generation) {
                     appendText(text)
                 }
             } else if voiceInput.state == .idle {
@@ -261,17 +259,5 @@ struct VoiceRecordingBorder: View {
 
     private var isActive: Bool {
         voiceInput.state == .warmingUp || voiceInput.state == .recording
-    }
-}
-
-/// Horizontal shake effect using a sine wave — animates cleanly via `animatableData`.
-private struct ShakeEffect: GeometryEffect {
-    var animatableData: CGFloat
-    private let amplitude: CGFloat = 3
-    private let oscillations = 3
-
-    func effectValue(size: CGSize) -> ProjectionTransform {
-        let translation = amplitude * sin(animatableData * .pi * CGFloat(oscillations))
-        return ProjectionTransform(CGAffineTransform(translationX: translation, y: 0))
     }
 }

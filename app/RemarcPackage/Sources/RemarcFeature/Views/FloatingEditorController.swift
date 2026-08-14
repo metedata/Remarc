@@ -28,7 +28,8 @@ public final class FloatingEditorController: ObservableObject {
     @Published public var autoSaveCountdownActive: Bool = false
     @Published public var autoSaveProgress: Double = 0
     @Published public var autoSaveRemainingSeconds: Int = 0
-    @Published public var shakeAutoSave: Bool = false
+    @Published public private(set) var saveFeedbackTrigger: Int = 0
+    @Published public private(set) var validationFeedbackTrigger: Int = 0
     @Published public var isSaveButtonHovered: Bool = false
     public var suppressClickOutside: Bool = false
 
@@ -41,9 +42,14 @@ public final class FloatingEditorController: ObservableObject {
     private var initialAttachments: [String] = []
     private var isVoiceInvoked: Bool = false
     private var allowsVoiceAutoSave: Bool = false
-    private var currentSaveAction: ((String, [String]) -> Void)?
+    private var currentCommentType: CommentType?
+    private var currentSaveAction: ((String, [String]) -> Bool)?
+    private var currentSuccessMessage: String?
     private var autoSaveTask: Task<Void, Never>?
     private var autoSaveClickMonitor: Any?
+    private var presentationGeneration: UInt64 = 0
+
+    public var currentPresentationGeneration: UInt64 { presentationGeneration }
 
     private var hasUnsavedChanges: Bool {
         currentText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -59,28 +65,31 @@ public final class FloatingEditorController: ObservableObject {
             comment: comment,
             initialText: comment.commentText,
             initialAttachments: comment.attachments,
+            commentType: comment.type,
+            targetSessionID: comment.sessionID,
+            successMessage: "Comment updated",
             onSave: { newText, newAttachments in
-                PersistenceManager.shared.updateComment(comment.id, text: newText, attachments: newAttachments)
-                ToastManager.shared.show("Comment updated")
-                self.dismiss()
+                PersistenceManager.shared.updateComment(
+                    comment.id,
+                    text: newText,
+                    attachments: newAttachments
+                )
             }
         )
     }
 
     /// Show editor for creating a quick note
     public func showForQuickNote() {
-        targetSessionID = PersistenceManager.shared.appState.activeSessionID
         show(
             referenceText: nil,
             screenshotImagePath: nil,
             comment: nil,
             initialText: "",
             initialAttachments: [],
+            commentType: .quickNote,
+            targetSessionID: PersistenceManager.shared.appState.activeSessionID,
+            successMessage: "Quick note saved",
             onSave: { text, attachments in
-                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    self.dismiss()
-                    return
-                }
                 PersistenceManager.shared.createComment(
                     type: .quickNote,
                     commentText: text,
@@ -88,9 +97,7 @@ public final class FloatingEditorController: ObservableObject {
                     appBundleID: nil,
                     attachments: attachments,
                     targetSessionID: self.targetSessionID
-                )
-                ToastManager.shared.show("Quick note saved")
-                self.dismiss()
+                ) != nil
             }
         )
     }
@@ -108,12 +115,77 @@ public final class FloatingEditorController: ObservableObject {
         panel?.makeKeyAndOrderFront(nil)
     }
 
-    public func appendVoiceText(_ text: String) {
+    public func appendVoiceText(_ text: String, forPresentationGeneration generation: UInt64) {
+        guard acceptsVoiceTranscription(generation) else {
+            debugLog("FloatingEditorController: Discarded transcription for stale presentation")
+            return
+        }
         pendingVoiceText = text
     }
 
     public func markVoiceInvoked() {
         isVoiceInvoked = true
+    }
+
+    func isCurrentPresentation(_ generation: UInt64) -> Bool {
+        presentationGeneration == generation
+    }
+
+    func acceptsVoiceTranscription(_ generation: UInt64) -> Bool {
+        DraftGenerationPolicy.accepts(
+            capturedGeneration: generation,
+            currentGeneration: presentationGeneration,
+            isVisible: isVisible
+        )
+    }
+
+    private func attemptSave(text: String, attachments: [String]) {
+        // Button, Command-Return, and voice auto-save all converge here.
+        cancelAutoSaveCountdown()
+
+        guard let type = currentCommentType,
+              let saveAction = currentSaveAction
+        else {
+            debugLog("FloatingEditorController: Save refused - no active draft")
+            return
+        }
+
+        guard CommentSavePolicy.allowsSave(
+            type: type,
+            commentText: text,
+            attachments: attachments
+        ) else {
+            triggerSaveFeedback(announcement: "Add text to save this Quick Note")
+            debugLog("FloatingEditorController: Empty Quick Note save refused")
+            return
+        }
+
+        guard saveAction(text, attachments) else {
+            ToastManager.shared.show("Comment could not be saved")
+            triggerSaveFeedback(announcement: "Comment could not be saved")
+            debugLog("FloatingEditorController: Comment save failed")
+            return
+        }
+
+        if let currentSuccessMessage {
+            ToastManager.shared.show(currentSuccessMessage)
+        }
+        dismiss()
+    }
+
+    private func triggerSaveFeedback(announcement: String? = nil) {
+        saveFeedbackTrigger &+= 1
+        guard let announcement else { return }
+        validationFeedbackTrigger &+= 1
+        panel?.makeKeyAndOrderFront(nil)
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: announcement,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue,
+            ]
+        )
     }
 
     // MARK: - Auto-Save Voice Notes
@@ -166,21 +238,18 @@ public final class FloatingEditorController: ObservableObject {
     }
 
     private func performAutoSave() {
-        guard autoSaveCountdownActive, let saveAction = currentSaveAction else { return }
+        guard autoSaveCountdownActive, currentSaveAction != nil else { return }
         let text = currentText
         let attachments = currentAttachments
         cleanupAutoSaveState()
-        saveAction(text, attachments)
+        attemptSave(text: text, attachments: attachments)
         debugLog("FloatingEditorController: Auto-saved voice quick note")
     }
 
     public func cancelAutoSave() {
         guard autoSaveCountdownActive else { return }
         cleanupAutoSaveState()
-        shakeAutoSave = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.shakeAutoSave = false
-        }
+        triggerSaveFeedback()
         debugLog("FloatingEditorController: Auto-save cancelled")
     }
 
@@ -202,7 +271,7 @@ public final class FloatingEditorController: ObservableObject {
         }
     }
 
-    public func dismiss() {
+    private func resetDraftState() {
         cancelAutoSaveCountdown()
         if #available(macOS 26, *) {
             VoiceInputService.shared.cancelRecording()
@@ -210,12 +279,27 @@ public final class FloatingEditorController: ObservableObject {
         pendingVoiceText = nil
         isVoiceInvoked = false
         allowsVoiceAutoSave = false
+        currentCommentType = nil
         currentSaveAction = nil
+        currentSuccessMessage = nil
+        currentText = ""
+        initialText = ""
+        currentAttachments = []
+        initialAttachments = []
+        targetSessionID = nil
+        saveFeedbackTrigger = 0
+        validationFeedbackTrigger = 0
         isSaveButtonHovered = false
+        suppressClickOutside = false
+    }
+
+    public func dismiss() {
+        presentationGeneration &+= 1
         clickOutsideMonitor.remove()
         contentCancellable?.cancel()
         contentCancellable = nil
         isVisible = false
+        resetDraftState()
 
         let panelRef = panel
         let overlayRef = dimOverlay
@@ -226,20 +310,39 @@ public final class FloatingEditorController: ObservableObject {
             panelRef?.animator().alphaValue = 0
             overlayRef?.animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            panelRef?.orderOut(nil)
-            panelRef?.alphaValue = 1
-            overlayRef?.orderOut(nil)
-            overlayRef?.alphaValue = 1
-            self?.currentText = ""
-            self?.initialText = ""
-            self?.currentAttachments = []
-            self?.initialAttachments = []
+            Task { @MainActor in
+                panelRef?.orderOut(nil)
+                panelRef?.alphaValue = 1
+                overlayRef?.orderOut(nil)
+                overlayRef?.alphaValue = 1
+                // Only release references if they still point at this dismissed
+                // presentation. A replacement editor may already own new panels.
+                if self?.panel === panelRef {
+                    self?.panel = nil
+                    self?.editorHostingView = nil
+                }
+                if self?.dimOverlay === overlayRef {
+                    self?.dimOverlay = nil
+                }
+            }
         }
     }
 
-    private func show(referenceText: String?, screenshotImagePath: String?, comment: Comment?, initialText: String, initialAttachments: [String], onSave: @escaping (String, [String]) -> Void) {
+    private func show(
+        referenceText: String?,
+        screenshotImagePath: String?,
+        comment: Comment?,
+        initialText: String,
+        initialAttachments: [String],
+        commentType: CommentType,
+        targetSessionID: UUID?,
+        successMessage: String,
+        onSave: @escaping (String, [String]) -> Bool
+    ) {
         // Dismiss any previous editor
         dismiss()
+        presentationGeneration &+= 1
+        let generation = presentationGeneration
 
         // Track text and attachments for click-outside dismiss behavior
         self.initialText = initialText
@@ -249,20 +352,32 @@ public final class FloatingEditorController: ObservableObject {
         self.pendingVoiceText = nil
         self.isVoiceInvoked = false
         self.allowsVoiceAutoSave = comment == nil
+        self.currentCommentType = commentType
         self.currentSaveAction = onSave
+        self.currentSuccessMessage = successMessage
+        self.targetSessionID = targetSessionID
+        self.saveFeedbackTrigger = 0
+        self.validationFeedbackTrigger = 0
 
         // Create dim overlay on top of the popover
-        installDimOverlay()
+        installDimOverlay(generation: generation)
 
         // Create editor panel
         let wrapper = FloatingEditorWrapper(
+            presentationGeneration: generation,
             initialText: initialText,
             initialAttachments: initialAttachments,
             screenshotImagePath: screenshotImagePath,
             referenceText: referenceText,
             comment: comment,
-            onSave: onSave,
-            onCancel: { [weak self] in self?.dismiss() }
+            onSave: { [weak self] text, attachments in
+                guard let self, self.presentationGeneration == generation else { return }
+                self.attemptSave(text: text, attachments: attachments)
+            },
+            onCancel: { [weak self] in
+                guard let self, self.presentationGeneration == generation else { return }
+                self.dismiss()
+            }
         )
 
         let panel = KeyableEditorPanel(
@@ -320,7 +435,17 @@ public final class FloatingEditorController: ObservableObject {
 
         self.panel = panel
         isVisible = true
-        clickOutsideMonitor.install(for: panel, shouldDismiss: { [weak self] in guard let self else { return true }; return !self.suppressClickOutside && !self.hasUnsavedChanges }, dismiss: { [weak self] in self?.dismiss() })
+        clickOutsideMonitor.install(
+            for: panel,
+            shouldDismiss: { [weak self] in
+                guard let self, self.presentationGeneration == generation else { return false }
+                return !self.suppressClickOutside && !self.hasUnsavedChanges
+            },
+            dismiss: { [weak self] in
+                guard let self, self.presentationGeneration == generation else { return }
+                self.dismiss()
+            }
+        )
         installContentObserver()
     }
 
@@ -345,7 +470,7 @@ public final class FloatingEditorController: ObservableObject {
         panel.setFrameOrigin(NSPoint(x: clampedX, y: clampedY))
     }
 
-    private func installDimOverlay() {
+    private func installDimOverlay(generation: UInt64) {
         guard let popoverPanel = getPopoverPanel() else { return }
 
         let overlay = NSPanel(
@@ -366,7 +491,10 @@ public final class FloatingEditorController: ObservableObject {
         let dimView = DimOverlayContentView(cornerRadius: AppConstants.panelCornerRadius)
         dimView.onMouseDown = { [weak self] in
             Task { @MainActor in
-                guard let self = self, !self.hasUnsavedChanges else { return }
+                guard let self,
+                      self.presentationGeneration == generation,
+                      !self.hasUnsavedChanges
+                else { return }
                 self.dismiss()
             }
         }
@@ -472,13 +600,15 @@ struct FloatingEditorWrapper: View {
     @State private var text: String
     @State private var attachments: [String]
 
+    let presentationGeneration: UInt64
     let screenshotImagePath: String?
     let referenceText: String?
     let comment: Comment?
     let onSave: (String, [String]) -> Void
     let onCancel: () -> Void
 
-    init(initialText: String, initialAttachments: [String], screenshotImagePath: String?, referenceText: String?, comment: Comment?, onSave: @escaping (String, [String]) -> Void, onCancel: @escaping () -> Void) {
+    init(presentationGeneration: UInt64, initialText: String, initialAttachments: [String], screenshotImagePath: String?, referenceText: String?, comment: Comment?, onSave: @escaping (String, [String]) -> Void, onCancel: @escaping () -> Void) {
+        self.presentationGeneration = presentationGeneration
         _text = State(initialValue: initialText)
         _attachments = State(initialValue: initialAttachments)
         self.screenshotImagePath = screenshotImagePath
@@ -495,6 +625,7 @@ struct FloatingEditorWrapper: View {
             screenshotImagePath: screenshotImagePath,
             referenceText: referenceText,
             comment: comment,
+            presentationGeneration: presentationGeneration,
             onSave: onSave,
             onCancel: onCancel
         )
@@ -502,10 +633,14 @@ struct FloatingEditorWrapper: View {
         // Material background and shadow provided by NSVisualEffectView + maskImage
         // in FloatingEditorController — no SwiftUI material backgrounds here.
         .onChange(of: text) { _, newValue in
-            FloatingEditorController.shared.currentText = newValue
+            let controller = FloatingEditorController.shared
+            guard controller.isCurrentPresentation(presentationGeneration) else { return }
+            controller.currentText = newValue
         }
         .onChange(of: attachments) { _, newValue in
-            FloatingEditorController.shared.currentAttachments = newValue
+            let controller = FloatingEditorController.shared
+            guard controller.isCurrentPresentation(presentationGeneration) else { return }
+            controller.currentAttachments = newValue
         }
     }
 }

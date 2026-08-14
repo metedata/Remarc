@@ -17,6 +17,7 @@ struct CommentEditorView: View {
     let screenshotImagePath: String?
     let referenceText: String?
     let comment: Comment?
+    let presentationGeneration: UInt64
     let onSave: (String, [String]) -> Void
     let onCancel: () -> Void
 
@@ -111,7 +112,12 @@ struct CommentEditorView: View {
                     .help("Attach image")
 
                     if #available(macOS 26, *) {
-                        VoiceMicButton(isMicHovered: $isMicHovered, appendText: appendTranscribedText)
+                        VoiceMicButton(
+                            isMicHovered: $isMicHovered,
+                            appendText: appendTranscribedText,
+                            transcriptionGeneration: presentationGeneration,
+                            acceptsTranscription: { floatingController.acceptsVoiceTranscription($0) }
+                        )
                     }
 
                     Spacer()
@@ -122,6 +128,8 @@ struct CommentEditorView: View {
                             colorScheme: colorScheme,
                             onSave: { onSave(commentText, attachments) },
                             appendText: appendTranscribedText,
+                            transcriptionGeneration: presentationGeneration,
+                            acceptsTranscription: { floatingController.acceptsVoiceTranscription($0) },
                             autoSaveState: voiceAutoSaveButtonState
                         )
                     } else {
@@ -148,6 +156,8 @@ struct CommentEditorView: View {
                         .buttonStyle(.plain)
                         .onHover { hovering in isSaveHovered = hovering }
                         .animation(.easeInOut(duration: 0.15), value: isSaveHovered)
+                        .modifier(SaveButtonFeedbackModifier(trigger: floatingController.saveFeedbackTrigger))
+                        .accessibilityIdentifier("remarc.commentInput.submitButton")
                     }
                 }
             }
@@ -174,21 +184,25 @@ struct CommentEditorView: View {
             }
         }
         .onAppear {
+            guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             isFocused = true
             editorSessionID = comment?.sessionID ?? FloatingEditorController.shared.targetSessionID
         }
         .onChange(of: editorSessionID) { _, newValue in
+            guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             if comment == nil {
                 FloatingEditorController.shared.targetSessionID = newValue
             }
         }
         .onChange(of: commentText) { _, newValue in
+            guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             floatingController.currentText = newValue
             if floatingController.autoSaveCountdownActive && !suppressTextCancelAutoSave {
                 floatingController.cancelAutoSave()
             }
         }
         .onChange(of: floatingController.pendingVoiceText) { _, text in
+            guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             guard let text, !text.isEmpty else { return }
             suppressTextCancelAutoSave = true
             appendTranscribedText(text)
@@ -200,6 +214,11 @@ struct CommentEditorView: View {
             DispatchQueue.main.async {
                 suppressTextCancelAutoSave = false
             }
+        }
+        .onChange(of: floatingController.validationFeedbackTrigger) { _, trigger in
+            guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
+            guard trigger > 0 else { return }
+            refocusEditor()
         }
     }
 
@@ -213,10 +232,17 @@ struct CommentEditorView: View {
             countdownActive: floatingController.autoSaveCountdownActive,
             progress: floatingController.autoSaveProgress,
             remainingSeconds: floatingController.autoSaveRemainingSeconds,
-            shake: floatingController.shakeAutoSave,
-            onHoverChanged: { floatingController.isSaveButtonHovered = $0 },
-            onPressed: floatingController.cancelAutoSaveCountdown
+            feedbackTrigger: floatingController.saveFeedbackTrigger,
+            onHoverChanged: { floatingController.isSaveButtonHovered = $0 }
         )
+    }
+
+    private func refocusEditor() {
+        isFocused = false
+        Task { @MainActor in
+            await Task.yield()
+            isFocused = true
+        }
     }
 
     private func pickAttachmentImage() {

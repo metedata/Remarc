@@ -45,6 +45,17 @@ struct CommentTextEditor: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        // NSViewRepresentable keeps the coordinator alive across SwiftUI updates.
+        // Refresh every callback so keyboard submission and paste handling always
+        // use the current draft rather than closures captured at creation time.
+        context.coordinator.update(
+            text: $text,
+            onSubmit: onSubmit,
+            onCancel: onCancel,
+            onImagePaste: onImagePaste,
+            onContentHeightChange: onContentHeightChange
+        )
+
         guard let textView = scrollView.documentView as? NSTextView else { return }
         if textView.string != text {
             textView.string = text
@@ -72,6 +83,20 @@ struct CommentTextEditor: NSViewRepresentable {
         var onContentHeightChange: ((CGFloat) -> Void)?
 
         init(text: Binding<String>, onSubmit: @escaping () -> Void, onCancel: @escaping () -> Void, onImagePaste: ((NSImage) -> Void)?, onContentHeightChange: ((CGFloat) -> Void)?) {
+            self.text = text
+            self.onSubmit = onSubmit
+            self.onCancel = onCancel
+            self.onImagePaste = onImagePaste
+            self.onContentHeightChange = onContentHeightChange
+        }
+
+        func update(
+            text: Binding<String>,
+            onSubmit: @escaping () -> Void,
+            onCancel: @escaping () -> Void,
+            onImagePaste: ((NSImage) -> Void)?,
+            onContentHeightChange: ((CGFloat) -> Void)?
+        ) {
             self.text = text
             self.onSubmit = onSubmit
             self.onCancel = onCancel

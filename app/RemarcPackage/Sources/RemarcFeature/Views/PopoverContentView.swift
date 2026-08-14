@@ -31,7 +31,8 @@ struct PopoverContentView: View {
     @State private var showAutoClearCountdown = false
     @State private var autoClearProgress: CGFloat = 0
     @State private var autoClearCancelled = false
-    @State private var autoClearCommentCount = 0
+    @State private var pendingExportReceipt: ExportReceipt?
+    @State private var exportClearGeneration = UUID()
     @State private var showingHistory = false
     @State private var restoredCommentID: UUID?
     @State private var historySearchText = ""
@@ -559,11 +560,18 @@ struct PopoverContentView: View {
                 }
                 ConfirmationButton(label: "Clear", role: .destructive) {
                     clearPromptCancelled = true
-                    if let sessionID = persistence.appState.activeSessionID {
-                        persistence.clearAllComments(in: sessionID)
-                    }
+                    exportClearGeneration = UUID()
+                    let receipt = pendingExportReceipt
+                    pendingExportReceipt = nil
                     withAnimation(.easeInOut(duration: 0.25)) {
                         showClearPrompt = false
+                    }
+                    if let receipt {
+                        Task { @MainActor in
+                            if case .failure = persistence.clearExportedComments(receipt) {
+                                ToastManager.shared.show("Couldn’t clear exported comments")
+                            }
+                        }
                     }
                 }
             }
@@ -595,19 +603,17 @@ struct PopoverContentView: View {
             .frame(height: 3)
             .frame(maxHeight: .infinity, alignment: .bottom)
         }
-        .onAppear {
-            startClearPromptDismiss()
-        }
     }
 
-    private func startClearPromptDismiss() {
+    private func startClearPromptDismiss(generation: UUID) {
         clearPromptCancelled = false
         clearPromptProgress = 0
         withAnimation(.linear(duration: 5)) {
             clearPromptProgress = 1
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-            guard !clearPromptCancelled else { return }
+            guard !clearPromptCancelled, exportClearGeneration == generation else { return }
+            pendingExportReceipt = nil
             withAnimation(.easeInOut(duration: 0.25)) {
                 showClearPrompt = false
             }
@@ -616,6 +622,8 @@ struct PopoverContentView: View {
 
     private func dismissClearPrompt() {
         clearPromptCancelled = true
+        exportClearGeneration = UUID()
+        pendingExportReceipt = nil
         withAnimation(.easeInOut(duration: 0.25)) {
             showClearPrompt = false
         }
@@ -625,7 +633,8 @@ struct PopoverContentView: View {
 
     private var autoClearCountdown: some View {
         HStack {
-            Text("Clearing \(autoClearCommentCount) comment\(autoClearCommentCount == 1 ? "" : "s")...")
+            let count = pendingExportReceipt?.count ?? 0
+            Text("Clearing \(count) comment\(count == 1 ? "" : "s")...")
                 .font(.system(size: 11))
             Spacer()
             Button("Undo") {
@@ -644,29 +653,35 @@ struct PopoverContentView: View {
                     .frame(width: geo.size.width * autoClearProgress)
             }
         }
-        .onAppear {
-            startAutoClear()
-        }
     }
 
-    private func startAutoClear() {
+    private func startAutoClear(receipt: ExportReceipt, generation: UUID) {
         autoClearCancelled = false
         autoClearProgress = 0
         withAnimation(.linear(duration: 3)) {
             autoClearProgress = 1
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            guard !autoClearCancelled else { return }
+            guard !autoClearCancelled,
+                  exportClearGeneration == generation,
+                  pendingExportReceipt == receipt else { return }
             showAutoClearCountdown = false
-            if let sessionID = persistence.appState.activeSessionID {
-                persistence.clearAllComments(in: sessionID)
+            pendingExportReceipt = nil
+            Task { @MainActor in
+                switch persistence.clearExportedComments(receipt) {
+                case .success(let clearedIDs):
+                    ToastManager.shared.show("Cleared \(clearedIDs.count) comment\(clearedIDs.count == 1 ? "" : "s")")
+                case .failure:
+                    ToastManager.shared.show("Couldn’t clear exported comments")
+                }
             }
-            ToastManager.shared.show("Cleared")
         }
     }
 
     private func cancelAutoClear() {
         autoClearCancelled = true
+        exportClearGeneration = UUID()
+        pendingExportReceipt = nil
         withAnimation(.easeOut(duration: 0.2)) {
             autoClearProgress = 0
         }
@@ -1020,17 +1035,43 @@ struct PopoverContentView: View {
     private func copyAll() {
         guard let session = persistence.activeSession else { return }
         let allComments = persistence.activeComments
-        ExportManager.shared.copySessionToClipboard(session, comments: allComments, format: .markdown)
-        ToastManager.shared.show("Copied \(allComments.count) comment\(allComments.count == 1 ? "" : "s")")
+        guard let receipt = ExportManager.shared.copySessionToClipboard(
+            session,
+            comments: allComments,
+            format: .markdown
+        ) else {
+            ToastManager.shared.show("Couldn’t copy comments")
+            return
+        }
+        ToastManager.shared.show("Copied \(receipt.count) comment\(receipt.count == 1 ? "" : "s")")
+        presentPostExportAction(for: receipt)
+    }
+
+    private func presentPostExportAction(for receipt: ExportReceipt) {
+        // Invalidate delayed work from any prior receipt before presenting the
+        // next action. Each delayed closure also captures this generation.
+        clearPromptCancelled = true
+        autoClearCancelled = true
+        exportClearGeneration = UUID()
+        let generation = exportClearGeneration
+        pendingExportReceipt = receipt
+        showClearPrompt = false
+        showAutoClearCountdown = false
+
         switch settings.clearAfterExportBehavior {
         case .delete:
-            autoClearCommentCount = allComments.count
             showAutoClearCountdown = true
+            DispatchQueue.main.async {
+                startAutoClear(receipt: receipt, generation: generation)
+            }
         case .keep:
-            break
+            pendingExportReceipt = nil
         case .ask:
             withAnimation(.easeInOut(duration: 0.25)) {
                 showClearPrompt = true
+            }
+            DispatchQueue.main.async {
+                startClearPromptDismiss(generation: generation)
             }
         }
     }
@@ -1038,17 +1079,14 @@ struct PopoverContentView: View {
     private func exportToFile() {
         guard let session = persistence.activeSession else { return }
         let allComments = persistence.activeComments
-        ExportManager.shared.saveSessionToFile(session, comments: allComments, format: SettingsManager.shared.outputFormat)
-        switch settings.clearAfterExportBehavior {
-        case .delete:
-            autoClearCommentCount = persistence.activeComments.count
-            showAutoClearCountdown = true
-        case .keep:
-            break
-        case .ask:
-            withAnimation(.easeInOut(duration: 0.25)) {
-                showClearPrompt = true
-            }
+        ExportManager.shared.saveSessionToFile(
+            session,
+            comments: allComments,
+            format: SettingsManager.shared.outputFormat
+        ) { receipt in
+            guard let receipt else { return }
+            ToastManager.shared.show("Exported \(receipt.count) comment\(receipt.count == 1 ? "" : "s")")
+            presentPostExportAction(for: receipt)
         }
     }
 

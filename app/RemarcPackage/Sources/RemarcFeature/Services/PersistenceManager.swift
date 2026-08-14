@@ -209,13 +209,15 @@ public final class PersistenceManager: ObservableObject {
         }
         guard let index = appState.sessions.firstIndex(where: { $0.id == id }),
               !appState.sessions[index].isInbox else { return }
+        let now = Date()
         appState.sessions[index].isDeleted = true
-        appState.sessions[index].deletedAt = Date()
+        appState.sessions[index].deletedAt = now
 
         // Soft-delete all comments in this session
         for i in appState.comments.indices where appState.comments[i].sessionID == id && !appState.comments[i].isDeleted {
             appState.comments[i].isDeleted = true
-            appState.comments[i].deletedAt = Date()
+            appState.comments[i].deletedAt = now
+            appState.comments[i].updatedAt = now
         }
 
         // If this was the active session, switch to another
@@ -277,9 +279,11 @@ public final class PersistenceManager: ObservableObject {
         appState.sessions[index].autoDismissedAt = nil
 
         // Restore comments that were deleted with the session
+        let now = Date()
         for i in appState.comments.indices where appState.comments[i].sessionID == id && appState.comments[i].isDeleted {
             appState.comments[i].isDeleted = false
             appState.comments[i].deletedAt = nil
+            appState.comments[i].updatedAt = now
         }
 
         if appState.activeSessionID == nil {
@@ -359,6 +363,16 @@ public final class PersistenceManager: ObservableObject {
 
     @discardableResult
     public func createComment(type: CommentType, commentText: String, source: String, appBundleID: String?, attachments: [String] = [], webContext: WebContext? = nil, regionElements: [WebContext]? = nil, targetSessionID: UUID? = nil, wakeRequested: Bool = false) -> Comment? {
+        guard CommentSavePolicy.allowsSave(
+            type: type,
+            commentText: commentText,
+            attachments: attachments
+        ) else {
+            debugLog("PersistenceManager: Rejected empty Quick Note")
+            return nil
+        }
+        let normalizedCommentText = Comment.normalizedCommentText(commentText)
+
         // Auto-create a session if none exists
         if appState.activeSessionID == nil || activeSession == nil {
             let session = Session(name: AppConstants.inboxSessionName)
@@ -378,7 +392,7 @@ public final class PersistenceManager: ObservableObject {
         // it from there with a compare-and-set.
         let comment = Comment(
             type: type,
-            commentText: commentText,
+            commentText: normalizedCommentText,
             source: source,
             appBundleID: appBundleID,
             sessionID: sessionID,
@@ -404,21 +418,33 @@ public final class PersistenceManager: ObservableObject {
         return comment
     }
 
-    public func updateComment(_ id: UUID, text: String, attachments: [String]? = nil) {
-        guard let index = appState.comments.firstIndex(where: { $0.id == id }) else { return }
-        appState.comments[index].commentText = text
+    @discardableResult
+    public func updateComment(_ id: UUID, text: String, attachments: [String]? = nil) -> Bool {
+        guard let index = appState.comments.firstIndex(where: { $0.id == id }) else { return false }
+        guard CommentSavePolicy.allowsSave(
+            type: appState.comments[index].type,
+            commentText: text,
+            attachments: attachments ?? appState.comments[index].attachments
+        ) else {
+            debugLog("PersistenceManager: Rejected empty Quick Note update")
+            return false
+        }
+        appState.comments[index].commentText = Comment.normalizedCommentText(text)
         if let attachments = attachments {
             appState.comments[index].attachments = attachments
         }
         appState.comments[index].updatedAt = Date()
         scheduleSave()
         WebhookService.shared.dispatch(.commentUpdated, comment: appState.comments[index])
+        return true
     }
 
     public func deleteComment(_ id: UUID) {
         guard let index = appState.comments.firstIndex(where: { $0.id == id }) else { return }
+        let now = Date()
         appState.comments[index].isDeleted = true
-        appState.comments[index].deletedAt = Date()
+        appState.comments[index].deletedAt = now
+        appState.comments[index].updatedAt = now
         scheduleSave()
         WebhookService.shared.dispatch(.commentDeleted, comment: appState.comments[index])
     }
@@ -447,14 +473,17 @@ public final class PersistenceManager: ObservableObject {
         appState.comments[index].isDeleted = false
         appState.comments[index].deletedAt = nil
         appState.comments[index].sessionID = sessionID
+        appState.comments[index].updatedAt = Date()
         scheduleSave()
     }
 
     public func restoreComments(_ ids: [UUID]) {
+        let now = Date()
         for id in ids {
             guard let index = appState.comments.firstIndex(where: { $0.id == id }) else { continue }
             appState.comments[index].isDeleted = false
             appState.comments[index].deletedAt = nil
+            appState.comments[index].updatedAt = now
         }
         scheduleSave()
     }
@@ -467,12 +496,59 @@ public final class PersistenceManager: ObservableObject {
             if appState.comments[index].sessionID == sessionID && !appState.comments[index].isDeleted {
                 appState.comments[index].isDeleted = true
                 appState.comments[index].deletedAt = now
+                appState.comments[index].updatedAt = now
                 clearedIDs.append(appState.comments[index].id)
                 WebhookService.shared.dispatch(.commentDeleted, comment: appState.comments[index])
             }
         }
         scheduleSave()
         return clearedIDs
+    }
+
+    /// Soft-delete only the exact comment versions in a successful export.
+    ///
+    /// The comparison and mutation happen after a fresh read while holding the
+    /// cross-process document lock. Checking only `appState` is unsafe: MCP can
+    /// edit a comment on disk before its asynchronous reload notification reaches
+    /// the app, and an in-memory check would then delete that newer version.
+    @discardableResult
+    public func clearExportedComments(
+        _ receipt: ExportReceipt
+    ) -> Result<[UUID], PersistenceError> {
+        let candidate = appState
+        let baseline = lastPersisted
+
+        // This intentionally stays synchronous on the main actor. If it yielded
+        // after taking `candidate`, an edit could land while the lock-held helper
+        // was clearing the older version on disk. Repairing memory afterwards
+        // would still leave a crash window before the compensating save. Keeping
+        // the compare-and-set atomic with respect to app mutations avoids ever
+        // committing that transient deletion. Cross-process writers remain
+        // serialized by DocumentLock and are re-read inside the helper.
+        do {
+            let commit = try PersistenceManager.performExportReceiptClear(
+                fileURL: fileURL,
+                receipt: receipt,
+                candidate: candidate,
+                baseline: baseline
+            )
+
+            appState = commit.state
+            lastPersisted = commit.state
+            for id in commit.clearedIDs {
+                if let comment = appState.comments.first(where: { $0.id == id }) {
+                    WebhookService.shared.dispatch(.commentDeleted, comment: comment)
+                }
+            }
+            return .success(commit.clearedIDs)
+        } catch let error as PersistenceError {
+            debugLog("PersistenceManager: Export clear failed - \(error)")
+            return .failure(error)
+        } catch {
+            let persistenceError = PersistenceError.writeFailed("\(error)")
+            debugLog("PersistenceManager: Export clear failed - \(persistenceError)")
+            return .failure(persistenceError)
+        }
     }
 
     public func moveComment(_ id: UUID, to sessionID: UUID) {
@@ -725,6 +801,15 @@ public final class PersistenceManager: ObservableObject {
         wakeRequested: Bool = false
     ) async -> Result<Comment, PersistenceError> {
 
+        guard CommentSavePolicy.allowsSave(
+            type: type,
+            commentText: commentText,
+            attachments: attachments
+        ) else {
+            debugLog("PersistenceManager: Rejected empty Quick Note from durable create")
+            return .failure(.invalidComment)
+        }
+
         await acquireDocumentSlot()
 
         // Snapshotted BEFORE the candidate is built. This is the merge base on
@@ -752,7 +837,7 @@ public final class PersistenceManager: ObservableObject {
 
         let comment = Comment(
             type: type,
-            commentText: commentText,
+            commentText: Comment.normalizedCommentText(commentText),
             source: source,
             appBundleID: appBundleID,
             sessionID: sessionID,
@@ -882,6 +967,64 @@ public final class PersistenceManager: ObservableObject {
                 do { try encoded.write(to: fileURL, options: .atomic) }
                 catch { throw PersistenceError.writeFailed("\(error)") }
                 return merged
+            }
+        } catch is DocumentLock.TimedOut {
+            throw PersistenceError.lockTimeout
+        }
+    }
+
+    struct ExportClearCommit: Sendable {
+        let state: AppState
+        let clearedIDs: [UUID]
+    }
+
+    /// Lock-held compare-and-set for post-export clearing.
+    ///
+    /// `candidate` carries app edits that have not reached disk yet. It is merged
+    /// with the fresh on-disk document first; only versions that still match the
+    /// export receipt after that merge are soft-deleted. Internal for tests so
+    /// adversarial disk races can be exercised without touching user data.
+    nonisolated static func performExportReceiptClear(
+        fileURL: URL,
+        receipt: ExportReceipt,
+        candidate: AppState,
+        baseline: AppState
+    ) throws -> ExportClearCommit {
+        do {
+            return try DocumentLock.withLock(fileURL) {
+                let onDisk: AppState
+                switch DocumentRead.read(fileURL) {
+                case .absent:
+                    onDisk = AppState.defaultState()
+                case .decoded(let decoded):
+                    onDisk = decoded
+                case .unreadable(let reason):
+                    throw PersistenceError.documentUnreadable(reason)
+                }
+
+                var merged = AppStateMerge.merge(
+                    base: baseline,
+                    ours: candidate,
+                    theirs: onDisk
+                )
+                let clearableIDs = receipt.clearableCommentIDs(in: merged.comments)
+                let clearableSet = Set(clearableIDs)
+                let now = Date()
+
+                for index in merged.comments.indices
+                    where clearableSet.contains(merged.comments[index].id) {
+                    merged.comments[index].isDeleted = true
+                    merged.comments[index].deletedAt = now
+                    merged.comments[index].updatedAt = now
+                }
+
+                let encoded: Data
+                do { encoded = try JSONEncoder().encode(merged) }
+                catch { throw PersistenceError.encodeFailed("\(error)") }
+                do { try encoded.write(to: fileURL, options: .atomic) }
+                catch { throw PersistenceError.writeFailed("\(error)") }
+
+                return ExportClearCommit(state: merged, clearedIDs: clearableIDs)
             }
         } catch is DocumentLock.TimedOut {
             throw PersistenceError.lockTimeout
@@ -1062,8 +1205,10 @@ public final class PersistenceManager: ObservableObject {
             try? await Task.sleep(for: .milliseconds(800))
             guard let index = appState.comments.firstIndex(where: { $0.id == id && !$0.isDeleted }) else { return }
             let sessionID = appState.comments[index].sessionID
+            let now = Date()
             appState.comments[index].isDeleted = true
-            appState.comments[index].deletedAt = Date()
+            appState.comments[index].deletedAt = now
+            appState.comments[index].updatedAt = now
             scheduleSave()
             debugLog("PersistenceManager: Immediately auto-deleted resolved comment \(id)")
             ToastManager.shared.show("Auto-deleted", undo: { [weak self] in
@@ -1086,6 +1231,7 @@ public final class PersistenceManager: ObservableObject {
             if now.timeIntervalSince(resolvedAt) >= interval {
                 appState.comments[index].isDeleted = true
                 appState.comments[index].deletedAt = now
+                appState.comments[index].updatedAt = now
                 didDelete = true
             }
         }

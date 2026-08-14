@@ -49,6 +49,10 @@ final class VoiceInputService: ObservableObject {
     private let maxLevelCount = 64
     private let stateAnimation: Animation = .easeInOut(duration: 0.3)
     private var deferredMuteTask: Task<Void, Never>?
+    /// Invalidates async prepare/transcribe continuations when an editor is
+    /// dismissed or replaced. Without this, an older operation can set the
+    /// shared service back to recording/idle during a newer draft's session.
+    private var sessionGeneration: UInt64 = 0
 
     private func setState(_ newState: VoiceInputState) {
         withAnimation(stateAnimation) { state = newState }
@@ -59,11 +63,15 @@ final class VoiceInputService: ObservableObject {
     func startRecording() async throws {
         guard state == .idle else { return }
 
+        sessionGeneration &+= 1
+        let generation = sessionGeneration
+
         // Mutual exclusion: cancel dictation if active
         DictationService.shared.cancelRecording()
 
         // Create engine for this session — reads current setting
-        transcriptionEngine = TranscriptionEngineFactory.createEngine()
+        let sessionTranscriptionEngine = TranscriptionEngineFactory.createEngine()
+        transcriptionEngine = sessionTranscriptionEngine
 
         deferredMuteTask = DictationSounds.playStartAndDeferMute()
 
@@ -72,8 +80,12 @@ final class VoiceInputService: ObservableObject {
         recordedBuffers = []
 
         do {
-            try await transcriptionEngine?.prepare()
+            try await sessionTranscriptionEngine.prepare()
         } catch {
+            guard sessionGeneration == generation else {
+                debugLog("VoiceInputService: Ignored preparation failure from stale session")
+                return
+            }
             debugLog("VoiceInputService: enginePrepare failed - \(error)")
             transcriptionEngine = nil
             MediaRemoteController.shared.resumeIfWePaused()
@@ -81,11 +93,38 @@ final class VoiceInputService: ObservableObject {
             throw error
         }
 
-        let engine = captureEngine ?? AudioCaptureEngine()
+        guard sessionGeneration == generation, state == .warmingUp else {
+            debugLog("VoiceInputService: Discarded prepared stale session")
+            return
+        }
+
+        // Each async start owns its capture wrapper. A cancelled warm-up may
+        // still finish off-actor; sharing the previous wrapper would let that
+        // stale start race the replacement recording on the same AVAudioEngine.
+        let engine = AudioCaptureEngine()
         let smartMicrophoneSelection = SettingsManager.shared.smartMicrophoneSelection
-        try await Task.detached {
-            try engine.start(smartMicrophoneSelection: smartMicrophoneSelection)
-        }.value
+        do {
+            try await Task.detached {
+                try engine.start(smartMicrophoneSelection: smartMicrophoneSelection)
+            }.value
+        } catch {
+            guard sessionGeneration == generation else {
+                debugLog("VoiceInputService: Ignored capture failure from stale session")
+                return
+            }
+            transcriptionEngine = nil
+            MediaRemoteController.shared.resumeIfWePaused()
+            setState(.idle)
+            throw error
+        }
+
+        guard sessionGeneration == generation, state == .warmingUp else {
+            // The detached start cannot be cancelled once inside AVAudioEngine.
+            // Tear down its private engine when it returns after invalidation.
+            engine.stop()
+            debugLog("VoiceInputService: Stopped capture from stale session")
+            return
+        }
 
         self.captureEngine = engine
         startDrainTimer()
@@ -99,6 +138,8 @@ final class VoiceInputService: ObservableObject {
     /// Stops recording, transcribes, and returns the text.
     func stopRecording() async throws -> String {
         guard state == .recording else { return "" }
+
+        let generation = sessionGeneration
 
         deferredMuteTask?.cancel()
         stopAudioCapture()
@@ -126,6 +167,10 @@ final class VoiceInputService: ObservableObject {
                 buffers: buffersToTranscribe,
                 inputFormat: format
             )
+            guard sessionGeneration == generation, state == .processing else {
+                debugLog("VoiceInputService: Discarded transcription from stale session")
+                return ""
+            }
             debugLog("VoiceInputService: Transcribed: \(text.prefix(100))")
             DictationSounds.playStop()
             transcriptionEngine = nil
@@ -133,6 +178,10 @@ final class VoiceInputService: ObservableObject {
             recordedBuffers = []
             return text
         } catch {
+            guard sessionGeneration == generation, state == .processing else {
+                debugLog("VoiceInputService: Ignored transcription failure from stale session")
+                return ""
+            }
             debugLog("VoiceInputService: Transcription error: \(error)")
             transcriptionEngine = nil
             setState(.idle)
@@ -144,8 +193,16 @@ final class VoiceInputService: ObservableObject {
     // MARK: - Cancel
 
     func cancelRecording() {
+        sessionGeneration &+= 1
         deferredMuteTask?.cancel()
-        stopAudioCapture()
+        if state == .recording {
+            stopAudioCapture()
+        } else {
+            // Recording has not installed a tap yet, or processing already
+            // removed it. Avoid a second removeTap on the retained engine.
+            drainTimer?.invalidate()
+            drainTimer = nil
+        }
         MediaRemoteController.shared.resumeIfWePaused()
         transcriptionEngine = nil
         recordedBuffers = []

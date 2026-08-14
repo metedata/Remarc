@@ -47,6 +47,11 @@ extension KeyboardShortcuts.Name {
 public final class GlobalHotkey {
     public static let shared = GlobalHotkey()
 
+    private enum VoiceDestination: Sendable {
+        case commentInput(generation: UInt64)
+        case floatingEditor(generation: UInt64)
+    }
+
     private init() {}
 
     private var voiceKeyDownTime: Date?
@@ -239,8 +244,11 @@ public final class GlobalHotkey {
         ScreenCaptureService.shared.startCapture(
             onRegionSelected: { captureRect, sourceBundleID in
                 Task { @MainActor in
-                    CommentInputController.shared.wakeOnSave = armWake
-                    CommentInputController.shared.showForScreenshot(captureRect: captureRect, sourceBundleID: sourceBundleID)
+                    CommentInputController.shared.showForScreenshot(
+                        captureRect: captureRect,
+                        sourceBundleID: sourceBundleID,
+                        wakeOnSave: armWake
+                    )
                 }
             },
             onCancel: {
@@ -270,20 +278,31 @@ public final class GlobalHotkey {
         }
 
         let format = SettingsManager.shared.outputFormat
-        ExportManager.shared.copySessionToClipboard(session, comments: comments, format: format)
-        debugLog("GlobalHotkey: copied \(comments.count) comments, simulating Cmd+V")
+        guard let receipt = ExportManager.shared.copySessionToClipboard(
+            session,
+            comments: comments,
+            format: format
+        ) else {
+            debugLog("GlobalHotkey: clipboard write failed, skipping paste-all")
+            ToastManager.shared.show("Couldn’t copy comments")
+            return
+        }
+        debugLog("GlobalHotkey: copied \(receipt.count) comments, simulating Cmd+V")
 
         // Brief delay for clipboard to settle, then simulate Cmd+V
         simulatePaste()
 
-        ToastManager.shared.show("Pasted \(comments.count) comment\(comments.count == 1 ? "" : "s")")
+        ToastManager.shared.show("Pasted \(receipt.count) comment\(receipt.count == 1 ? "" : "s")")
 
         if SettingsManager.shared.clearAfterExportBehavior == .delete {
             // Use a delay to allow the paste to complete before clearing
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                if let sessionID = PersistenceManager.shared.appState.activeSessionID {
-                    PersistenceManager.shared.clearAllComments(in: sessionID)
-                    debugLog("GlobalHotkey: auto-cleared comments after paste-all")
+                switch PersistenceManager.shared.clearExportedComments(receipt) {
+                case .success(let clearedIDs):
+                    debugLog("GlobalHotkey: auto-cleared \(clearedIDs.count) unchanged exported comments after paste-all")
+                case .failure(let error):
+                    debugLog("GlobalHotkey: auto-clear after paste-all failed - \(error)")
+                    ToastManager.shared.show("Couldn’t clear exported comments")
                 }
             }
         }
@@ -304,10 +323,11 @@ public final class GlobalHotkey {
         let voiceService = VoiceInputService.shared
         if voiceService.state == .recording {
             // Already recording — stop (double-press or toggle)
+            let destination = activeRemarcEditorVoiceDestination()
             Task { @MainActor in
                 let text = try? await voiceService.stopRecording()
                 if let text, !text.isEmpty {
-                    self.appendVoiceTextToActiveEditor(text)
+                    self.appendVoiceText(text, to: destination)
                 }
             }
             return
@@ -354,10 +374,11 @@ public final class GlobalHotkey {
 
         if voiceService.state == .recording && holdDuration > holdThreshold {
             // Was a hold — stop recording on release
+            let destination = activeRemarcEditorVoiceDestination()
             Task { @MainActor in
                 let text = try? await voiceService.stopRecording()
                 if let text, !text.isEmpty {
-                    self.appendVoiceTextToActiveEditor(text)
+                    self.appendVoiceText(text, to: destination)
                 }
             }
         }
@@ -377,14 +398,35 @@ public final class GlobalHotkey {
         )
     }
 
-    private func appendVoiceTextToActiveEditor(_ text: String) {
+    private func activeRemarcEditorVoiceDestination() -> VoiceDestination? {
         switch activeRemarcEditorVoiceTarget() {
         case .floatingEditor:
-            FloatingEditorController.shared.appendVoiceText(text)
+            return .floatingEditor(
+                generation: FloatingEditorController.shared.currentPresentationGeneration
+            )
         case .commentInput:
-            CommentInputController.shared.appendVoiceText(text)
+            return .commentInput(
+                generation: CommentInputController.shared.currentDraftGeneration
+            )
         case nil:
-            CommentInputController.shared.appendVoiceText(text)
+            return nil
+        }
+    }
+
+    private func appendVoiceText(_ text: String, to destination: VoiceDestination?) {
+        switch destination {
+        case .floatingEditor(let generation):
+            FloatingEditorController.shared.appendVoiceText(
+                text,
+                forPresentationGeneration: generation
+            )
+        case .commentInput(let generation):
+            CommentInputController.shared.appendVoiceText(
+                text,
+                forDraftGeneration: generation
+            )
+        case nil:
+            debugLog("GlobalHotkey: Discarded transcription with no originating editor")
         }
     }
 

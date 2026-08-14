@@ -15,11 +15,13 @@ struct HistoryCardView: View {
         VStack(alignment: .leading, spacing: 8) {
             referenceView
             if !comment.attachments.isEmpty {
-                AttachmentStripView(attachments: comment.attachments, commentText: comment.commentText, isEditable: false, maxThumbnailWidth: 140, maxThumbnailHeight: 80)
+                AttachmentStripView(attachments: comment.attachments, commentText: Comment.normalizedCommentText(comment.commentText), isEditable: false, maxThumbnailWidth: 140, maxThumbnailHeight: 80)
                     .padding(.leading, 8)
                     .quoteBorder()
             }
-            commentTextView
+            if let commentText = comment.meaningfulCommentText {
+                commentTextView(commentText)
+            }
             metadataView
         }
         .padding(12)
@@ -69,7 +71,7 @@ struct HistoryCardView: View {
                 .onTapGesture {
                     ScreenshotPreviewController.shared.show(
                         imagePath: imagePath,
-                        commentText: comment.commentText
+                        commentText: Comment.normalizedCommentText(comment.commentText)
                     )
                 }
 
@@ -87,8 +89,8 @@ struct HistoryCardView: View {
 
     // MARK: - Comment Text
 
-    private var commentTextView: some View {
-        Text(comment.commentText)
+    private func commentTextView(_ commentText: String) -> some View {
+        Text(commentText)
             .font(.system(size: 13))
             .foregroundStyle(.primary)
             .lineLimit(3)

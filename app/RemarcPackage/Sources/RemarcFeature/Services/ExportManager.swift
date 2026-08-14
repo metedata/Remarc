@@ -16,6 +16,52 @@ public struct PreviewLine: Identifiable, Sendable {
     public let segments: [PreviewSegment]
 }
 
+/// The exact versions of the comments successfully written by an export.
+///
+/// Clearing against this receipt prevents a later session switch, new comment,
+/// edit, move, or status change from deleting state that was not actually part
+/// of the exported snapshot.
+public struct ExportReceipt: Equatable, Sendable {
+    public struct Entry: Equatable, Sendable {
+        public let id: UUID
+        public let updatedAt: Date
+    }
+
+    public let sessionID: UUID
+    public let entries: [Entry]
+
+    public init(sessionID: UUID, comments: [Comment]) {
+        self.sessionID = sessionID
+        self.entries = comments.map { Entry(id: $0.id, updatedAt: $0.updatedAt) }
+    }
+
+    public var commentIDs: [UUID] {
+        entries.map(\.id)
+    }
+
+    public var count: Int {
+        entries.count
+    }
+
+    /// IDs that still represent the exact exported versions in the same
+    /// session. This pure helper is shared by persistence and contract tests.
+    public func clearableCommentIDs(in comments: [Comment]) -> [UUID] {
+        var versions: [UUID: Date] = [:]
+        for entry in entries {
+            versions[entry.id] = entry.updatedAt
+        }
+
+        return comments.compactMap { comment in
+            guard !comment.isDeleted,
+                  comment.sessionID == sessionID,
+                  versions[comment.id] == comment.updatedAt else {
+                return nil
+            }
+            return comment.id
+        }
+    }
+}
+
 @MainActor
 public final class ExportManager {
     public static let shared = ExportManager()
@@ -29,6 +75,7 @@ public final class ExportManager {
         switch comment.type {
         case .comment(let text):
             let cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else { return nil }
             switch style {
             case .blockquote:
                 return cleaned.components(separatedBy: "\n").map { "> \($0)" }.joined(separator: "\n")
@@ -185,11 +232,11 @@ public final class ExportManager {
         use24Hour: Bool = false,
         metadataDivider: SettingsManager.MetadataDividerStyle = .pipe
     ) -> String {
-        let nonEmptyComments = comments.filter { !$0.commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         var lines: [String] = []
         let commentPrefix = formatCommentPrefix(style: commentPrefixStyle)
 
-        for (index, comment) in nonEmptyComments.enumerated() {
+        for (index, comment) in comments.enumerated() {
+            let recordStartIndex = lines.count
             let prefix = formatPrefix(index: index, style: numberingStyle)
             let reference = formatReference(comment, style: referenceStyle)
 
@@ -197,7 +244,9 @@ public final class ExportManager {
                 lines.append("\(prefix)\(reference)")
             }
 
-            lines.append("\(commentPrefix)\(comment.commentText)")
+            if let commentText = comment.meaningfulCommentText {
+                lines.append("\(commentPrefix)\(commentText)")
+            }
 
             // Type line (separate from metadata)
             if includeType {
@@ -271,8 +320,15 @@ public final class ExportManager {
                 lines.append(metadataLine)
             }
 
+            // A legacy payloadless Quick Note/Crit record can still exist on
+            // disk. Do not silently drop it when every optional metadata field
+            // is disabled; preserve one explicit record marker instead.
+            if lines.count == recordStartIndex {
+                lines.append("\(prefix)[\(comment.type.displayName)]")
+            }
+
             // Divider (not after last comment)
-            if index < nonEmptyComments.count - 1 {
+            if index < comments.count - 1 {
                 switch dividerStyle {
                 case .horizontalRule:
                     lines.append("---")
@@ -296,6 +352,8 @@ public final class ExportManager {
             let number: Int
             let selectedText: String?
             let imagePath: String?
+            let componentName: String?
+            let filePath: String?
             let comment: String
             let type: String
             let source: String
@@ -312,13 +370,20 @@ public final class ExportManager {
         }
 
         let formatter = ISO8601DateFormatter()
-        let nonEmptyComments = comments.filter { !$0.commentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let exportComments = nonEmptyComments.enumerated().map { index, comment in
-            ExportComment(
+        let exportComments = comments.enumerated().map { index, comment in
+            let webElementReference: (componentName: String?, filePath: String?) = switch comment.type {
+            case .webElement(let componentName, let filePath):
+                (componentName, filePath)
+            default:
+                (nil, nil)
+            }
+            return ExportComment(
                 number: index + 1,
                 selectedText: comment.selectedText,
                 imagePath: comment.type.imagePath.map { resolveImagePath($0).path },
-                comment: comment.commentText,
+                componentName: webElementReference.componentName,
+                filePath: webElementReference.filePath,
+                comment: Comment.normalizedCommentText(comment.commentText),
                 type: comment.type.identifier,
                 source: comment.source,
                 timestamp: formatter.string(from: comment.createdAt),
@@ -610,41 +675,67 @@ public final class ExportManager {
 
     // MARK: - Clipboard Actions
 
-    public func copySessionToClipboard(_ session: Session, comments: [Comment], format: SettingsManager.OutputFormat) {
+    private func exportSnapshot(for session: Session, comments: [Comment]) -> [Comment] {
+        comments.filter { !$0.isDeleted && $0.sessionID == session.id }
+    }
+
+    @discardableResult
+    public func copySessionToClipboard(
+        _ session: Session,
+        comments: [Comment],
+        format: SettingsManager.OutputFormat
+    ) -> ExportReceipt? {
+        let snapshot = exportSnapshot(for: session, comments: comments)
         let content: String
         let includeMetadata = SettingsManager.shared.includeMetadataInExport
 
         switch format {
         case .markdown:
-            content = markdownForSession(session, comments: comments, includeMetadata: includeMetadata)
+            content = markdownForSession(session, comments: snapshot, includeMetadata: includeMetadata)
         case .json:
-            content = jsonForSession(session, comments: comments, includeMetadata: includeMetadata)
+            content = jsonForSession(session, comments: snapshot, includeMetadata: includeMetadata)
         }
 
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(content, forType: .string)
-        debugLog("ExportManager: Copied \(comments.count) comments as \(format.label)")
+        guard NSPasteboard.general.setString(content, forType: .string) else {
+            debugLog("ExportManager: Clipboard write failed")
+            return nil
+        }
+        debugLog("ExportManager: Copied \(snapshot.count) comments as \(format.label)")
+        return ExportReceipt(sessionID: session.id, comments: snapshot)
     }
 
-    public func copyCommentToClipboard(_ comment: Comment) {
+    @discardableResult
+    public func copyCommentToClipboard(_ comment: Comment) -> ExportReceipt? {
         let content = markdownForComment(comment)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(content, forType: .string)
+        guard NSPasteboard.general.setString(content, forType: .string) else {
+            debugLog("ExportManager: Clipboard write failed for single comment")
+            return nil
+        }
         debugLog("ExportManager: Copied single comment")
+        return ExportReceipt(sessionID: comment.sessionID, comments: [comment])
     }
 
     // MARK: - File Save
 
-    public func saveSessionToFile(_ session: Session, comments: [Comment], format: SettingsManager.OutputFormat) {
+    public func saveSessionToFile(
+        _ session: Session,
+        comments: [Comment],
+        format: SettingsManager.OutputFormat,
+        completion: @escaping @MainActor (ExportReceipt?) -> Void = { _ in }
+    ) {
+        let snapshot = exportSnapshot(for: session, comments: comments)
+        let receipt = ExportReceipt(sessionID: session.id, comments: snapshot)
         let content: String
         let fileExtension: String
 
         switch format {
         case .markdown:
-            content = markdownForSession(session, comments: comments, includeMetadata: true)
+            content = markdownForSession(session, comments: snapshot, includeMetadata: true)
             fileExtension = "md"
         case .json:
-            content = jsonForSession(session, comments: comments, includeMetadata: true)
+            content = jsonForSession(session, comments: snapshot, includeMetadata: true)
             fileExtension = "json"
         }
 
@@ -660,9 +751,13 @@ public final class ExportManager {
                 do {
                     try content.write(to: url, atomically: true, encoding: .utf8)
                     debugLog("ExportManager: Saved to \(url.path)")
+                    completion(receipt)
                 } catch {
                     debugLog("ExportManager: Save failed - \(error.localizedDescription)")
+                    completion(nil)
                 }
+            } else {
+                completion(nil)
             }
         }
     }
