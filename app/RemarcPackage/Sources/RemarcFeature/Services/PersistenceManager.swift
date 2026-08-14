@@ -393,8 +393,8 @@ public final class PersistenceManager: ObservableObject {
         appState.totalCommentsCreated += 1
 
         if wakeRequested {
-            // The hooks watch this file; the comment has to be on disk before the
-            // change event fires, or the woken session finds nothing to act on.
+            // Agent integrations watch this file; the comment has to be on disk
+            // before the change event fires, or the woken session finds nothing.
             saveNow()
         } else {
             scheduleSave()
@@ -658,7 +658,7 @@ public final class PersistenceManager: ObservableObject {
     }
 
     /// Blocking variant for the two places that genuinely need the bytes on
-    /// disk before returning: the wake button (the hooks watch this file, so a
+    /// disk before returning: paired integrations watch this file, so a
     /// comment must be readable before the change event fires) and termination.
     @discardableResult
     private func saveToDiskBlocking() -> Bool {
@@ -980,7 +980,7 @@ public final class PersistenceManager: ObservableObject {
 
     /// Save synchronously, bypassing the debounce.
     ///
-    /// Used by the wake CTA: the hooks watch this file, so the comment has to
+    /// Used by the wake CTA: paired integrations watch this file, so the comment has to
     /// be on disk before the event fires, or the woken session finds nothing.
     public func saveNow() {
         saveToDiskBlocking()

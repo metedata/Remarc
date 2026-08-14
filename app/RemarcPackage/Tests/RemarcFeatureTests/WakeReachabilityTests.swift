@@ -4,6 +4,20 @@ import XCTest
 /// The wake button must reflect which harness is actually running, not which
 /// plugin happens to be installed. Codex sessions cannot be woken.
 final class WakeReachabilityTests: XCTestCase {
+    private struct OMPLeaseContractFixture: Decodable {
+        let fixtureVersion: Int
+        let now: String
+        let requestedRemarcSessionId: UUID
+        let cases: [OMPLeaseContractCase]
+    }
+
+    private struct OMPLeaseContractCase: Decodable {
+        let name: String
+        let ownerAlive: Bool
+        let expectedReachable: Bool
+        let marker: [String: JSONValue]
+    }
+
     private var dir: URL!
 
     /// A temp directory, never the real one. Reading the real markers directory
@@ -33,6 +47,19 @@ final class WakeReachabilityTests: XCTestCase {
 
     private func isLive(pairedTo session: UUID?) -> Bool {
         WakeReachability.liveWakeCapableSessionExists(pairedTo: session, in: dir)
+    }
+
+    private func isLive(
+        pairedTo session: UUID?,
+        now: Date,
+        processIsLive: (Int32) -> Bool
+    ) -> Bool {
+        WakeReachability.liveWakeCapableSessionExists(
+            pairedTo: session,
+            in: dir,
+            now: now,
+            processIsLive: processIsLive
+        )
     }
 
     /// Exactly what JavaScript's `Date.prototype.toISOString()` produces, which
@@ -194,6 +221,42 @@ final class WakeReachabilityTests: XCTestCase {
         try Data(json.utf8).write(to: dir.appending(path: "test-\(name).json"))
     }
 
+    private func validOMPMarker(now: Date) -> [String: Any] {
+        [
+            "remarcSessionId": pairedSession.uuidString,
+            "wakeCapable": true,
+            "protocolVersion": 1,
+            "harness": "omp",
+            "ownerPid": 4_242,
+            "ownerToken": "0123456789abcdef0123456789abcdef",
+            "leaseHeartbeatAt": nodeISOString(now),
+        ]
+    }
+
+    private func writeRawMarker(_ name: String, raw: [String: Any]) throws {
+        try JSONSerialization.data(withJSONObject: raw)
+            .write(to: dir.appending(path: "test-\(name).json"))
+    }
+
+    private func loadOMPLeaseContractFixture() throws -> (OMPLeaseContractFixture, Date) {
+        let url = try XCTUnwrap(
+            Bundle.module.url(
+                forResource: "omp-lease-v1",
+                withExtension: "json",
+                subdirectory: "Fixtures"
+            ),
+            "cross-language OMP lease fixture is not bundled"
+        )
+        let fixture = try JSONDecoder().decode(
+            OMPLeaseContractFixture.self,
+            from: Data(contentsOf: url)
+        )
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let now = try XCTUnwrap(formatter.date(from: fixture.now), "invalid fixture now")
+        return (fixture, now)
+    }
+
     func testRealHookMarkerIsReadAsLive() throws {
         try writeRealHookMarker("real-live", lastActivity: Date())
         XCTAssertTrue(isLive())
@@ -230,6 +293,201 @@ final class WakeReachabilityTests: XCTestCase {
             remarcSessionId: pairedSession.uuidString.lowercased()
         )
         XCTAssertTrue(isLive(pairedTo: pairedSession))
+    }
+
+    func testLiveOMPLeaseIsReachable() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        try writeRawMarker("omp-live", raw: validOMPMarker(now: now))
+
+        XCTAssertTrue(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { $0 == 4_242 })
+        )
+    }
+
+    func testOMPLeaseV1MatchesCrossLanguageFixture() throws {
+        let (fixture, now) = try loadOMPLeaseContractFixture()
+        XCTAssertEqual(fixture.fixtureVersion, 1)
+        XCTAssertEqual(fixture.requestedRemarcSessionId, pairedSession)
+
+        for (index, contractCase) in fixture.cases.enumerated() {
+            let markerData = try JSONEncoder().encode(contractCase.marker)
+            let raw = try XCTUnwrap(
+                try JSONSerialization.jsonObject(with: markerData) as? [String: Any],
+                contractCase.name
+            )
+            let markerName = "omp-contract-\(index)"
+            try writeRawMarker(markerName, raw: raw)
+
+            let reachable = isLive(
+                pairedTo: fixture.requestedRemarcSessionId,
+                now: now,
+                processIsLive: { _ in contractCase.ownerAlive }
+            )
+            XCTAssertEqual(
+                reachable,
+                contractCase.expectedReachable,
+                "cross-language OMP lease case: \(contractCase.name)"
+            )
+            try FileManager.default.removeItem(
+                at: dir.appending(path: "test-\(markerName).json")
+            )
+        }
+    }
+
+    func testOMPLeaseRequiresALiveOwnerProcess() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        try writeRawMarker("omp-dead-owner", raw: validOMPMarker(now: now))
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in false })
+        )
+    }
+
+    func testOMPLeaseHeartbeatBoundariesAreInclusive() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        var oldest = validOMPMarker(now: now)
+        oldest["leaseHeartbeatAt"] = nodeISOString(now.addingTimeInterval(-60))
+        try writeRawMarker("omp-oldest-live", raw: oldest)
+
+        XCTAssertTrue(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+        try FileManager.default.removeItem(at: dir.appending(path: "test-omp-oldest-live.json"))
+
+        var furthestFuture = validOMPMarker(now: now)
+        furthestFuture["leaseHeartbeatAt"] = nodeISOString(now.addingTimeInterval(30))
+        try writeRawMarker("omp-future-live", raw: furthestFuture)
+
+        XCTAssertTrue(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testStaleOMPHeartbeatIsNotReachable() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        var raw = validOMPMarker(now: now)
+        raw["leaseHeartbeatAt"] = nodeISOString(now.addingTimeInterval(-61))
+        try writeRawMarker("omp-stale", raw: raw)
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testFarFutureOMPHeartbeatIsNotReachable() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        var raw = validOMPMarker(now: now)
+        raw["leaseHeartbeatAt"] = nodeISOString(now.addingTimeInterval(31))
+        try writeRawMarker("omp-far-future", raw: raw)
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testOMPLeaseRequiresEveryVersionedOwnershipField() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        for key in ["protocolVersion", "ownerPid", "ownerToken", "leaseHeartbeatAt"] {
+            var raw = validOMPMarker(now: now)
+            raw.removeValue(forKey: key)
+            try writeRawMarker("omp-missing-\(key)", raw: raw)
+        }
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testOMPLeaseRejectsWrongHarnessAndUnknownProtocol() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let transcript = dir.appending(path: "wrong-harness-live-looking.jsonl")
+        try Data("{}".utf8).write(to: transcript)
+        var wrongHarness = validOMPMarker(now: now)
+        wrongHarness["harness"] = "claudeCode"
+        wrongHarness["lastActivity"] = nodeISOString(now)
+        wrongHarness["transcriptPath"] = transcript.path
+        try writeRawMarker("omp-wrong-harness", raw: wrongHarness)
+
+        var unknownVersion = validOMPMarker(now: now)
+        unknownVersion["protocolVersion"] = 2
+        try writeRawMarker("omp-unknown-version", raw: unknownVersion)
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testOMPLeaseRejectsMalformedNumericAndTokenFields() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        var numericWakeCapability = validOMPMarker(now: now)
+        numericWakeCapability["wakeCapable"] = 1
+        try writeRawMarker("omp-numeric-wake-capability", raw: numericWakeCapability)
+
+        var booleanVersion = validOMPMarker(now: now)
+        booleanVersion["protocolVersion"] = true
+        try writeRawMarker("omp-boolean-version", raw: booleanVersion)
+
+        var fractionalPID = validOMPMarker(now: now)
+        fractionalPID["ownerPid"] = 4_242.5
+        try writeRawMarker("omp-fractional-pid", raw: fractionalPID)
+
+        var blankToken = validOMPMarker(now: now)
+        blankToken["ownerToken"] = "   "
+        try writeRawMarker("omp-blank-token", raw: blankToken)
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testOMPMarkerCannotFallBackToLegacyActivityOrTranscript() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let transcript = dir.appending(path: "omp-live-looking.jsonl")
+        try Data("{}".utf8).write(to: transcript)
+
+        var raw = validOMPMarker(now: now)
+        raw.removeValue(forKey: "ownerToken")
+        raw["lastActivity"] = nodeISOString(now)
+        raw["transcriptPath"] = transcript.path
+        try writeRawMarker("omp-no-legacy-fallback", raw: raw)
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in true })
+        )
+
+        var missingHarness = validOMPMarker(now: now)
+        missingHarness.removeValue(forKey: "harness")
+        missingHarness["lastActivity"] = nodeISOString(now)
+        missingHarness["transcriptPath"] = transcript.path
+        try writeRawMarker("omp-missing-harness", raw: missingHarness)
+
+        XCTAssertFalse(
+            isLive(pairedTo: pairedSession, now: now, processIsLive: { _ in false })
+        )
+    }
+
+    func testOMPReachabilityIsScopedToTheRequestedRemarcSession() throws {
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        try writeRawMarker("omp-other-session", raw: validOMPMarker(now: now))
+
+        XCTAssertFalse(
+            isLive(pairedTo: otherSession, now: now, processIsLive: { _ in true })
+        )
+    }
+
+    func testCurrentProcessSatisfiesDefaultOMPProcessProbe() throws {
+        let now = Date.now
+        var raw = validOMPMarker(now: now)
+        raw["ownerPid"] = ProcessInfo.processInfo.processIdentifier
+        try writeRawMarker("omp-current-process", raw: raw)
+
+        XCTAssertTrue(
+            WakeReachability.liveWakeCapableSessionExists(
+                pairedTo: pairedSession,
+                in: dir,
+                now: now
+            )
+        )
     }
 
     func testMalformedMarkerIsIgnored() throws {

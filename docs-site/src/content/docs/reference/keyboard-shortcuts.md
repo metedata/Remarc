@@ -26,7 +26,7 @@ Global shortcuts work in any app while Remarc is running.
 Voice Input, Dictation, Paste Last Dictation, and Crit Mode require macOS 26 (Tahoe) or later. On older versions the Voice Input, Dictation, and Paste Last Dictation rows are hidden in Settings.
 :::
 
-**Screenshot & Send Instantly** ships unassigned. Its row appears in Settings > Shortcuts only after you enable "Allow comments to wake Claude Code sessions" in Settings > MCP Integrations.
+**Screenshot & Send Instantly** ships unassigned. Its row appears in Settings > Shortcuts only after you enable **Allow comments to wake paired agent sessions** in Settings > MCP Integrations.
 
 Either dictation shortcut, push to talk or hands-free, can be bound to the fn/globe key instead of a key combination in Settings > Voice. Only one of the two can use the fn key at a time.
 

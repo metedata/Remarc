@@ -9,7 +9,7 @@ Remarc is a free, open source macOS menu bar app for contextual commenting: sele
 
 1. Capture context. Select text in any app and click the Comment tooltip that appears, drag out a screenshot region, grab an element on a web page, or start talking.
 2. Write (or dictate) what you think. Remarc records the quoted text, the source app, and any image or web context alongside your note.
-3. Hand off. Copy everything to the clipboard for an agent prompt, let Claude Code, Codex, or Cursor read and resolve comments directly over MCP (Model Context Protocol), export to Markdown or JSON, or fire webhooks to your automation tools. See the [agent integrations overview](/agents/overview/).
+3. Hand off. Copy everything to the clipboard for an agent prompt, let Claude Code, Codex, OMP, or Cursor read and resolve comments directly over MCP (Model Context Protocol), export to Markdown or JSON, or fire webhooks to your automation tools. See the [agent integrations overview](/agents/overview/).
 
 ## Comment types
 

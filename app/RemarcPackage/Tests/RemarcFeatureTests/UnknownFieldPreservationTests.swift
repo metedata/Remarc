@@ -76,7 +76,7 @@ final class UnknownFieldPreservationTests: XCTestCase {
     }
 
     func testKnownOriginsStillEncodeNormally() throws {
-        for origin in ["manual", "claudeCode", "codex"] {
+        for origin in ["manual", "claudeCode", "codex", "omp"] {
             let raw = try roundTrip("""
             {
               "sessions": [{
