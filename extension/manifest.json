@@ -3,7 +3,8 @@
   "name": "Remarc Web Context",
   "version": "0.3.0",
   "description": "Companion extension for Remarc — captures web element context for design comments and annotations",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "minimum_chrome_version": "120",
+  "permissions": ["activeTab", "alarms", "storage", "scripting"],
   "host_permissions": ["http://127.0.0.1/*"],
   "content_scripts": [
     {
@@ -29,7 +30,8 @@
     }
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "icons": {
     "16": "icons/icon16.png",

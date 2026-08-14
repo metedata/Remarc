@@ -1,27 +1,47 @@
 // content.js — runs in ISOLATED world
-// Holds WebSocket connection to Remarc, handles selection enrichment and element grab.
+// Relays page context through the extension worker and handles page capture UI.
 
 (function () {
   "use strict";
 
-  if (globalThis.__remarcContentScriptLoaded) return;
+  const CONTENT_SCRIPT_VERSION = "background-bridge-v1";
+  if (globalThis.__remarcContentScriptVersion === CONTENT_SCRIPT_VERSION) return;
+  if (
+    globalThis.__remarcContentScriptLoaded &&
+    typeof globalThis.__remarcContentScriptTeardown !== "function"
+  ) {
+    // Versions before the background bridge cannot tear down their closure-owned
+    // listeners. Those tabs require the one-time reload documented for this update.
+    return;
+  }
+  try {
+    globalThis.__remarcContentScriptTeardown?.();
+  } catch {
+    // A stale content-script generation must not prevent the replacement loading.
+  }
   globalThis.__remarcContentScriptLoaded = true;
+  globalThis.__remarcContentScriptVersion = CONTENT_SCRIPT_VERSION;
 
-  const REMARC_WS_URL = "ws://127.0.0.1:9274";
   const SELECTION_DEBOUNCE_MS = 200;
+  const MAX_PENDING_MESSAGES = 50;
 
-  let ws = null;
   let pendingMessages = [];
+  let sendInFlight = false;
+  let bridgeConnected = false;
+  let bridgeInstanceId = null;
+  let bridgeStateEpoch = -1;
+  let bridgeNudgeInFlight = false;
   let lastActivitySent = 0;
   let grabModeActive = false;
   let highlightOverlay = null;
-  let extensionEnabled = true;
-  // True when Chrome's Local Network Access policy synchronously blocks the
-  // WebSocket to 127.0.0.1 (signature: readyState === CLOSED immediately after
-  // construction, without ever entering CONNECTING). Surfaced to the popup so
-  // the user gets a targeted "allow loopback" hint instead of a generic error.
-  let lnaBlocked = false;
-  let reconnectTimer = null;
+  // Fail closed until persisted Pause state has loaded. Capture listeners are
+  // registered at document_start, so an optimistic default could leak a click
+  // or selection during the storage callback window.
+  let extensionEnabled = false;
+  let captureGeneration = 0;
+  let isTornDown = false;
+  let selectionTimer = null;
+  let initActivityTimer = null;
 
   // Region select state
   let regionSelectActive = false;
@@ -47,7 +67,7 @@
   }
 
   // Shortcut configuration — loaded from chrome.storage.local, synced from app
-  let shortcutConfig = {
+  const DEFAULT_SHORTCUT_CONFIG = {
     "grab-element": { key: "G", modifiers: ["Alt", "Shift"] },
     "region-select": { key: "R", modifiers: ["Alt", "Shift"] },
     // HyperFrames quick note — captures only the timeline moment (no DOM target).
@@ -55,173 +75,171 @@
     // and the app drops it unless webContextHyperframesEnabled is toggled on.
     "hf-quick-note": { key: "N", modifiers: ["Alt", "Shift"] },
   };
+  let shortcutConfig = { ...DEFAULT_SHORTCUT_CONFIG };
 
   // Load enabled state and shortcuts
   if (typeof chrome !== "undefined" && chrome.storage) {
     chrome.storage.local.get({ extensionEnabled: true }, (result) => {
-      extensionEnabled = result.extensionEnabled;
+      if (isTornDown) return;
+      extensionEnabled = result.extensionEnabled !== false;
+      if (!extensionEnabled) cancelCaptureInteractions();
     });
     chrome.storage.local.get("shortcuts", (result) => {
+      if (isTornDown) return;
       if (result.shortcuts) {
-        shortcutConfig = result.shortcuts;
+        shortcutConfig = { ...DEFAULT_SHORTCUT_CONFIG, ...result.shortcuts };
       }
     });
-    // Consolidated storage change listener — handles both enabled state and shortcuts
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== "local") return;
-      if (changes.extensionEnabled) {
-        extensionEnabled = changes.extensionEnabled.newValue;
-      }
-      if (changes.shortcuts?.newValue) {
-        shortcutConfig = changes.shortcuts.newValue;
-      }
-    });
+    chrome.storage.onChanged.addListener(handleStorageChanged);
   }
 
-  // --- WebSocket Connection ---
+  // --- Native bridge messaging ---
 
-  // Fingerprinting the close reason on loopback:
-  //   * Successful open: tens of ms.
-  //   * ECONNREFUSED (Remarc app not running): near-instant, < ~50ms.
-  //   * Chrome Local Network Access block: an async policy check between
-  //     ~100ms and a few seconds before the connection is torn down with
-  //     close code 1006 and no onopen.
-  //   * Chrome TCP/handshake timeout: > 30s.
-  // We claim "blocked by Chrome" only inside the LNA window AND when the
-  // socket never reached OPEN. Anything else falls back to normal retry, so
-  // a false positive on a flaky network self-corrects via the next attempt.
-  const LNA_MIN_ELAPSED_MS = 80;
-  const LNA_MAX_ELAPSED_MS = 15_000;
-  // Re-probe every 30s while blocked. If the user has since granted the
-  // permission, this picks it up automatically; if not, the next close
-  // re-asserts the blocked state with no UI churn.
-  const LNA_REPROBE_INTERVAL_MS = 30_000;
+  function handleStorageChanged(changes, area) {
+    if (area !== "local" || isTornDown) return;
+    if (changes.extensionEnabled) {
+      extensionEnabled = changes.extensionEnabled.newValue;
+      if (!extensionEnabled) cancelCaptureInteractions();
+    }
+    if (changes.shortcuts?.newValue) {
+      shortcutConfig = { ...DEFAULT_SHORTCUT_CONFIG, ...changes.shortcuts.newValue };
+    }
+  }
 
-  function connect() {
-    if (ws && ws.readyState <= WebSocket.OPEN) return;
+  function cancelCaptureInteractions() {
+    captureGeneration += 1;
+    clearTimeout(selectionTimer);
+    selectionTimer = null;
+    // Pausing is a privacy boundary: captures that have not crossed the
+    // worker boundary must not replay after Resume or a later app launch.
+    pendingMessages = [];
+    exitGrabMode();
+    exitRegionSelectMode();
+    dismissRegionHighlight();
+  }
 
-    const startedAt = Date.now();
-    let sawOpen = false;
-
+  function sendRuntimeMessage(message, callback = () => {}) {
+    if (isTornDown) {
+      callback(null);
+      return;
+    }
     try {
-      ws = new WebSocket(REMARC_WS_URL);
-    } catch (e) {
-      // SecurityError thrown synchronously (HTTPS->ws:// mixed content for
-      // non-loopback hosts, or some CSP variants). Same user-facing fix as
-      // LNA: allow the site to reach apps on the device.
-      markBlocked(`constructor threw ${e?.name || "error"}`);
-      scheduleReconnect(LNA_REPROBE_INTERVAL_MS);
-      return;
-    }
-
-    // Synchronous policy close: some Chrome versions mark the socket CLOSED
-    // before the constructor returns. No open/close events fire.
-    if (ws.readyState === WebSocket.CLOSED) {
-      ws = null;
-      markBlocked("synchronous close from constructor");
-      scheduleReconnect(LNA_REPROBE_INTERVAL_MS);
-      return;
-    }
-
-    ws.onopen = () => {
-      sawOpen = true;
-      lnaBlocked = false;
-      notifyBadge(true);
-      console.log("[Remarc] Connected.");
-      flushPendingMessages();
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === "regionQuery") {
-          handleRegionQuery(msg.data);
-        } else if (msg.type === "shortcutConfig") {
-          shortcutConfig = msg.data;
-          chrome.storage.local.set({ shortcuts: msg.data });
-        } else if (msg.type === "dismissRegionHighlight") {
-          dismissRegionHighlight();
+      chrome.runtime.sendMessage(message, (response) => {
+        if (isTornDown || chrome.runtime.lastError) {
+          callback(null);
+          return;
         }
-      } catch (e) {
-        console.error("[Remarc] Bad message:", e);
-      }
-    };
-
-    ws.onclose = () => {
-      const elapsed = Date.now() - startedAt;
-      ws = null;
-      notifyBadge(false);
-      dismissRegionHighlight();
-      if (
-        !sawOpen &&
-        elapsed > LNA_MIN_ELAPSED_MS &&
-        elapsed < LNA_MAX_ELAPSED_MS
-      ) {
-        markBlocked(`closed after ${elapsed}ms without opening`);
-        // Re-probe slowly so we auto-correct if the user grants permission.
-        scheduleReconnect(LNA_REPROBE_INTERVAL_MS);
-        return;
-      }
-      lnaBlocked = false;
-      scheduleReconnect(3000);
-    };
-
-    ws.onerror = () => {
-      ws?.close();
-    };
-  }
-
-  function markBlocked(reason) {
-    if (!lnaBlocked) {
-      console.warn(
-        "[Remarc] This site is blocked from reaching the Remarc app on your " +
-          `device (${reason}). To allow it: in Chrome's site permissions, set ` +
-          "'Apps on Device' to Allow (in Arc this is called 'Loopback Network'). " +
-          "'Local network' is a separate permission and doesn't need to change."
-      );
+        callback(response ?? null);
+      });
+    } catch {
+      callback(null);
     }
-    lnaBlocked = true;
-    notifyBadge(false);
-  }
-
-  function scheduleReconnect(delay) {
-    if (reconnectTimer) return;
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null;
-      connect();
-    }, delay);
   }
 
   function send(type, data) {
-    const payload = JSON.stringify({ type, data });
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(payload);
+    const envelope = { type, data };
+
+    // Activity is useful to the worker for routing and reconnect wakeups, but it
+    // is stale by definition once disconnected and must never enter the FIFO.
+    if (type === "tabActivity") {
+      sendRuntimeMessage({ type: "native-message", envelope });
       return;
     }
-    pendingMessages.push(payload);
-    if (pendingMessages.length > 50) pendingMessages = pendingMessages.slice(-50);
-    connect();
+
+    pendingMessages.push(envelope);
+    if (pendingMessages.length > MAX_PENDING_MESSAGES) {
+      // The first entry may already be crossing the extension boundary. Keep
+      // it stable and evict the oldest item that has not started yet.
+      pendingMessages.splice(sendInFlight ? 1 : 0, 1);
+    }
+    if (bridgeConnected) {
+      flushPendingMessages();
+    } else {
+      nudgeBridge();
+    }
   }
 
   function flushPendingMessages() {
-    if (ws?.readyState !== WebSocket.OPEN || pendingMessages.length === 0) return;
-    const messages = pendingMessages;
-    pendingMessages = [];
-    for (const payload of messages) {
-      ws.send(payload);
-    }
+    if (isTornDown || sendInFlight || !bridgeConnected || pendingMessages.length === 0) return;
+
+    const envelope = pendingMessages[0];
+    sendInFlight = true;
+    sendRuntimeMessage({ type: "native-message", envelope }, (response) => {
+      sendInFlight = false;
+      // Pause/teardown can intentionally invalidate an in-flight queue entry.
+      // The worker may already have delivered it, but it must never be replayed.
+      if (pendingMessages[0] !== envelope) {
+        queueMicrotask(flushPendingMessages);
+        return;
+      }
+      if (response?.delivered === true && pendingMessages[0] === envelope) {
+        pendingMessages.shift();
+        queueMicrotask(flushPendingMessages);
+        return;
+      }
+      if (response?.rejected === true && pendingMessages[0] === envelope) {
+        // Invalid or oversized page data can never become deliverable. Drop
+        // only that permanent failure so it cannot poison the FIFO.
+        pendingMessages.shift();
+        queueMicrotask(flushPendingMessages);
+        return;
+      }
+      // A non-acknowledgement leaves the item at the head. Wait for the next
+      // connected broadcast rather than spinning against a closing worker.
+      bridgeConnected = false;
+      nudgeBridge();
+    });
   }
 
-  function notifyBadge(connected) {
-    try {
-      chrome.runtime?.sendMessage({ type: "ws-status", connected, lnaBlocked });
-    } catch {
-      // Extension context may be invalidated
+  function setBridgeConnected(
+    connected,
+    { incomingInstanceId = null, incomingEpoch = null } = {}
+  ) {
+    const hasClock =
+      typeof incomingInstanceId === "string" &&
+      incomingInstanceId.length > 0 &&
+      Number.isSafeInteger(incomingEpoch) &&
+      incomingEpoch >= 0;
+    if (hasClock) {
+      if (bridgeInstanceId !== incomingInstanceId) {
+        bridgeInstanceId = incomingInstanceId;
+        bridgeStateEpoch = -1;
+      }
+      if (incomingEpoch <= bridgeStateEpoch) return false;
+      bridgeStateEpoch = incomingEpoch;
+    } else if (bridgeInstanceId !== null) {
+      // Once this page has seen versioned state, an unversioned late callback
+      // cannot safely overwrite it.
+      return false;
     }
+
+    bridgeConnected = connected === true;
+    if (bridgeConnected) {
+      flushPendingMessages();
+    } else {
+      dismissRegionHighlight();
+    }
+    return true;
+  }
+
+  function nudgeBridge() {
+    if (isTornDown || bridgeNudgeInFlight) return;
+    bridgeNudgeInFlight = true;
+    sendRuntimeMessage({ type: "retry-connect" }, () => {
+      sendRuntimeMessage({ type: "get-connection-state" }, (state) => {
+        bridgeNudgeInFlight = false;
+        if (typeof state?.connected === "boolean") {
+          setBridgeConnected(state.connected, {
+            incomingInstanceId: state.bridgeInstanceId,
+            incomingEpoch: state.bridgeStateEpoch,
+          });
+        }
+      });
+    });
   }
 
   function sendTabActivity(reason) {
-    if (document.visibilityState !== "visible") return;
+    if (isTornDown || document.visibilityState !== "visible") return;
     const now = Date.now();
     if (now - lastActivitySent < 1000) return;
     lastActivitySent = now;
@@ -291,8 +309,10 @@
   }
 
   async function triggerHFQuickNote() {
-    if (!extensionEnabled) return false;
+    if (!extensionEnabled || isTornDown) return false;
+    const generation = captureGeneration;
     const result = await getHFQuickNoteContext();
+    if (!extensionEnabled || isTornDown || generation !== captureGeneration) return false;
     if (!result || !result.hyperframesContext) {
       // Not an HF page or bridge errored — silently no-op.
       // (Logging would spam every keypress on non-HF tabs.)
@@ -307,20 +327,21 @@
 
   // --- Selection Enrichment ---
 
-  let selectionTimer = null;
-
   function onSelectionChange() {
+    if (!extensionEnabled || isTornDown) return;
     clearTimeout(selectionTimer);
     selectionTimer = setTimeout(handleSelectionChange, SELECTION_DEBOUNCE_MS);
   }
   document.addEventListener("selectionchange", onSelectionChange);
 
   async function handleSelectionChange() {
-    if (!extensionEnabled) return;
+    if (!extensionEnabled || isTornDown) return;
+    const generation = captureGeneration;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) return;
 
     const context = await getContextForElement({ selection: true });
+    if (!extensionEnabled || isTornDown || generation !== captureGeneration) return;
 
     if (context) {
       send("selectionContext", context);
@@ -351,7 +372,6 @@
     document.addEventListener("mousemove", grabMouseMove, true);
     document.addEventListener("click", grabClick, true);
     document.addEventListener("keydown", grabKeyDown, true);
-    connect();
     return true;
   }
 
@@ -382,6 +402,8 @@
     e.preventDefault();
     e.stopPropagation();
 
+    const generation = captureGeneration;
+
     // Capture the element and its bounds at click time (before async work)
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const elRect = el ? el.getBoundingClientRect() : null;
@@ -390,6 +412,11 @@
       x: e.clientX,
       y: e.clientY,
     });
+
+    if (!extensionEnabled || isTornDown || generation !== captureGeneration) {
+      exitGrabMode();
+      return;
+    }
 
     // regionRect must arrive before elementGrab so the native side has
     // the anchor position before showForWebElement consumes it.
@@ -410,52 +437,47 @@
     }
   }
 
-  // Listen for commands from popup and keyboard shortcuts
-  if (typeof chrome !== "undefined" && chrome.runtime) {
-    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-      switch (msg.type) {
-        case "grab-element":
-          sendResponse({ ok: enterGrabMode(), connected: ws?.readyState === WebSocket.OPEN });
-          return false;
-        case "region-select":
-          sendResponse({ ok: enterRegionSelectMode(), connected: ws?.readyState === WebSocket.OPEN });
-          return false;
-        case "hf-quick-note":
-          // Fire-and-forget — triggerHFQuickNote is async but the caller
-          // (popup or background) doesn't need to wait for the WS round trip.
-          triggerHFQuickNote().then((ok) => {
-            sendResponse({ ok, connected: ws?.readyState === WebSocket.OPEN });
-          });
-          return true; // async response
+  // Listen for commands from the popup and the extension worker.
+  function handleRuntimeMessage(msg, _sender, sendResponse) {
+    switch (msg?.type) {
+      case "grab-element":
+        sendResponse({ ok: enterGrabMode() });
+        return false;
+      case "region-select":
+        sendResponse({ ok: enterRegionSelectMode() });
+        return false;
+      case "hf-quick-note":
+        triggerHFQuickNote().then((ok) => sendResponse({ ok }));
+        return true;
+      case "open-settings":
+        send("openExtensionSettings", {});
+        sendResponse({ ok: true });
+        return false;
+      case "get-status":
+        sendResponse({ available: true, enabled: extensionEnabled });
+        return false;
+      case "regionQuery":
+        void handleRegionQuery(msg.data);
+        sendResponse({ ok: true });
+        return false;
+      case "dismissRegionHighlight":
+        dismissRegionHighlight();
+        sendResponse({ ok: true });
+        return false;
+      case "bridge-state":
+        setBridgeConnected(msg.connected, {
+          incomingInstanceId: msg.bridgeInstanceId,
+          incomingEpoch: msg.bridgeStateEpoch,
+        });
+        sendResponse({ ok: true });
+        return false;
+      default:
+        return false;
+    }
+  }
 
-        case "open-settings":
-          send("openExtensionSettings", {});
-          sendResponse({ ok: true, connected: ws?.readyState === WebSocket.OPEN });
-          return false;
-        case "get-status":
-          sendResponse({
-            available: true,
-            enabled: extensionEnabled,
-            connected: ws?.readyState === WebSocket.OPEN,
-            lnaBlocked,
-          });
-          return false; // synchronous response
-        case "retry-connect":
-          // Popup nudges us after the user (presumably) flipped a Chrome
-          // setting. Clear the cooldown and try again immediately. Don't
-          // preemptively clear lnaBlocked - the new attempt will set it
-          // correctly: onopen clears, onclose-without-open re-affirms. If we
-          // cleared here, the popup's status query could land during the
-          // CONNECTING window and report a stale "unblocked" state.
-          if (reconnectTimer) {
-            clearTimeout(reconnectTimer);
-            reconnectTimer = null;
-          }
-          connect();
-          sendResponse({ ok: true });
-          return false;
-      }
-    });
+  if (typeof chrome !== "undefined" && chrome.runtime) {
+    chrome.runtime.onMessage.addListener(handleRuntimeMessage);
   }
 
   // --- Multi-Point Region Sampling ---
@@ -517,6 +539,7 @@
   }
 
   async function sampleElementsInRect(x, y, w, h, limit = 20) {
+    const generation = captureGeneration;
     const selectionRect = { left: x, top: y, right: x + w, bottom: y + h };
     const candidates = new Map();
     const points = [
@@ -585,6 +608,7 @@
     const seenContexts = new Set();
     for (const { el } of finalMatches) {
       const ctx = await getContextForSpecificElement(el);
+      if (!extensionEnabled || isTornDown || generation !== captureGeneration) return [];
       if (!ctx) continue;
       const key = [
         ctx.pageUrl || "",
@@ -618,7 +642,6 @@
 
     regionOverlay.addEventListener("mousedown", regionMouseDown);
     document.addEventListener("keydown", regionKeyDown, true);
-    connect();
     return true;
   }
 
@@ -685,6 +708,7 @@
   }
 
   async function finalizeRegionSelection(clientX, clientY) {
+    const generation = captureGeneration;
     regionOverlay?.removeEventListener("mousemove", regionMouseMove);
     regionOverlay?.removeEventListener("mouseup", regionMouseUp);
     regionOverlay?.removeEventListener("mouseleave", regionMouseLeave);
@@ -724,6 +748,10 @@
 
     // 3. Sample elements while overlays are hidden
     let elements = await sampleElementsInRect(x, y, w, h);
+    if (!extensionEnabled || isTornDown || generation !== captureGeneration) {
+      exitRegionSelectMode();
+      return;
+    }
 
     // Fallback: if grid sampling found nothing, try the element at the center
     if (elements.length === 0) {
@@ -731,6 +759,10 @@
         x: x + w / 2,
         y: y + h / 2,
       });
+      if (!extensionEnabled || isTornDown || generation !== captureGeneration) {
+        exitRegionSelectMode();
+        return;
+      }
       if (centerCtx) elements = [centerCtx];
     }
 
@@ -796,7 +828,8 @@
   // --- Region Query (screenshot enrichment) ---
 
   async function handleRegionQuery(data) {
-    if (document.visibilityState !== "visible") return;
+    if (!extensionEnabled || isTornDown || document.visibilityState !== "visible" || !data) return;
+    const generation = captureGeneration;
 
     const { screenX, screenY, width, height, queryId, purpose, maxElements } = data;
 
@@ -823,6 +856,7 @@
     let elements = [];
     if (purpose === "textSelection") {
       const selectionContext = await getContextForElement({ selection: true });
+      if (!extensionEnabled || isTornDown || generation !== captureGeneration) return;
       if (selectionContext?.selectedText) elements = [selectionContext];
     }
 
@@ -831,9 +865,11 @@
         x: queryX + (queryRight - queryX) / 2,
         y: queryY + (queryBottom - queryY) / 2,
       });
+      if (!extensionEnabled || isTornDown || generation !== captureGeneration) return;
       elements = context ? [context] : [];
     } else if (elements.length === 0) {
       elements = await sampleElementsInRect(queryX, queryY, queryRight - queryX, queryBottom - queryY, limit);
+      if (!extensionEnabled || isTornDown || generation !== captureGeneration) return;
     }
 
     send("regionContext", {
@@ -854,7 +890,7 @@
 
   // Keyboard shortcut listener — capture phase, registered at document_start
   function onShortcutKeydown(event) {
-    if (!extensionEnabled) return;
+    if (!extensionEnabled || isTornDown) return;
 
     // Skip if typing in form fields
     const tag = event.target.tagName;
@@ -887,12 +923,53 @@
       }
     }
   }
+
+  function onWindowFocus() {
+    sendTabActivity("focus");
+  }
+
+  function onVisibilityChange() {
+    sendTabActivity("visibility");
+  }
+
+  function onDocumentMouseDown() {
+    sendTabActivity("mousedown");
+  }
+
+  function teardownContentScript() {
+    if (isTornDown) return;
+    isTornDown = true;
+    cancelCaptureInteractions();
+    clearTimeout(initActivityTimer);
+    initActivityTimer = null;
+    pendingMessages = [];
+    sendInFlight = false;
+    bridgeConnected = false;
+    bridgeNudgeInFlight = false;
+
+    document.removeEventListener("selectionchange", onSelectionChange);
+    document.removeEventListener("keydown", onShortcutKeydown, true);
+    window.removeEventListener("focus", onWindowFocus);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+    document.removeEventListener("mousedown", onDocumentMouseDown, true);
+    chrome.storage?.onChanged?.removeListener(handleStorageChanged);
+    chrome.runtime?.onMessage?.removeListener(handleRuntimeMessage);
+
+    if (globalThis.__remarcContentScriptVersion === CONTENT_SCRIPT_VERSION) {
+      globalThis.__remarcContentScriptLoaded = false;
+      delete globalThis.__remarcContentScriptVersion;
+      delete globalThis.__remarcContentScriptTeardown;
+    }
+  }
+
+  globalThis.__remarcContentScriptTeardown = teardownContentScript;
+
   document.addEventListener("keydown", onShortcutKeydown, true);
-  window.addEventListener("focus", () => sendTabActivity("focus"));
-  document.addEventListener("visibilitychange", () => sendTabActivity("visibility"));
-  document.addEventListener("mousedown", () => sendTabActivity("mousedown"), true);
+  window.addEventListener("focus", onWindowFocus);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  document.addEventListener("mousedown", onDocumentMouseDown, true);
 
   // --- Init ---
-  connect();
-  setTimeout(() => sendTabActivity("init"), 0);
+  nudgeBridge();
+  initActivityTimer = setTimeout(() => sendTabActivity("init"), 0);
 })();

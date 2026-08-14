@@ -8,10 +8,10 @@ The Remarc Web Context extension attaches page context to your comments: the Rea
 ## Install and connect
 
 1. Install the extension from [remarc.app/chrome-extension](https://remarc.app/chrome-extension). It works in Chrome, Arc, Brave, Edge, Vivaldi, and Opera.
-2. Make sure the Remarc app is running. The extension connects automatically over localhost port 9274. There is no pairing step.
+2. Make sure the Remarc app is running. The extension makes one extension-owned connection to localhost port 9274 and shares it across your tabs. There is no pairing step or per-site “Apps on Device” permission.
 
 :::note
-Tabs that were already open before you installed the extension cannot connect. Reload them once after installing.
+Tabs that were already open before you installed or updated the extension cannot connect. Reload them once afterward.
 :::
 
 Settings > Chrome Extension shows the connection status and the port the app is listening on.
@@ -48,12 +48,12 @@ Rebind Grab Element and Select Region in Settings > Chrome Extension, or in the 
 
 Click the Remarc icon in the browser toolbar to open the popup. It shows:
 
-- A status pill: Connected, Disconnected, Paused, or Blocked.
+- A status pill: Connected, Disconnected, or Paused.
 - Grab Element and Select Region buttons with their current shortcuts.
 - A pause button (visible while connected) to temporarily disable the extension.
 - Extension Settings, which opens the app's Chrome Extension tab.
 
-If the status is Disconnected, launch the Remarc app. If it is Blocked, the browser is blocking local network access for the current site; the button next to the hint opens the site's permission settings.
+If the status is Disconnected, launch the Remarc app and click Retry. If Remarc is connected but the controls are unavailable on the current page, reload that tab once. Chrome Site Access can still be limited to selected sites as an optional privacy control, but normal operation does not require granting those sites access to apps on your device.
 
 ## Port conflicts
 

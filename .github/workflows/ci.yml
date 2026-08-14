@@ -88,6 +88,20 @@ jobs:
     - name: Select Xcode
       run: sudo xcode-select -s /Applications/Xcode_26.2.app
 
+    - name: Set up Node.js
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      with:
+        node-version: 22
+
+    - name: Test Chrome extension
+      run: |
+        set -euo pipefail
+        node --test tests/extension/*.test.mjs
+        for file in extension/*.js extension/*.mjs; do
+          node --check "$file"
+        done
+        python3 -m json.tool extension/manifest.json >/dev/null
+
     - name: Run Swift tests
       run: |
         set -euo pipefail

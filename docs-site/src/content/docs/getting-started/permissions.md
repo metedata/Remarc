@@ -41,4 +41,4 @@ To grant it later, open System Settings > Privacy & Security > Screen & System A
 
 ## Not a permission: the local WebSocket
 
-The [Chrome extension](/chrome-extension/) talks to Remarc over a WebSocket server on `127.0.0.1:9274`. The connection is local only and never leaves your Mac, so macOS shows no permission dialog for it. If another app is already using the port, the Chrome Extension tab in Settings shows the conflict with a Retry button.
+The [Chrome extension](/chrome-extension/) talks to Remarc over a WebSocket server on `127.0.0.1:9274`. One extension-owned connection serves all tabs, remains on your Mac, and does not require Chrome’s per-site “Apps on Device” permission. macOS shows no permission dialog for this connection. If another app is already using the port, the Chrome Extension tab in Settings shows the conflict with a Retry button.
