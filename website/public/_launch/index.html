@@ -194,9 +194,10 @@ button{font:inherit}
 .page-grain{position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0.10;mix-blend-mode:overlay}
 
 /* Keep the production-proven icon animation isolated from the landing page's
-   continuously moving ambient layers. The fades still establish the scene;
-   orbiting and breathing resume only after the handoff is gone. */
-html.landing-ambient-paused .nebula-container,
+   continuously moving ambient layers. Create the nebula fade only after the
+   handoff: mobile WebKit can resolve a hidden, paused fade to its endpoint.
+   The other fades and ambient loops resume once the handoff is gone. */
+html.landing-ambient-paused .nebula-container{animation:none !important}
 html.landing-ambient-paused #dust-canvas{animation-play-state:paused !important}
 html.landing-ambient-paused .nebula-orb{animation-play-state:paused !important}
 html.landing-ambient-paused .rotating-halo{animation-play-state:paused,paused,paused}
