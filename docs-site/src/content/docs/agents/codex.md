@@ -3,7 +3,7 @@ title: Codex
 description: Install the Remarc plugin for Codex from the marketplace, verify it works, and clean up config left by older Remarc builds.
 ---
 
-Codex reads Remarc comments through a plugin installed from Remarc's marketplace. The plugin gives Codex the same MCP (Model Context Protocol) tools and skill as every other agent; the [MCP tools reference](/agents/mcp-tools-reference/) lists them.
+Codex reads Remarc comments through a plugin installed from the public [Remarc agent integrations repository](https://github.com/metedata/remarc-agent-plugins). The plugin gives Codex the same MCP (Model Context Protocol) tools and skill as every other agent; the [MCP tools reference](/agents/mcp-tools-reference/) lists them.
 
 ## Install the plugin
 

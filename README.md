@@ -40,7 +40,7 @@ Group comments into [sessions](https://docs.remarc.app/basics/sessions/) by revi
 
 #### MCP and plugins carry the context
 
-Claude Code and Codex connect through plugins, Cursor is configured by the app, and Claude Desktop or another MCP client can connect manually. Every supported client gets the same context and MCP tools for reading comments, managing sessions, and resolving work. The [agent integrations guide](https://docs.remarc.app/agents/overview/) covers each setup path.
+Claude Code and Codex connect through plugins from the public [Remarc agent integrations repository](https://github.com/metedata/remarc-agent-plugins), Cursor is configured by the app, and Claude Desktop or another MCP client can connect manually. Every supported client gets the same context and MCP tools for reading comments, managing sessions, and resolving work. The [agent integrations guide](https://docs.remarc.app/agents/overview/) covers each setup path.
 
 #### Statuses close the loop
 

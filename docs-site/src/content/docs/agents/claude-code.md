@@ -3,7 +3,7 @@ title: Claude Code
 description: Connect Claude Code to Remarc with the remarc plugin, and optionally let comments wake live sessions with remarc-hooks.
 ---
 
-Claude Code connects to Remarc through two plugins from the `metedata/remarc-agent-plugins` marketplace: `remarc` (required, the MCP server and skill) and `remarc-hooks` (optional, links conversations to Remarc sessions).
+Claude Code connects to Remarc through two plugins from the public [Remarc agent integrations repository](https://github.com/metedata/remarc-agent-plugins): `remarc` (required, the MCP server and skill) and `remarc-hooks` (optional, links conversations to Remarc sessions).
 
 ## Install the remarc plugin
 

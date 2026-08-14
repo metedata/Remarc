@@ -17,7 +17,7 @@ Remarc connects to agents through three delivery models; each page below covers 
 | Claude Desktop | Manual config | [Claude Desktop & MCP clients](/agents/claude-desktop-and-mcp-clients/) |
 | Any MCP client | Manual config | [Claude Desktop & MCP clients](/agents/claude-desktop-and-mcp-clients/) |
 
-Claude Code and Codex install plugins from Remarc's marketplace. The app configures Cursor itself, driven by an Enable toggle. Claude Desktop and other MCP clients (OpenCode, Continue, Windsurf, and anything that takes JSON config) use copyable snippets from Settings > MCP Integrations.
+Claude Code and Codex install plugins from Remarc's public [agent integrations repository](https://github.com/metedata/remarc-agent-plugins). The app configures Cursor itself, driven by an Enable toggle. Claude Desktop and other MCP clients (OpenCode, Continue, Windsurf, and anything that takes JSON config) use copyable snippets from Settings > MCP Integrations.
 
 Whatever the path, every connected agent gets the same seven tools; the [MCP tools reference](/agents/mcp-tools-reference/) lists them. Tools that do not speak MCP can still receive comments through [webhooks](/agents/webhooks/).
 
