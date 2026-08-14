@@ -9,3 +9,8 @@ paths = [
   # string "testsecret", a deliberate fixture, not a credential.
   '''app/RemarcPackage/Tests/RemarcFeatureTests/WebhookTests\.swift''',
 ]
+regexes = [
+  # Cross-language OMP lease fixtures use this obvious repeated hex value for
+  # owner-token shape coverage. Production tokens are generated at runtime.
+  '''0123456789abcdef0123456789abcdef''',
+]
