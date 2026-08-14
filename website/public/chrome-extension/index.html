@@ -276,11 +276,24 @@
   </div>
   <h1>Install the Chrome Extension</h1>
   <p>Enrich your comments with web context - element data, styles, and&nbsp;structure - so your agent knows exactly what you're&nbsp;looking&nbsp;at. Works in Chrome, Arc, Brave, Edge, Vivaldi, and&nbsp;Opera.</p>
-  <a href="https://releases.remarc.app/Remarc-Extension-0.3.0.zip" class="download-btn">
+  <a href="https://github.com/metedata/Remarc/releases/download/extension-v0.3.1/Remarc-Extension-0.3.1.zip" class="download-btn">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 11.5l-4.5-4.5h3V2h3v5h3L8 11.5z"/><rect x="2" y="13" width="12" height="1.5" rx="0.75"/></svg>
     Download Extension
   </a>
-  <div class="download-meta">v0.3.0 · Chrome and Chromium browsers</div>
+  <div class="download-meta">v0.3.1 · Chrome and Chromium browsers</div>
+</section>
+
+<!-- Existing-user update -->
+<section class="steps-section">
+  <h2 class="section-label">Updating from v0.3.0</h2>
+
+  <div class="tip">
+    <div class="tip-icon">↻</div>
+    <div class="tip-content">
+      <h4>Replace the existing folder in place</h4>
+      <p>Unzip v0.3.1, then replace your current <code>remarc-extension</code> folder with the downloaded folder at exactly the same path. Do not remove the extension or choose <strong>Load unpacked</strong> again. Open <code>chrome://extensions</code>, click <strong>Reload</strong> on <strong>Remarc Web Context</strong>, then reload each browser tab that was already open once. Your extension settings stay in place.</p>
+    </div>
+  </div>
 </section>
 
 <!-- Installation steps -->
@@ -345,8 +358,8 @@
   <div class="step">
     <div class="step-number">7</div>
     <div class="step-content">
-      <h3>Reload your browser tabs</h3>
-      <p>Refresh the tabs you want to capture from. Each tab that was open before you installed needs one reload. The extension icon shows a green dot once connected, and the status in Remarc's settings turns green too.</p>
+      <h3>Reload open browser tabs once</h3>
+      <p>Reload each tab that was already open before you installed or updated the extension. Tabs opened afterward are ready automatically. The extension icon shows a green dot once connected, and the status in Remarc's settings turns green too.</p>
     </div>
   </div>
 
@@ -369,15 +382,7 @@
     <div class="tip-icon">⚠️</div>
     <div class="tip-content">
       <h4>Extension shows "Disconnected"</h4>
-      <p>Make sure the Remarc app is running and you've opened the Chrome Extension tab in Settings at least once. Then reload the page.</p>
-    </div>
-  </div>
-
-  <div class="tip">
-    <div class="tip-icon">🟠</div>
-    <div class="tip-content">
-      <h4>Extension icon shows an orange dot (Blocked)</h4>
-      <p>The browser is blocking this site from reaching apps on your device. Open the site's permission settings and set <strong>Apps on Device</strong> to Allow (Arc calls it <strong>Loopback Network</strong>), then reload the tab. The button in the extension popup opens the right settings page for you.</p>
+      <p>Make sure Remarc is running and open <strong>Settings → Chrome Extension</strong> once to start the local server. Then open the extension popup and click <strong>Retry</strong>. You do not need to reload the page to reconnect.</p>
     </div>
   </div>
 
@@ -393,7 +398,7 @@
     <div class="tip-icon">🔌</div>
     <div class="tip-content">
       <h4>Connection drops after restarting Remarc</h4>
-      <p>The extension reconnects automatically every few seconds. If it doesn't, reload the browser tab.</p>
+      <p>The extension normally reconnects automatically within about 30 seconds. To reconnect immediately, open the extension popup and click <strong>Retry</strong>. Reload the current tab only if the popup already says <strong>Connected</strong> but its capture controls are unavailable.</p>
     </div>
   </div>
 
