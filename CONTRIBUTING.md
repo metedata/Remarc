@@ -17,7 +17,7 @@ xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc \
 open DerivedData/Build/Products/Debug/Remarc.app
 ```
 
-Debug builds log to `/tmp/remarc_debug.log` (release builds log to `~/Library/Logs/Remarc/remarc_debug.log`).
+Debug builds log to `/tmp/remarc_debug.log`. Release builds write no log file unless the user opts in with `defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES`, which logs to `~/Library/Logs/Remarc/remarc_debug.log`, fresh on each launch with the previous launch kept as `.old`.
 
 If the build fails with a signing error because you are not a member of the project's Apple Developer team, build with ad-hoc signing instead:
 
@@ -62,4 +62,4 @@ CI builds every PR without code signing; it must pass.
 
 ## Reporting bugs
 
-Use the bug report issue template. Attaching the tail of the debug log (`~/Library/Logs/Remarc/remarc_debug.log` for release builds, `/tmp/remarc_debug.log` for Debug builds) helps a lot; scrub anything you consider private first.
+Use the bug report issue template. Attaching the tail of the debug log helps a lot; the template explains how to enable logging on a release build (it is off by default). Debug builds always log to `/tmp/remarc_debug.log`. Scrub anything you consider private first.
