@@ -8,21 +8,32 @@ nonisolated(unsafe) private let debugLogFormatter: ISO8601DateFormatter = {
 }()
 private let debugLogQueue = DispatchQueue(label: "com.metepolat.Remarc.debugLog", qos: .utility)
 
-/// Dictation transcripts and window context pass through here, so release
-/// builds must not write to the world-readable shared /tmp. Debug builds keep
-/// the fixed /tmp path that local tooling tails.
-private let debugLogFileURL: URL = {
+/// Selected text, window titles, and dictation transcripts pass through here
+/// (issue #12), so release builds write no log file at all unless the user
+/// opts in for a support case:
+///
+///     defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES
+///
+/// While the flag is set the file starts fresh on every launch, which keeps it
+/// bounded and makes "reproduce, then attach the tail" reports clean. With the
+/// flag unset (the default) the previous file is deleted on launch, which also
+/// clears logs accumulated by older builds that wrote unconditionally. Debug
+/// builds keep the fixed /tmp path that local tooling tails.
+private let debugLogFileURL: URL? = {
     #if DEBUG
     return URL(fileURLWithPath: "/tmp/remarc_debug.log")
     #else
     let logsDir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
         .appendingPathComponent("Logs/Remarc", isDirectory: true)
+    let logFile = logsDir.appendingPathComponent("remarc_debug.log")
+    try? FileManager.default.removeItem(at: logFile)
+    guard UserDefaults.standard.bool(forKey: "debugFileLoggingEnabled") else { return nil }
     try? FileManager.default.createDirectory(
         at: logsDir,
         withIntermediateDirectories: true,
         attributes: [.posixPermissions: 0o700]
     )
-    return logsDir.appendingPathComponent("remarc_debug.log")
+    return logFile
     #endif
 }()
 
@@ -32,7 +43,7 @@ public func debugLog(_ message: String) {
     logger.notice("\(message)")
     let logMessage = "[\(timestamp)] \(message)\n"
     debugLogQueue.async {
-        let logFile = debugLogFileURL
+        guard let logFile = debugLogFileURL else { return }
         guard let data = logMessage.data(using: .utf8) else { return }
         if let handle = try? FileHandle(forWritingTo: logFile) {
             handle.seekToEndOfFile()

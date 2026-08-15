@@ -68,4 +68,4 @@ Screenshot comments require the Screen Recording permission. Grant it in System 
 
 ## Still stuck
 
-Remarc writes a debug log to `/tmp/remarc_debug.log`; check it first and include it when you [open a GitHub issue](https://github.com/metedata/Remarc/issues). Report security problems privately as described in the [security policy](https://github.com/metedata/Remarc/security/policy).
+Remarc writes no debug log by default. To capture one for a bug report, enable [debug logging](/reference/data-and-privacy/#debug-logging), relaunch Remarc, reproduce the problem, and include the tail of `~/Library/Logs/Remarc/remarc_debug.log` when you [open a GitHub issue](https://github.com/metedata/Remarc/issues). Scrub anything you consider private first, then turn logging back off. Report security problems privately as described in the [security policy](https://github.com/metedata/Remarc/security/policy).

@@ -33,6 +33,24 @@ The [Chrome extension](/chrome-extension/) talks to the app over a local WebSock
 
 The retention pickers in [Settings](/reference/settings/) prune data automatically: comment history, stored images, and dictation transcriptions each have their own setting and schedule. Deleting a comment moves it to History first, where it can be restored until retention removes it.
 
+## Debug logging
+
+Release builds write no debug log. If you are troubleshooting a problem with us, you can turn logging on from Terminal:
+
+```sh
+defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES
+```
+
+Then relaunch Remarc. While the flag is set, the app writes `~/Library/Logs/Remarc/remarc_debug.log`, readable only by your account, and starts the file fresh on every launch. The log traces app behavior, so it can include fragments of selected text, window titles, and dictation transcripts. That is what makes it useful for debugging, and why it stays off unless you enable it.
+
+Turn logging back off with:
+
+```sh
+defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool NO
+```
+
+Remarc deletes the log file the next time it launches.
+
 ## Updates
 
 Remarc updates itself through Sparkle, with automatic checks enabled by default and nothing to configure. Updates are signed and notarized. To check manually, use the "Check for Updates..." button in Settings > About.
