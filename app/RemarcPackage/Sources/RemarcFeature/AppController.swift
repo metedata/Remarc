@@ -21,6 +21,7 @@ public final class AppController: NSObject, ObservableObject {
     }
 
     public func setup() {
+        prepareDebugLogFile()
         debugLog("AppController setup started")
         _ = ActivationPolicyManager.shared  // Establish activation policy early
         setupMenuBar()

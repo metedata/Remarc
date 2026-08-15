@@ -17,7 +17,7 @@ xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc \
 open DerivedData/Build/Products/Debug/Remarc.app
 ```
 
-Debug builds log to `/tmp/remarc_debug.log`. Release builds write no log file unless the user opts in with `defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES`, which logs to `~/Library/Logs/Remarc/remarc_debug.log`, fresh on each launch.
+Debug builds log to `/tmp/remarc_debug.log`. Release builds write no log file unless the user opts in with `defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES`, which logs to `~/Library/Logs/Remarc/remarc_debug.log`, fresh on each launch with the previous launch kept as `.old`.
 
 If the build fails with a signing error because you are not a member of the project's Apple Developer team, build with ad-hoc signing instead:
 

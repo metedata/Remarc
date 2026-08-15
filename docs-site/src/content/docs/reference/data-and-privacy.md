@@ -41,7 +41,7 @@ Release builds write no debug log. If you are troubleshooting a problem with us,
 defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES
 ```
 
-Then relaunch Remarc. While the flag is set, the app writes `~/Library/Logs/Remarc/remarc_debug.log`, readable only by your account, and starts the file fresh on every launch. The log traces app behavior, so it can include fragments of selected text, window titles, and dictation transcripts. That is what makes it useful for debugging, and why it stays off unless you enable it.
+Then relaunch Remarc. While the flag is set, the app writes `~/Library/Logs/Remarc/remarc_debug.log`, readable only by your account. Each launch starts a fresh file and keeps the previous launch's file next to it as `remarc_debug.log.old`, so the log stays small and a problem that spans a relaunch is still captured. The log traces app behavior, so it can include fragments of selected text, window titles, and dictation transcripts. That is what makes it useful for debugging, and why it stays off unless you enable it.
 
 Turn logging back off with:
 
@@ -49,7 +49,7 @@ Turn logging back off with:
 defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool NO
 ```
 
-Remarc deletes the log file the next time it launches.
+Remarc deletes both log files the next time it launches.
 
 ## Updates
 

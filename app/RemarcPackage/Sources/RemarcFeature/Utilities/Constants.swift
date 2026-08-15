@@ -14,11 +14,13 @@ private let debugLogQueue = DispatchQueue(label: "com.metepolat.Remarc.debugLog"
 ///
 ///     defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES
 ///
-/// While the flag is set the file starts fresh on every launch, which keeps it
-/// bounded and makes "reproduce, then attach the tail" reports clean. With the
-/// flag unset (the default) the previous file is deleted on launch, which also
-/// clears logs accumulated by older builds that wrote unconditionally. Debug
-/// builds keep the fixed /tmp path that local tooling tails.
+/// While the flag is set the current launch logs to a fresh file and the
+/// previous launch's file is kept as remarc_debug.log.old, so a bug whose
+/// reproduction spans a relaunch (or a Sparkle update mid-support-case) still
+/// has its pre-restart half. Two bounded files at most. With the flag unset
+/// (the default) both files are deleted on launch, which also clears logs
+/// accumulated by older builds that wrote unconditionally. Debug builds keep
+/// the fixed /tmp path that local tooling tails.
 private let debugLogFileURL: URL? = {
     #if DEBUG
     return URL(fileURLWithPath: "/tmp/remarc_debug.log")
@@ -26,16 +28,31 @@ private let debugLogFileURL: URL? = {
     let logsDir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
         .appendingPathComponent("Logs/Remarc", isDirectory: true)
     let logFile = logsDir.appendingPathComponent("remarc_debug.log")
-    try? FileManager.default.removeItem(at: logFile)
-    guard UserDefaults.standard.bool(forKey: "debugFileLoggingEnabled") else { return nil }
+    let previousLogFile = logsDir.appendingPathComponent("remarc_debug.log.old")
+    guard UserDefaults.standard.bool(forKey: "debugFileLoggingEnabled") else {
+        try? FileManager.default.removeItem(at: logFile)
+        try? FileManager.default.removeItem(at: previousLogFile)
+        return nil
+    }
     try? FileManager.default.createDirectory(
         at: logsDir,
         withIntermediateDirectories: true,
         attributes: [.posixPermissions: 0o700]
     )
+    try? FileManager.default.removeItem(at: previousLogFile)
+    try? FileManager.default.moveItem(at: logFile, to: previousLogFile)
     return logFile
     #endif
 }()
+
+/// Runs the release-build log deletion/rotation above, eagerly. The first
+/// debugLog call would do the same work lazily, but the docs promise "Remarc
+/// deletes the log the next time it launches", and that must not depend on
+/// early logging happening to come true. AppController.setup calls this
+/// before anything else; calling it again is a no-op.
+public func prepareDebugLogFile() {
+    _ = debugLogFileURL
+}
 
 public func debugLog(_ message: String) {
     let timestamp = debugLogFormatter.string(from: Date())
