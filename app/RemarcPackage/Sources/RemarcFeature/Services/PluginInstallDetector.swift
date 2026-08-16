@@ -6,6 +6,24 @@ public struct PluginInstallState: Equatable, Sendable {
     public let remarcEnabled: Bool
     public let remarcHooksInstalled: Bool
     public let remarcHooksEnabled: Bool
+    /// The installed `remarc` plugin's version string (e.g. "0.13.0"), or nil
+    /// when not installed or the CLI omitted it. Compared against the version
+    /// this app vendored to tell whether an update is available.
+    public let remarcVersion: String?
+
+    public init(
+        remarcInstalled: Bool,
+        remarcEnabled: Bool,
+        remarcHooksInstalled: Bool,
+        remarcHooksEnabled: Bool,
+        remarcVersion: String? = nil
+    ) {
+        self.remarcInstalled = remarcInstalled
+        self.remarcEnabled = remarcEnabled
+        self.remarcHooksInstalled = remarcHooksInstalled
+        self.remarcHooksEnabled = remarcHooksEnabled
+        self.remarcVersion = remarcVersion
+    }
 
     public static let zero = PluginInstallState(
         remarcInstalled: false,
@@ -36,7 +54,8 @@ public final class PluginInstallDetector: Sendable {
             remarcInstalled:      remarc != nil,
             remarcEnabled:        (remarc?["enabled"] as? Bool) ?? false,
             remarcHooksInstalled: remarcHooks != nil,
-            remarcHooksEnabled:   (remarcHooks?["enabled"] as? Bool) ?? false
+            remarcHooksEnabled:   (remarcHooks?["enabled"] as? Bool) ?? false,
+            remarcVersion:        remarc?["version"] as? String
         )
     }
 

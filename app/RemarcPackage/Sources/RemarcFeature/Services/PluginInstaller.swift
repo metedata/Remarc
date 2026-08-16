@@ -35,6 +35,44 @@ public enum PluginInstaller {
         """
     }
 
+    /// The command that updates an installed plugin to the marketplace's latest.
+    /// Copy-only in the UI: the app never runs plugin lifecycle commands for
+    /// Claude Code, which owns its own registry and update lifecycle.
+    public static func updateCommand(plugin: String) -> String {
+        "claude plugin update \(plugin)@\(marketplaceName)"
+    }
+
+    /// True when `version` is a dotted numeric string (e.g. "0.13.0"), not a
+    /// placeholder like "local" or an empty value. Only numeric versions can be
+    /// ordered, so the update nudge is suppressed for anything else.
+    public static func isNumericVersion(_ version: String) -> Bool {
+        let parts = version.split(separator: ".", omittingEmptySubsequences: false)
+        return !version.isEmpty && parts.allSatisfy { Int($0) != nil }
+    }
+
+    /// Order two dotted numeric versions: -1 if lhs < rhs, 0 if equal, 1 if
+    /// lhs > rhs. Missing trailing components count as 0, so "0.13" == "0.13.0".
+    public static func compareVersions(_ lhs: String, _ rhs: String) -> Int {
+        let l = lhs.split(separator: ".").map { Int($0) ?? 0 }
+        let r = rhs.split(separator: ".").map { Int($0) ?? 0 }
+        for index in 0..<Swift.max(l.count, r.count) {
+            let a = index < l.count ? l[index] : 0
+            let b = index < r.count ? r[index] : 0
+            if a != b { return a < b ? -1 : 1 }
+        }
+        return 0
+    }
+
+    /// Whether an installed plugin at `installedVersion` is older than the
+    /// version this app vendored (`bundledVersion`). False when either version
+    /// is missing or non-numeric, so a "local"/dev install never nags.
+    public static func updateAvailable(installedVersion: String?, bundledVersion: String) -> Bool {
+        guard let installedVersion,
+              isNumericVersion(installedVersion),
+              isNumericVersion(bundledVersion) else { return false }
+        return compareVersions(installedVersion, bundledVersion) < 0
+    }
+
     /// Pure decision core (unit-tested). `marketplace add` legitimately fails
     /// when the marketplace is already registered, so only the `plugin install`
     /// result decides the outcome. When install also failed with no output of

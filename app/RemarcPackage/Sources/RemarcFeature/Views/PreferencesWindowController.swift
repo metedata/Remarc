@@ -1737,6 +1737,8 @@ struct PreferencesView: View {
                 installAction: { installPlugin("remarc") }
             )
 
+            claudeCodeUpdateRow
+
             Divider()
                 .padding(.vertical, 4)
 
@@ -1759,6 +1761,47 @@ struct PreferencesView: View {
             if pluginState.remarcHooksInstalled {
                 hooksSettingsRows
             }
+        }
+    }
+
+    /// The remarc plugin's update affordance: the exact update command, always
+    /// copyable (Claude Code owns its own update lifecycle, so the app never
+    /// runs it), elevated to a warning callout when the installed plugin is
+    /// older than the version this app vendored, plus a pointer to auto-update.
+    @ViewBuilder
+    private var claudeCodeUpdateRow: some View {
+        if pluginStateChecked && pluginState.remarcInstalled {
+            let updateCommand = PluginInstaller.updateCommand(plugin: "remarc")
+            let behind = PluginInstaller.updateAvailable(
+                installedVersion: pluginState.remarcVersion,
+                bundledVersion: BundledPluginVersion.remarc
+            )
+            VStack(alignment: .leading, spacing: 8) {
+                if behind {
+                    let have = pluginState.remarcVersion.map { " (you have \($0))" } ?? ""
+                    CalloutView(.warning, "remarc \(BundledPluginVersion.remarc) is available\(have). Update for the latest fixes, including screenshots delivered as images.")
+                }
+                HStack(alignment: .center, spacing: 8) {
+                    Text(updateCommand)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.primary.opacity(behind ? 0.7 : 0.55))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    CardActionButton(
+                        icon: copiedPluginCommands == "remarc-update" ? "checkmark" : "doc.on.doc",
+                        tooltip: "Copy update command",
+                        tint: Color.remarcPrimary(for: colorScheme)
+                    ) {
+                        copyCommands(updateCommand, key: "remarc-update")
+                    }
+                }
+                settingsHint(
+                    "Updates aren't automatic for this marketplace. Turn them on once: run /plugin, open Marketplaces, select remarc, then Enable auto-update.",
+                    tint: .primary.opacity(0.35)
+                )
+            }
+            .padding(.top, 2)
         }
     }
 
