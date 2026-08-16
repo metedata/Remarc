@@ -22,6 +22,31 @@ The first install clones the marketplace and can take a minute. If Remarc report
 
 If you upgraded from an older Remarc that configured Claude Code without plugins, the app removes the legacy skill file, hooks, and MCP registration on launch, with nothing for you to do.
 
+## Keep the plugin updated
+
+Claude Code doesn't update `remarc` automatically by default, because it comes from a self-hosted marketplace rather than an official one. Update it on demand, or turn on automatic updates once.
+
+Update on demand:
+
+```sh
+claude plugin update remarc@remarc
+```
+
+If that reports the plugin is already current but you expected a newer version, refresh the marketplace first, then update again:
+
+```sh
+claude plugin marketplace update remarc
+```
+
+To update automatically, turn it on once and Claude Code refreshes the plugin in the background shortly after each session starts:
+
+1. Run `/plugin` inside Claude Code.
+2. Open the **Marketplaces** tab.
+3. Select **remarc**.
+4. Choose **Enable auto-update**.
+
+The MCP server and the skill ship in the same plugin, so a single update refreshes both. After an update lands, run `/reload-plugins` to pick it up in the current session, or it loads the next time you start Claude Code.
+
 ## Install the remarc-hooks plugin (optional)
 
 `remarc-hooks` is experimental. It ties Claude Code conversations to Remarc sessions and injects open comments at session start, so a fresh conversation begins already knowing what feedback is waiting.
