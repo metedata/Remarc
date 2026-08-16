@@ -45,7 +45,7 @@ public struct Comment: Codable, Identifiable, Equatable, Sendable {
     ) {
         self.id = id
         self.type = type
-        self.commentText = commentText
+        self.commentText = Self.normalizedCommentText(commentText)
         self.source = source
         self.appBundleID = appBundleID
         self.createdAt = createdAt
@@ -69,6 +69,27 @@ public struct Comment: Codable, Identifiable, Equatable, Sendable {
     /// Used for display and AI agent references. Example: "a3f2b"
     public var shortID: String {
         String(id.uuidString.prefix(5)).lowercased()
+    }
+
+    // MARK: - Comment Body Semantics
+
+    /// Canonical storage representation for a comment body. Whitespace-only
+    /// contextual comments are valid records, but they have no semantic body and
+    /// are stored as an empty string rather than invisible whitespace.
+    public static func normalizedCommentText(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : text
+    }
+
+    /// The body when it contains something meaningful to render or export.
+    /// This also treats historical whitespace-only values as empty even if they
+    /// predate canonicalization at the persistence boundary.
+    public var meaningfulCommentText: String? {
+        let normalized = Self.normalizedCommentText(commentText)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    public var hasMeaningfulCommentText: Bool {
+        meaningfulCommentText != nil
     }
 
     // MARK: - Compatibility Properties

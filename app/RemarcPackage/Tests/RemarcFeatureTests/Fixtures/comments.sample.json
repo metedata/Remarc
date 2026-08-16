@@ -57,7 +57,7 @@
     {
       "id": "BBBBBBBB-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
       "type": { "comment": { "text": "the text I commented on" } },
-      "commentText": "Sample comment on selected text",
+      "commentText": "",
       "source": "Xcode",
       "appBundleID": "com.apple.dt.Xcode",
       "createdAt": 800000060,

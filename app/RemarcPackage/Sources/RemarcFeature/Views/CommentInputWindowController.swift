@@ -39,7 +39,8 @@ public final class CommentInputController: NSObject, ObservableObject {
     @Published public var autoSaveCountdownActive: Bool = false
     @Published public var autoSaveProgress: Double = 0
     @Published public var autoSaveRemainingSeconds: Int = 0
-    @Published public var shakeAutoSave: Bool = false
+    @Published public private(set) var saveFeedbackTrigger: Int = 0
+    @Published public private(set) var validationFeedbackTrigger: Int = 0
     /// Set by the wake screenshot shortcut: this capture's save wakes a
     /// running session, so Save performs the wake and the separate bolt button
     /// would be redundant. Cleared on dismiss.
@@ -104,9 +105,118 @@ public final class CommentInputController: NSObject, ObservableObject {
     private let maxPanelHeight: CGFloat = 460
     private let screenshotPanelLevel = NSWindow.Level(rawValue: NSWindow.Level.screenSaver.rawValue + 1)
     public var suppressClickOutside: Bool = false
+    private var draftGeneration: UInt64 = 0
+
+    public var currentDraftGeneration: UInt64 { draftGeneration }
+
+    public func isCurrentDraft(_ generation: UInt64) -> Bool {
+        DraftGenerationPolicy.accepts(
+            capturedGeneration: generation,
+            currentGeneration: draftGeneration,
+            isVisible: isVisible
+        )
+    }
 
     private override init() {
         super.init()
+    }
+
+    @discardableResult
+    private func beginDraft(
+        selection: TextSelection? = nil,
+        screenshotImagePath: String? = nil,
+        isScreenshotMode: Bool = false,
+        screenshotSelectionRect: CGRect? = nil,
+        screenshotSourceBundleID: String? = nil,
+        elementWebContext: WebContext? = nil,
+        targetSessionID: UUID?,
+        wakeOnSave: Bool = false
+    ) -> UInt64? {
+        guard captureTransaction == .idle else {
+            debugLog("CommentInputController: New draft refused while capture save is \(captureTransaction)")
+            return nil
+        }
+
+        cancelAutoSaveCountdown()
+        removeScreenshotKeyMonitor()
+        if #available(macOS 26, *) {
+            VoiceInputService.shared.cancelRecording()
+        }
+        if pendingElementWebContext != nil {
+            WebSocketService.shared.dismissRegionHighlight()
+        }
+        endAnnotationAnchoring()
+
+        draftGeneration &+= 1
+        currentSelection = selection
+        self.screenshotImagePath = screenshotImagePath
+        self.isScreenshotMode = isScreenshotMode
+        self.screenshotSelectionRect = screenshotSelectionRect
+        self.screenshotSourceBundleID = screenshotSourceBundleID
+        pendingElementWebContext = elementWebContext
+        self.targetSessionID = targetSessionID
+        self.wakeOnSave = wakeOnSave
+        currentText = ""
+        currentAttachments = []
+        pendingVoiceText = nil
+        isVoiceInvoked = false
+        isSaveButtonHovered = false
+        saveFeedbackTrigger = 0
+        validationFeedbackTrigger = 0
+        suppressClickOutside = false
+        retainedWebContext = nil
+        retainedRegionElements = nil
+        lastPanelFrameBeforeFly = nil
+        textResetToken = UUID()
+        return draftGeneration
+    }
+
+    private func endDraftState() {
+        draftGeneration &+= 1
+        wakeOnSave = false
+        cancelAutoSaveCountdown()
+        removeScreenshotKeyMonitor()
+        panelLayoutReady = false
+        endAnnotationAnchoring()
+        if #available(macOS 26, *) {
+            VoiceInputService.shared.cancelRecording()
+        }
+
+        isVoiceInvoked = false
+        currentSelection = nil
+        screenshotImagePath = nil
+        isScreenshotMode = false
+        currentText = ""
+        currentAttachments = []
+        pendingVoiceText = nil
+        targetSessionID = nil
+        arrowEdge = nil
+        screenshotSelectionRect = nil
+        screenshotSourceBundleID = nil
+        saveFeedbackTrigger = 0
+        validationFeedbackTrigger = 0
+        isSaveButtonHovered = false
+        suppressClickOutside = false
+        if pendingElementWebContext != nil {
+            WebSocketService.shared.dismissRegionHighlight()
+        }
+        pendingElementWebContext = nil
+        pendingRegionScreenRect = nil
+    }
+
+    private func triggerSaveFeedback(announcement: String? = nil) {
+        saveFeedbackTrigger &+= 1
+        guard let announcement else { return }
+        validationFeedbackTrigger &+= 1
+        makeCommentPanelKey()
+        NSAccessibility.post(
+            element: NSApp as Any,
+            notification: .announcementRequested,
+            userInfo: [
+                .announcement: announcement,
+                .priority: NSAccessibilityPriorityLevel.high.rawValue,
+            ]
+        )
     }
 
     /// Returns the screen-coordinate center of the status item button, or a fallback near the menu bar.
@@ -135,14 +245,10 @@ public final class CommentInputController: NSObject, ObservableObject {
     public func showForSelection(_ selection: TextSelection) {
         // Dismiss tooltip
         SelectionTooltipWindowController.shared.dismiss()
-        isVoiceInvoked = false
-
-        currentSelection = selection
-        screenshotImagePath = nil
-        isScreenshotMode = false
-        pendingElementWebContext = nil
-        targetSessionID = PersistenceManager.shared.appState.activeSessionID
-        textResetToken = UUID()
+        guard beginDraft(
+            selection: selection,
+            targetSessionID: PersistenceManager.shared.appState.activeSessionID
+        ) != nil else { return }
 
         if let bundleID = selection.appBundleID,
            AppConstants.chromiumBundleIDs.contains(bundleID) {
@@ -176,27 +282,28 @@ public final class CommentInputController: NSObject, ObservableObject {
 
     public func showStandaloneNote() {
         SelectionTooltipWindowController.shared.dismiss()
-        isVoiceInvoked = false
-        currentSelection = nil
-        screenshotImagePath = nil
-        isScreenshotMode = false
-        pendingElementWebContext = nil
-        targetSessionID = PersistenceManager.shared.appState.activeSessionID
-        textResetToken = UUID()
+        guard beginDraft(
+            targetSessionID: PersistenceManager.shared.appState.activeSessionID
+        ) != nil else { return }
         WebSocketService.shared.clearPendingContext()
         show(near: nil)
     }
 
-    public func showForScreenshot(imagePath: String? = nil, captureRect: CGRect, sourceBundleID: String? = nil) {
+    public func showForScreenshot(
+        imagePath: String? = nil,
+        captureRect: CGRect,
+        sourceBundleID: String? = nil,
+        wakeOnSave: Bool = false
+    ) {
         SelectionTooltipWindowController.shared.dismiss()
-        isVoiceInvoked = false
-        currentSelection = nil
-        screenshotImagePath = imagePath
-        isScreenshotMode = true
-        screenshotSelectionRect = captureRect
-        screenshotSourceBundleID = sourceBundleID ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        targetSessionID = PersistenceManager.shared.appState.activeSessionID
-        textResetToken = UUID()
+        guard beginDraft(
+            screenshotImagePath: imagePath,
+            isScreenshotMode: true,
+            screenshotSelectionRect: captureRect,
+            screenshotSourceBundleID: sourceBundleID ?? NSWorkspace.shared.frontmostApplication?.bundleIdentifier,
+            targetSessionID: PersistenceManager.shared.appState.activeSessionID,
+            wakeOnSave: wakeOnSave
+        ) != nil else { return }
         WebSocketService.shared.clearPendingContext()
         if shouldAttachWebContextToCurrentScreenshot {
             WebSocketService.shared.requestRegionContext(
@@ -297,7 +404,11 @@ public final class CommentInputController: NSObject, ObservableObject {
         ScreenshotWebContextPolicy.allowsWebContext(sourceBundleID: screenshotSourceBundleID)
     }
 
-    public func appendVoiceText(_ text: String) {
+    public func appendVoiceText(_ text: String, forDraftGeneration generation: UInt64) {
+        guard isCurrentDraft(generation) else {
+            debugLog("CommentInputController: Discarded transcription for stale draft")
+            return
+        }
         pendingVoiceText = text
     }
 
@@ -360,10 +471,7 @@ public final class CommentInputController: NSObject, ObservableObject {
     public func cancelAutoSave() {
         guard autoSaveCountdownActive else { return }
         cleanupAutoSaveState()
-        shakeAutoSave = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.shakeAutoSave = false
-        }
+        triggerSaveFeedback()
         debugLog("CommentInputController: Auto-save cancelled")
     }
 
@@ -388,37 +496,78 @@ public final class CommentInputController: NSObject, ObservableObject {
     public func showForWebElement(_ context: WebContext) {
         debugLog("CommentInput: showForWebElement called — \(context.displaySummary ?? "no summary")")
         SelectionTooltipWindowController.shared.dismiss()
-        isVoiceInvoked = false
-        currentSelection = nil
-        screenshotImagePath = nil
-        isScreenshotMode = false
-        pendingElementWebContext = context
-        textResetToken = UUID()
+        let regionRect = pendingRegionScreenRect
+        guard let generation = beginDraft(
+            elementWebContext: context,
+            targetSessionID: PersistenceManager.shared.appState.activeSessionID
+        ) else {
+            pendingRegionScreenRect = nil
+            WebSocketService.shared.dismissRegionHighlight()
+            return
+        }
         // Suppress click-outside briefly — the grab click in Chrome would
         // otherwise dismiss the panel immediately.
         suppressClickOutside = true
-        let regionRect = pendingRegionScreenRect
         pendingRegionScreenRect = nil
         show(near: regionRect, useAdjacentPositioning: regionRect != nil)
         NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.suppressClickOutside = false
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard let self, self.draftGeneration == generation else { return }
+            self.suppressClickOutside = false
         }
     }
 
     public func saveComment(text: String, attachments: [String] = [], wakeRequested: Bool = false) {
-        let wakeRequested = wakeRequested || wakeOnSave
-        guard isScreenshotMode || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            dismiss()
+        // The panel remains onscreen for the 0.3s success animation. Refuse a
+        // second key equivalent/button event after the draft has already ended;
+        // otherwise its now-cleared context can be misclassified as a Quick Note.
+        guard isVisible else {
+            debugLog("CommentInputController: Save refused - no visible draft")
             return
         }
 
-        // Dismiss Chrome region highlight early — before screenshot/non-screenshot branching
-        if pendingElementWebContext != nil {
-            WebSocketService.shared.dismissRegionHighlight()
+        let selection = currentSelection
+        let isElementGrab = pendingElementWebContext != nil
+        let source: String
+        let type: CommentType
+
+        if isScreenshotMode {
+            source = "Screenshot"
+            type = .screenshot(imagePath: screenshotImagePath ?? "")
+        } else if isElementGrab {
+            let context = pendingElementWebContext
+            source = "Web Element"
+            type = .webElement(componentName: context?.componentName, filePath: context?.filePath)
+        } else if let selection {
+            source = selection.source
+            type = CommentSavePolicy.type(forSelectionText: selection.text)
+        } else {
+            source = "Quick Note"
+            type = .quickNote
         }
 
+        // Every explicit submission path (button, wake, and Command-Return)
+        // converges here, so countdown cancellation cannot drift between them.
+        cancelAutoSaveCountdown()
+
+        guard CommentSavePolicy.allowsSave(
+            type: type,
+            commentText: text,
+            attachments: attachments
+        ) else {
+            triggerSaveFeedback(announcement: "Add text to save this Quick Note")
+            debugLog("CommentInputController: Empty Quick Note save refused")
+            return
+        }
+
+        let normalizedText = Comment.normalizedCommentText(text)
         let savedTargetSessionID = targetSessionID
+        let shouldWake = CommentWakePolicy.shouldWake(
+            explicitlyRequested: wakeRequested,
+            prearmed: wakeOnSave,
+            targetIsReachable: SettingsManager.shared.wakeAvailable(for: savedTargetSessionID)
+        )
 
         if isScreenshotMode {
             // Re-entrant save, wake-save, or dismissal is refused outright. The
@@ -429,11 +578,11 @@ public final class CommentInputController: NSObject, ObservableObject {
             }
 
             let draft = CaptureSaveDraft(
-                commentText: text,
+                commentText: normalizedText,
                 attachments: attachments,
                 sourceBundleID: screenshotSourceBundleID,
                 targetSessionID: savedTargetSessionID,
-                wakeRequested: wakeRequested,
+                wakeRequested: shouldWake,
                 captureRect: screenshotSelectionRect,
                 anchorRect: panelAnchorRect,
                 panelFrame: panel?.frame,
@@ -460,62 +609,60 @@ public final class CommentInputController: NSObject, ObservableObject {
             return
         }
 
-        let selection = currentSelection
-        let source: String
-        let type: CommentType
-        let isElementGrab = pendingElementWebContext != nil
-
-        if isElementGrab {
-            let ctx = pendingElementWebContext
-            source = "Web Element"
-            type = .webElement(componentName: ctx?.componentName, filePath: ctx?.filePath)
-        } else if let rawText = selection?.text {
-            source = selection?.source ?? "Quick Note"
-            let trimmed = rawText
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-            type = trimmed.isEmpty ? .quickNote : .comment(text: trimmed)
-        } else {
-            source = selection?.source ?? "Quick Note"
-            type = .quickNote
-        }
-
-        // Consume web context for text selections from Chromium browsers or element grabs
+        // Snapshot context before persistence, but consume it only after success so
+        // a failed save leaves the composer fully retryable.
         let isChromium = selection?.appBundleID.flatMap { AppConstants.chromiumBundleIDs.contains($0) } ?? false
+        if isChromium {
+            WebSocketService.shared.clearPendingContextIfStale(olderThan: 120)
+        }
         let webContext: WebContext? = if isChromium {
-            WebSocketService.shared.consumePendingWebContext(maxAge: 120)
+            WebSocketService.shared.pendingWebContext?.filtered()
         } else if let elementContext = pendingElementWebContext?.filtered() {
             elementContext
         } else {
             nil
         }
         let regionElements: [WebContext]? = if webContext != nil && isElementGrab {
-            WebSocketService.shared.consumePendingRegionElements(maxAge: 120)
+            WebSocketService.shared.pendingRegionElements?.compactMap { $0.filtered() }
         } else {
             nil
         }
-        pendingElementWebContext = nil
 
         // Suppress Combine badge updates until bounce plays the new count
         AppController.shared.prepareBadgeBounce()
 
         let comment = PersistenceManager.shared.createComment(
             type: type,
-            commentText: text,
+            commentText: normalizedText,
             source: source,
             appBundleID: selection?.appBundleID,
             attachments: attachments,
             webContext: webContext,
             regionElements: regionElements,
             targetSessionID: savedTargetSessionID,
-            wakeRequested: wakeRequested
+            wakeRequested: shouldWake
         )
 
-        if let comment = comment {
-            debugLog("CommentInputController: Comment saved (id=\(comment.id))")
-        } else {
+        guard let comment else {
+            AppController.shared.cancelPreparedBadgeBounce()
             debugLog("CommentInputController: Comment save FAILED - no active session?")
+            ToastManager.shared.show("Comment could not be saved")
+            triggerSaveFeedback(announcement: "Comment could not be saved")
+            return
         }
+
+        if isChromium {
+            _ = WebSocketService.shared.consumePendingWebContext(maxAge: 120)
+        }
+        if webContext != nil && isElementGrab {
+            _ = WebSocketService.shared.consumePendingRegionElements(maxAge: 120)
+        }
+        if isElementGrab {
+            WebSocketService.shared.dismissRegionHighlight()
+            pendingElementWebContext = nil
+        }
+
+        debugLog("CommentInputController: Comment saved (id=\(comment.id))")
 
         dismissWithAnimation()
     }
@@ -529,9 +676,8 @@ public final class CommentInputController: NSObject, ObservableObject {
         heightCancellable?.cancel()
         removeClickOutsideMonitor()
         isVisible = false
-        currentSelection = nil
-        screenshotImagePath = nil
-        arrowEdge = nil
+        endDraftState()
+        let completionGeneration = draftGeneration
 
         let targetPoint = menuBarTargetPoint()
 
@@ -553,10 +699,14 @@ public final class CommentInputController: NSObject, ObservableObject {
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
             panel.animator().alphaValue = 0
             panel.animator().setFrame(newFrame, display: true)
-        } completionHandler: {
-            panel.orderOut(nil)
-            panel.alphaValue = 1  // Reset for next show
+        } completionHandler: { [weak self, weak panel] in
             Task { @MainActor in
+                if let self,
+                   self.draftGeneration == completionGeneration,
+                   !self.isVisible {
+                    panel?.orderOut(nil)
+                    panel?.alphaValue = 1  // Reset for next show
+                }
                 AppController.shared.animateBadgeBounce()
             }
         }
@@ -571,36 +721,13 @@ public final class CommentInputController: NSObject, ObservableObject {
         // wake choice there would discard a decision they never revoked.
         if routeDismissalThroughAnnotation(intent: .closeButton) { return }
 
-        wakeOnSave = false
-        cancelAutoSaveCountdown()
-        removeScreenshotKeyMonitor()
-        panelLayoutReady = false
-        endAnnotationAnchoring()
-
-        // Cancel any active voice recording
-        if #available(macOS 26, *) {
-            VoiceInputService.shared.cancelRecording()
-        }
-
         if isScreenshotMode {
             ScreenCaptureService.shared.cancelCapture()
         }
         panel?.orderOut(nil)
         removeClickOutsideMonitor()
         isVisible = false
-        isVoiceInvoked = false
-        currentSelection = nil
-        screenshotImagePath = nil
-        isScreenshotMode = false
-        targetSessionID = nil
-        arrowEdge = nil
-        screenshotSelectionRect = nil
-        screenshotSourceBundleID = nil
-        if pendingElementWebContext != nil {
-            WebSocketService.shared.dismissRegionHighlight()
-        }
-        pendingElementWebContext = nil
-        pendingRegionScreenRect = nil
+        endDraftState()
     }
 
     // MARK: - Screenshot Reposition
@@ -835,16 +962,8 @@ public final class CommentInputController: NSObject, ObservableObject {
     private func finishAfterDurableSuccess() {
         // A successful save never reaches dismiss(), so the monitor has to come
         // down here or it survives into the next capture and every one after.
-        removeScreenshotKeyMonitor()
         isVisible = false
-        currentSelection = nil
-        screenshotImagePath = nil
-        isScreenshotMode = false
-        arrowEdge = nil
-        screenshotSelectionRect = nil
-        screenshotSourceBundleID = nil
-        panelLayoutReady = false
-        endAnnotationAnchoring()
+        endDraftState()
         retainedWebContext = nil
         retainedRegionElements = nil
         panel?.alphaValue = 1
@@ -1202,6 +1321,7 @@ public final class CommentInputController: NSObject, ObservableObject {
                 return !self.suppressClickOutside
                     && !self.isScreenshotMode
                     && self.currentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && self.currentAttachments.isEmpty
             },
             dismiss: { [weak self] in self?.dismiss() }
         )

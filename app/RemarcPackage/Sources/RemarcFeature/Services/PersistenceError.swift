@@ -17,6 +17,9 @@ public enum PersistenceError: Error, Equatable, Sendable {
     case documentUnreadable(String)
     case encodeFailed(String)
     case writeFailed(String)
+    /// The proposed record violates the canonical save policy. Currently this
+    /// means a Quick Note has no meaningful body.
+    case invalidComment
     /// The comment's target session was deleted by another writer between
     /// staging and encoding. Writing anyway would leave a comment that exists but
     /// is unreachable from navigation.
@@ -30,6 +33,8 @@ public enum PersistenceError: Error, Equatable, Sendable {
             return "Could not read the comments file. Nothing was changed."
         case .encodeFailed, .writeFailed:
             return "Could not save the comment to disk."
+        case .invalidComment:
+            return "Quick Notes need a comment."
         case .sessionUnavailable:
             return "That session was deleted while saving. Nothing was changed."
         }

@@ -76,7 +76,12 @@ struct CommentInputView: View {
                 .help("Attach image")
 
                 if #available(macOS 26, *) {
-                    VoiceMicButton(isMicHovered: $isMicHovered, appendText: appendTranscribedText)
+                    VoiceMicButton(
+                        isMicHovered: $isMicHovered,
+                        appendText: appendTranscribedText,
+                        transcriptionGeneration: controller.currentDraftGeneration,
+                        acceptsTranscription: { controller.isCurrentDraft($0) }
+                    )
                 }
 
                 Spacer()
@@ -106,6 +111,8 @@ struct CommentInputView: View {
                         colorScheme: colorScheme,
                         onSave: { controller.saveComment(text: commentText, attachments: attachments) },
                         appendText: appendTranscribedText,
+                        transcriptionGeneration: controller.currentDraftGeneration,
+                        acceptsTranscription: { controller.isCurrentDraft($0) },
                         autoSaveState: voiceAutoSaveButtonState
                     )
                 } else {
@@ -161,6 +168,10 @@ struct CommentInputView: View {
         .onChange(of: attachments) {
             controller.currentAttachments = attachments
         }
+        .onChange(of: controller.validationFeedbackTrigger) { _, trigger in
+            guard trigger > 0 else { return }
+            refocusEditor()
+        }
         .onChange(of: controller.pendingVoiceText) {
             if let text = controller.pendingVoiceText, !text.isEmpty {
                 // Suppress auto-save cancellation for this programmatic text change
@@ -186,9 +197,8 @@ struct CommentInputView: View {
             countdownActive: controller.autoSaveCountdownActive,
             progress: controller.autoSaveProgress,
             remainingSeconds: controller.autoSaveRemainingSeconds,
-            shake: controller.shakeAutoSave,
-            onHoverChanged: { controller.isSaveButtonHovered = $0 },
-            onPressed: controller.cancelAutoSaveCountdown
+            feedbackTrigger: controller.saveFeedbackTrigger,
+            onHoverChanged: { controller.isSaveButtonHovered = $0 }
         )
     }
 
@@ -215,7 +225,16 @@ struct CommentInputView: View {
         .buttonStyle(.plain)
         .onHover { hovering in isSaveHovered = hovering }
         .animation(.easeInOut(duration: 0.15), value: isSaveHovered)
+        .modifier(SaveButtonFeedbackModifier(trigger: controller.saveFeedbackTrigger))
         .accessibilityIdentifier("remarc.commentInput.submitButton")
+    }
+
+    private func refocusEditor() {
+        isFocused = false
+        Task { @MainActor in
+            await Task.yield()
+            isFocused = true
+        }
     }
 
     // MARK: - Header

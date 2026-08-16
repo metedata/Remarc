@@ -37,12 +37,12 @@ struct CommentCardView: View {
         VStack(alignment: .leading, spacing: 8) {
             referenceView
             if !comment.attachments.isEmpty {
-                AttachmentStripView(attachments: comment.attachments, commentText: comment.commentText, isEditable: false, maxThumbnailWidth: 140, maxThumbnailHeight: 200)
+                AttachmentStripView(attachments: comment.attachments, commentText: Comment.normalizedCommentText(comment.commentText), isEditable: false, maxThumbnailWidth: 140, maxThumbnailHeight: 200)
                     .padding(.leading, 8)
                     .quoteBorder()
             }
-            if !comment.commentText.isEmpty {
-                commentTextView
+            if let commentText = comment.meaningfulCommentText {
+                commentTextView(commentText)
             }
             metadataView
         }
@@ -107,7 +107,7 @@ struct CommentCardView: View {
                 .onTapGesture {
                     ScreenshotPreviewController.shared.show(
                         imagePath: imagePath,
-                        commentText: comment.commentText
+                        commentText: Comment.normalizedCommentText(comment.commentText)
                     )
                 }
                 .contextMenu {
@@ -178,8 +178,8 @@ struct CommentCardView: View {
 
     // MARK: - Comment Text
 
-    private var commentTextView: some View {
-        Text(comment.commentText)
+    private func commentTextView(_ commentText: String) -> some View {
+        Text(commentText)
             .font(.system(size: 13))
             .foregroundStyle(.primary)
             .lineLimit(3)
@@ -247,8 +247,11 @@ struct CommentCardView: View {
     private var cardActions: some View {
         HStack(spacing: 4) {
             cardActionButton(icon: "doc.on.doc", tooltip: "Copy", tint: Color.remarcPrimary(for: colorScheme)) {
-                ExportManager.shared.copyCommentToClipboard(comment)
-                ToastManager.shared.show("Copied to clipboard")
+                if ExportManager.shared.copyCommentToClipboard(comment) != nil {
+                    ToastManager.shared.show("Copied to clipboard")
+                } else {
+                    ToastManager.shared.show("Couldn’t copy comment")
+                }
             }
             cardActionButton(icon: "pencil", tooltip: "Edit", tint: Color.remarcPrimary(for: colorScheme)) {
                 FloatingEditorController.shared.showForEdit(comment: comment)

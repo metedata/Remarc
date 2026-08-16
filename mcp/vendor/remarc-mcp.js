@@ -2984,7 +2984,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve.call(this, root, ref);
+      let _sch = resolve2.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3011,7 +3011,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve(root, ref) {
+    function resolve2(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3642,7 +3642,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve(baseURI, relativeURI, options) {
+    function resolve2(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const { parsed: baseParsed, malformedAuthorityOrPort: baseMalformed } = parseWithStatus(baseURI, schemelessOptions);
       const { parsed: relativeParsed, malformedAuthorityOrPort: relativeMalformed } = parseWithStatus(relativeURI, schemelessOptions);
@@ -3926,7 +3926,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve,
+      resolve: resolve2,
       resolveComponent,
       equal,
       serialize,
@@ -19006,7 +19006,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -19023,7 +19023,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -19101,7 +19101,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve(parseResult.data);
+            resolve2(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -19362,12 +19362,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve2, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve, interval);
+      const timeoutId = setTimeout(resolve2, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -20467,7 +20467,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -21116,12 +21116,12 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve) => {
+    return new Promise((resolve2) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve();
+        resolve2();
       } else {
-        this._stdout.once("drain", resolve);
+        this._stdout.once("drain", resolve2);
       }
     });
   }
@@ -21147,6 +21147,10 @@ function formatDate(date3) {
   const h = String(date3.getUTCHours()).padStart(2, "0");
   const min = String(date3.getUTCMinutes()).padStart(2, "0");
   return `${y}-${m}-${d} ${h}:${min} UTC`;
+}
+var NO_COMMENT_BODY = "(none)";
+function displayCommentBody(commentText) {
+  return commentText.trim().length === 0 ? NO_COMMENT_BODY : commentText;
 }
 function getDataDir() {
   return join(homedir(), "Library", "Application Support", "Remarc");
@@ -21339,7 +21343,7 @@ var LOCK_TIMEOUT_MS = 2e3;
 var LOCK_POLL_MS = 25;
 var LOCK_STALE_MS = 1e4;
 function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve2) => setTimeout(resolve2, ms));
 }
 function pidAlive(pid) {
   try {
@@ -21758,12 +21762,12 @@ function throwIfAborted(signal) {
   if (signal?.aborted) throw markerAbortError();
 }
 function sleep2(ms, signal) {
-  if (!signal) return new Promise((resolve) => setTimeout(resolve, ms));
+  if (!signal) return new Promise((resolve2) => setTimeout(resolve2, ms));
   throwIfAborted(signal);
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     const timer = setTimeout(() => {
       signal.removeEventListener("abort", onAbort);
-      resolve();
+      resolve2();
     }, ms);
     const onAbort = () => {
       clearTimeout(timer);
@@ -21960,6 +21964,48 @@ function currentHarness(env = process.env) {
   return "claudeCode";
 }
 
+// src/screenshot.ts
+import { readFile as readFile3 } from "node:fs/promises";
+import { dirname as dirname2, extname, isAbsolute, resolve } from "node:path";
+var MAX_SCREENSHOT_BYTES = 35e5;
+var MIME_BY_EXTENSION = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp"
+};
+function resolveScreenshotPath(storedPath, dataFilePath) {
+  return isAbsolute(storedPath) ? storedPath : resolve(dirname2(dataFilePath), storedPath);
+}
+async function loadScreenshotImage(imagePath) {
+  const mimeType = MIME_BY_EXTENSION[extname(imagePath).toLowerCase()];
+  if (!mimeType) {
+    const ext = extname(imagePath) || "none";
+    return { ok: false, reason: `unsupported image type (extension: ${ext})` };
+  }
+  let bytes;
+  try {
+    bytes = await readFile3(imagePath);
+  } catch {
+    return { ok: false, reason: "the image file is missing or unreadable" };
+  }
+  if (bytes.byteLength > MAX_SCREENSHOT_BYTES) {
+    const mb = (bytes.byteLength / 1e6).toFixed(1);
+    const capMb = (MAX_SCREENSHOT_BYTES / 1e6).toFixed(1);
+    return {
+      ok: false,
+      reason: `the image is ${mb} MB, over the ${capMb} MB inline limit`
+    };
+  }
+  return {
+    ok: true,
+    data: bytes.toString("base64"),
+    mimeType,
+    byteLength: bytes.byteLength
+  };
+}
+
 // src/tools.ts
 import { randomUUID } from "node:crypto";
 function textResult(text) {
@@ -22001,7 +22047,7 @@ function formatCommentLine(comment, sessions) {
   const date3 = formatDate(comment.createdAt);
   const lines = [];
   lines.push(`[${typeIdentifier(comment.type)}] ${statusTag} ${ref}`);
-  lines.push(`  Comment: ${comment.commentText}`);
+  lines.push(`  Comment: ${displayCommentBody(comment.commentText)}`);
   lines.push(`  Source: ${source} | Session: ${sessionName} | ${date3}`);
   lines.push(`  ID: ${comment.id} (${comment.shortID})`);
   const preview = webContextPreview(comment.webContext);
@@ -22015,6 +22061,71 @@ function formatCommentLine(comment, sessions) {
     }
     if (comment.resolvedAt) {
       lines.push(`  Resolved at: ${formatDate(comment.resolvedAt)}`);
+    }
+  }
+  return lines.join("\n");
+}
+function formatCommentDetail(comment, sessions, dataFilePath = getDataFilePath()) {
+  const session = findSession(sessions, comment.sessionID);
+  const sessionName = session ? session.name : "Unknown Session";
+  const ref = typeLabel(comment.type, comment.webContext);
+  const date3 = formatDate(comment.createdAt);
+  const updated = formatDate(comment.updatedAt);
+  const lines = [];
+  lines.push(`Comment: ${comment.id} (${comment.shortID})`);
+  lines.push(`Status: ${comment.status}`);
+  lines.push(`Type: ${typeIdentifier(comment.type)}`);
+  lines.push(`Reference: ${ref}`);
+  if ("comment" in comment.type) {
+    lines.push(`Selected Text: ${comment.type.comment.text}`);
+  }
+  lines.push(`Text: ${displayCommentBody(comment.commentText)}`);
+  lines.push(`Source: ${comment.source}`);
+  if (comment.appBundleID) {
+    lines.push(`App Bundle ID: ${comment.appBundleID}`);
+  }
+  if ("screenshot" in comment.type) {
+    const imagePath = resolveScreenshotPath(
+      comment.type.screenshot.imagePath,
+      dataFilePath
+    );
+    lines.push(`Image Path: ${imagePath}`);
+  }
+  lines.push(`Session: ${sessionName} (${comment.sessionID})`);
+  lines.push(`Created: ${date3}`);
+  lines.push(`Updated: ${updated}`);
+  const wcLines = formatWebContextSection(comment.webContext);
+  if (wcLines.length > 0) {
+    lines.push("");
+    lines.push(...wcLines);
+  }
+  if (comment.regionElements && comment.regionElements.length > 0) {
+    lines.push("");
+    lines.push(`Region Elements (${comment.regionElements.length}):`);
+    comment.regionElements.forEach((el, idx) => {
+      const preview = webContextPreview(el) ?? "(unidentified)";
+      lines.push(`  [${idx + 1}] ${preview}`);
+      const selector = typeof el.selector === "string" && el.selector || typeof el.elementPath === "string" && el.elementPath || null;
+      if (selector) lines.push(`      Selector: ${selector}`);
+      if (el.boundingBox) {
+        const bb = el.boundingBox;
+        if (bb.width != null && bb.height != null && bb.x != null && bb.y != null) {
+          lines.push(
+            `      Bounding Box: ${bb.width}x${bb.height} at (${bb.x}, ${bb.y})`
+          );
+        }
+      }
+    });
+  }
+  if (comment.status === "resolved") {
+    if (comment.resolutionSummary) {
+      lines.push(`Resolution Summary: ${comment.resolutionSummary}`);
+    }
+    if (comment.resolvedBy) {
+      lines.push(`Resolved By: ${comment.resolvedBy}`);
+    }
+    if (comment.resolvedAt) {
+      lines.push(`Resolved At: ${formatDate(comment.resolvedAt)}`);
     }
   }
   return lines.join("\n");
@@ -22109,63 +22220,35 @@ ${formatted.join("\n\n")}${nudge}`);
       if (!comment) {
         return errorResult(`Comment not found: ${id}. Use remarc_list_comments to see available comments.`);
       }
-      const session = findSession(state.sessions, comment.sessionID);
-      const sessionName = session ? session.name : "Unknown Session";
-      const ref = typeLabel(comment.type, comment.webContext);
-      const date3 = formatDate(comment.createdAt);
-      const updated = formatDate(comment.updatedAt);
-      const lines = [];
-      lines.push(`Comment: ${comment.id} (${comment.shortID})`);
-      lines.push(`Status: ${comment.status}`);
-      lines.push(`Type: ${typeIdentifier(comment.type)}`);
-      lines.push(`Reference: ${ref}`);
-      lines.push(`Text: ${comment.commentText}`);
-      lines.push(`Source: ${comment.source}`);
-      if (comment.appBundleID) {
-        lines.push(`App Bundle ID: ${comment.appBundleID}`);
-      }
-      if (comment.type && "screenshot" in comment.type) {
-        lines.push(`Image Path: ${comment.type.screenshot.imagePath}`);
-        lines.push(`(Use the Read tool to view this image file.)`);
-      }
-      lines.push(`Session: ${sessionName} (${comment.sessionID})`);
-      lines.push(`Created: ${date3}`);
-      lines.push(`Updated: ${updated}`);
-      const wcLines = formatWebContextSection(comment.webContext);
-      if (wcLines.length > 0) {
-        lines.push("");
-        lines.push(...wcLines);
-      }
-      if (comment.regionElements && comment.regionElements.length > 0) {
-        lines.push("");
-        lines.push(`Region Elements (${comment.regionElements.length}):`);
-        comment.regionElements.forEach((el, idx) => {
-          const preview = webContextPreview(el) ?? "(unidentified)";
-          lines.push(`  [${idx + 1}] ${preview}`);
-          const selector = typeof el.selector === "string" && el.selector || typeof el.elementPath === "string" && el.elementPath || null;
-          if (selector) lines.push(`      Selector: ${selector}`);
-          if (el.boundingBox) {
-            const bb = el.boundingBox;
-            if (bb.width != null && bb.height != null && bb.x != null && bb.y != null) {
-              lines.push(
-                `      Bounding Box: ${bb.width}x${bb.height} at (${bb.x}, ${bb.y})`
-              );
-            }
-          }
-        });
-      }
-      if (comment.status === "resolved") {
-        if (comment.resolutionSummary) {
-          lines.push(`Resolution Summary: ${comment.resolutionSummary}`);
+      const detail = formatCommentDetail(comment, state.sessions);
+      if ("screenshot" in comment.type) {
+        const imagePath = resolveScreenshotPath(
+          comment.type.screenshot.imagePath,
+          getDataFilePath()
+        );
+        const image = await loadScreenshotImage(imagePath);
+        if (image.ok) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `${detail}
+(The screenshot is attached to this result as an image.)`
+              },
+              {
+                type: "image",
+                data: image.data,
+                mimeType: image.mimeType
+              }
+            ]
+          };
         }
-        if (comment.resolvedBy) {
-          lines.push(`Resolved By: ${comment.resolvedBy}`);
-        }
-        if (comment.resolvedAt) {
-          lines.push(`Resolved At: ${formatDate(comment.resolvedAt)}`);
-        }
+        return textResult(
+          `${detail}
+(The screenshot could not be attached: ${image.reason}. Read the file at the Image Path above if your client has a file-reading tool.)`
+        );
       }
-      return textResult(lines.join("\n"));
+      return textResult(detail);
     } catch (err) {
       return errorResult(String(err));
     }

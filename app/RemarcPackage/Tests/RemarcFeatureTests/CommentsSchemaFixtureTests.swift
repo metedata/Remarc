@@ -21,14 +21,29 @@ final class CommentsSchemaFixtureTests: XCTestCase {
         XCTAssertGreaterThan(state.sessions.count, 0, "fixture has sessions")
         XCTAssertTrue(state.sessions.contains(where: { $0.origin == .omp }), "fixture covers OMP origin")
 
-        // Pin the field name that v1 of the migration plan got wrong: confirm
-        // every fixture comment has the `commentText` field populated. If this
-        // assertion breaks, the schema in plugins/shared/comments-schema.json
-        // must be updated to match whatever field was renamed.
+        // A contextual record remains meaningful without a body. Pin both the
+        // required String field and the semantic distinction from Quick Notes.
+        let contextual = try XCTUnwrap(state.comments.first { comment in
+            if case .comment = comment.type { return true }
+            return false
+        })
+        XCTAssertEqual(contextual.commentText, "")
+        XCTAssertFalse(contextual.hasMeaningfulCommentText)
+        XCTAssertFalse(contextual.isStandaloneNote)
+
+        // Quick Notes in the shared fixture remain meaningful; an empty Quick
+        // Note is invalid input even though the schema stays backward-compatible
+        // with String values (including the empty string).
+        let quickNotes = state.comments.filter(\.isStandaloneNote)
+        XCTAssertFalse(quickNotes.isEmpty, "fixture must exercise Quick Note semantics")
         XCTAssertTrue(
-            state.comments.allSatisfy { !$0.commentText.isEmpty },
-            "every comment must have non-empty commentText"
+            quickNotes.allSatisfy(\.hasMeaningfulCommentText),
+            "fixture Quick Notes must contain meaningful text"
         )
+
+        let encoded = try JSONEncoder().encode(contextual)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        XCTAssertEqual(object["commentText"] as? String, "")
     }
 
     /// An origin this build has never heard of must not brick the document.
