@@ -60,6 +60,8 @@ Screenshot comments require the Screen Recording permission. Grant it in System 
 
 **Does Remarc work with my browser?** Text selection commenting works in any Mac app, including any browser. The [Chrome extension](/chrome-extension/)'s element and region capture works in Chromium browsers: Chrome, Arc, Brave, Edge, Vivaldi, and Opera.
 
+**Does Remarc work with PopClip?** Yes - the [Remarc PopClip extension](/basics/popclip/) adds a Remarc button to PopClip's action bar, as an alternative to the tooltip and hotkey.
+
 ## Uninstall Remarc
 
 1. If the Cursor integration is enabled, turn it off in Settings > MCP Integrations; this removes the files Remarc wrote to `~/.cursor`. If you skip this, remove the `remarc` entry from `~/.cursor/mcp.json` and delete `~/.cursor/skills/remarc/` by hand.

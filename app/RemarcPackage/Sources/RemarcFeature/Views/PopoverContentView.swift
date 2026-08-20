@@ -219,11 +219,11 @@ struct PopoverContentView: View {
     private var normalHeader: some View {
         HStack(spacing: 8) {
             HStack(spacing: 0) {
-                let totalCount = persistence.allComments.count
-                Text("\(totalCount) ")
+                let unresolvedCount = persistence.unresolvedCommentCount
+                Text("\(unresolvedCount) ")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Color.remarcAccent(for: colorScheme))
-                Text(totalCount == 1 ? "Comment" : "Comments")
+                Text(unresolvedCount == 1 ? "Comment" : "Comments")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(Color.remarcPrimary(for: colorScheme))
             }

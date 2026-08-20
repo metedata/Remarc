@@ -3,6 +3,65 @@ import KeyboardShortcuts
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// Shared metrics for the Settings panes.
+enum SettingsMetrics {
+    /// Width of the control column: the pickers, and the space the toggles sit in.
+    static let controlColumnWidth: CGFloat = 180
+
+    /// Keeps a row's explanation clear of the control column on the right.
+    ///
+    /// Without it, notes wrap to the full pane width and end on the same right
+    /// edge as the toggles and pickers, so a group reads as one dense slab
+    /// instead of a row with a note under it. Stopping where the controls begin
+    /// gives the pane a single text measure to read down.
+    static let descriptionTrailingInset: CGFloat = controlColumnWidth + 16
+
+    /// Gap between a row and its own explanation.
+    static let descriptionSpacing: CGFloat = 5
+
+    /// Extra gap after an explained row, so its note stays visually bound to the
+    /// row above rather than the unrelated control below.
+    static let describedRowBottomPadding: CGFloat = 4
+}
+
+/// Indent plus a leading hairline for a setting that only appears because of
+/// the row above it, so the indent gutter reads as nesting rather than an
+/// unexplained gap beside the row.
+struct NestedSettingModifier: ViewModifier {
+    private static let indent: CGFloat = 20
+
+    /// Thin and nearly transparent on purpose: the rule gives the indent an
+    /// edge to hang off without competing with the row it belongs to.
+    private static let ruleWidth: CGFloat = 1
+    private static let ruleOpacity: Double = 0.1
+
+    func body(content: Content) -> some View {
+        content
+            .padding(.leading, Self.indent)
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: Self.ruleWidth / 2)
+                    .fill(.primary.opacity(Self.ruleOpacity))
+                    .frame(width: Self.ruleWidth)
+            }
+    }
+}
+
+extension View {
+    /// Styling for the secondary explanation under a settings row.
+    func settingDescriptionStyle(opacity: Double = 0.35) -> some View {
+        self
+            .font(.system(size: 11))
+            .foregroundStyle(.primary.opacity(opacity))
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.trailing, SettingsMetrics.descriptionTrailingInset)
+    }
+
+    /// Marks a settings block as a child of the row above it.
+    func nestedSetting() -> some View {
+        modifier(NestedSettingModifier())
+    }
+}
+
 @MainActor
 public final class PreferencesWindowController: NSObject, NSWindowDelegate {
     public static let shared = PreferencesWindowController()
@@ -21,7 +80,9 @@ public final class PreferencesWindowController: NSObject, NSWindowDelegate {
 
     /// Window dimensions per section type.
     static let exportSize = NSSize(width: 1100, height: 580)
-    static let defaultSize = NSSize(width: 750, height: 730)
+    /// Wide enough that most row descriptions fit on a single line once the
+    /// trailing inset keeps them clear of the control column.
+    static let defaultSize = NSSize(width: 940, height: 730)
 
     public func show() {
         showWithTab("General")
@@ -311,19 +372,30 @@ struct PreferencesView: View {
                         get: { settings.launchAtLogin },
                         set: { settings.launchAtLogin = $0 }
                     ))
-                    VStack(alignment: .leading, spacing: 3) {
+                    describedRow("When enabled, Remarc always shows in the Dock. Otherwise, it only appears while Settings or Permissions are open.") {
                         toggleRow("Show in Dock", isOn: $settings.showInDock)
-                        Text("When enabled, Remarc always shows in the Dock. Otherwise, it only appears while Settings or Permissions are open.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    VStack(alignment: .leading, spacing: 3) {
+                    describedRow("Dot shows only whether you have unresolved comments. Dot and Off keep the icon at a fixed width, which helps in crowded menu bars.") {
+                        pickerRow("Menu bar indicator", selection: $settings.menuBarIndicatorStyle) { $0.label }
+                    }
+                    if settings.menuBarIndicatorStyle == .count {
+                        describedRow("Hides the badge when you have no unresolved comments, instead of showing a 0.") {
+                            toggleRow("Hide the count at 0", isOn: $settings.hidesMenuBarCountAtZero)
+                        }
+                        .nestedSetting()
+                    }
+                    describedRow("Auto-detect shows the Remarc popup as soon as you select text. Hotkey only hides the popup and waits for your shortcut.") {
                         pickerRow("Detection mode", selection: $settings.selectionDetectionMode) { $0.label }
-                        Text("Auto detects text selections automatically. Hotkey only waits for your shortcut.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if PopClipInstaller.isInstalled() {
+                        CalloutView(.info, "Using PopClip? Choose Hotkey Only\nto prevent duplicate selection popups.", contentPlacement: .trailing) {
+                            GetExtensionButton(
+                                title: "Install PopClip Extension",
+                                help: "Install the Remarc PopClip extension"
+                            ) {
+                                PopClipInstaller.shared.install()
+                            }
+                        }
                     }
                     pickerRow("Tooltip position", selection: $settings.tooltipPosition) { $0.label }
                     pickerRow("Date format", selection: $settings.exportDateFormat) { $0.label }
@@ -361,7 +433,7 @@ struct PreferencesView: View {
                             width: Self.pickerWidth
                         )
                     }
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         settingsRow("Image retention") {
                             RemarcDropdown(
                                 selection: $settings.imageRetentionDays,
@@ -378,25 +450,21 @@ struct PreferencesView: View {
                             )
                         }
                         Text("Images are kept longer so exported references stay valid.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
                     pickerRow("Delete resolved", selection: $settings.resolvedCommentDeletion) { $0.label }
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         toggleRow("Auto-delete inactive sessions", isOn: $settings.inactiveSessionCleanupEnabled)
                         Text("Sessions with no recent activity are moved to History. The Inbox, current session, and sessions with unresolved comments are never deleted.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
 
                     if settings.inactiveSessionCleanupEnabled {
                         VStack(alignment: .leading, spacing: Self.itemSpacing) {
                             pickerRow("Delete after", selection: $settings.inactiveSessionCleanupInterval) { $0.label }
                         }
-                        .padding(.leading, 20)
+                        .nestedSetting()
                     }
                 }
 
@@ -637,23 +705,19 @@ struct PreferencesView: View {
                 }
 
                 if settings.transcriptionEngine != .appleSpeech {
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         toggleRow("Keep model in memory", isOn: $settings.keepModelInMemory)
                         Text("Prevents the model from being unloaded after use. Faster response times but uses more RAM (~200–500 MB depending on model). Recommended if you have 16 GB+ RAM.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
 
                     if settings.keepModelInMemory {
-                        VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                             toggleRow("Load model on launch", isOn: $settings.preloadModelOnLaunch)
                             Text("Loads the model into memory when Remarc starts so dictation is instant on first use.")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.primary.opacity(0.35))
-                                .fixedSize(horizontal: false, vertical: true)
+                                .settingDescriptionStyle()
                         }
-                        .padding(.leading, 20)
+                        .nestedSetting()
                     }
                 }
 
@@ -676,28 +740,22 @@ struct PreferencesView: View {
 
                     toggleRow("Sound effects", isOn: $settings.soundEffectsEnabled)
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         toggleRow("Mute audio while recording", isOn: $settings.pauseMusicWhileRecording)
                         Text("Mutes system audio when you start recording and restores it when you stop.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         toggleRow("Prefer Mac built-in mic", isOn: $settings.smartMicrophoneSelection)
                         Text("Uses known studio USB mics when present; otherwise prefers the Mac built-in microphone over AirPods and headset mics.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         toggleRow("Auto-save voice notes", isOn: $settings.autoSaveVoiceNotes)
                         Text("Automatically saves comments created with the voice shortcut. Does not apply to comments invoked manually.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
                     if settings.autoSaveVoiceNotes {
                         pickerRow("Auto-save delay", selection: $settings.autoSaveDelay, width: 80) { $0.label }
@@ -710,12 +768,10 @@ struct PreferencesView: View {
                 VStack(alignment: .leading, spacing: Self.itemSpacing) {
                     sectionHeader("Dictation", description: "Transcribe speech directly into any text field. Uses the same engine selected above.")
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         toggleRow("Enable dictation", isOn: $settings.dictationEnabled)
                         Text("When disabled, dictation shortcuts are ignored and the feature is fully off.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.primary.opacity(0.35))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingDescriptionStyle()
                     }
 
                     if settings.dictationEnabled {
@@ -741,7 +797,7 @@ struct PreferencesView: View {
                             ConflictAwareRecorder(name: .pasteLastTranscription)
                         }
 
-                        VStack(alignment: .leading, spacing: 3) {
+                        VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                             settingsRow("History retention") {
                                 RemarcDropdown(
                                     selection: $settings.transcriptionRetentionDays,
@@ -759,9 +815,7 @@ struct PreferencesView: View {
                                 )
                             }
                             Text("How long dictation transcriptions are kept in history.")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.primary.opacity(0.35))
-                                .fixedSize(horizontal: false, vertical: true)
+                                .settingDescriptionStyle()
                         }
 
                         // Info card
@@ -1034,7 +1088,7 @@ struct PreferencesView: View {
     private static let sectionSpacing: CGFloat = 20
     private static let itemSpacing: CGFloat = 10
     private static let headerDescriptionSpacing: CGFloat = 4
-    private static let pickerWidth: CGFloat = 180
+    private static let pickerWidth: CGFloat = SettingsMetrics.controlColumnWidth
 
     private var appShortcutsResetButton: some View {
         textButton("Reset", restOpacity: 0.6) {
@@ -1072,6 +1126,7 @@ struct PreferencesView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.trailing, SettingsMetrics.descriptionTrailingInset)
             }
         }
     }
@@ -1092,6 +1147,7 @@ struct PreferencesView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.trailing, SettingsMetrics.descriptionTrailingInset)
             }
         }
     }
@@ -1103,13 +1159,33 @@ struct PreferencesView: View {
                 .foregroundStyle(tint)
                 .font(.system(size: 11))
             Text(text)
-                .font(.system(size: 11))
-                .foregroundStyle(.primary.opacity(0.6))
-                .fixedSize(horizontal: false, vertical: true)
+                .settingDescriptionStyle(opacity: 0.6)
         }
     }
 
+    /// Secondary explanation shown under a settings row.
+    private func settingDescription(_ text: String) -> some View {
+        Text(text).settingDescriptionStyle()
+    }
+
+    /// A settings row paired with its explanation.
+    ///
+    /// The note hugs its own row and the pair is padded away from the next one.
+    /// With a uniform gap the note sits nearly as close to the row below it,
+    /// so it reads as introducing the wrong control.
+    private func describedRow<Content: View>(
+        _ description: String,
+        @ViewBuilder row: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
+            row()
+            settingDescription(description)
+        }
+        .padding(.bottom, SettingsMetrics.describedRowBottomPadding)
+    }
+
     /// A settings row: left-aligned label, right-aligned control, full-width.
+
     private func settingsRow<Content: View, Accessory: View>(
         _ label: String,
         highlight: ExportHighlight? = nil,
@@ -1764,44 +1840,53 @@ struct PreferencesView: View {
         }
     }
 
-    /// The remarc plugin's update affordance: the exact update command, always
-    /// copyable (Claude Code owns its own update lifecycle, so the app never
-    /// runs it), elevated to a warning callout when the installed plugin is
-    /// older than the version this app vendored, plus a pointer to auto-update.
+    /// The remarc plugin's update affordance: one callout holding the exact
+    /// update command (always copyable - Claude Code owns its own update
+    /// lifecycle, so the app never runs it) and a pointer to auto-update. It
+    /// reads as a warning when the installed plugin is older than the version
+    /// this app vendored, otherwise a neutral note.
     @ViewBuilder
     private var claudeCodeUpdateRow: some View {
         if pluginStateChecked && pluginState.remarcInstalled {
             let updateCommand = PluginInstaller.updateCommand(plugin: "remarc")
+            let installed = pluginState.remarcVersion
             let behind = PluginInstaller.updateAvailable(
-                installedVersion: pluginState.remarcVersion,
+                installedVersion: installed,
                 bundledVersion: BundledPluginVersion.remarc
             )
-            VStack(alignment: .leading, spacing: 8) {
-                if behind {
-                    let have = pluginState.remarcVersion.map { " (you have \($0))" } ?? ""
-                    CalloutView(.warning, "remarc \(BundledPluginVersion.remarc) is available\(have). Update for the latest fixes, including screenshots delivered as images.")
+            let heading: String = {
+                if behind, let installed {
+                    return "Update available (\(installed) → \(BundledPluginVersion.remarc))"
                 }
-                HStack(alignment: .center, spacing: 8) {
-                    Text(updateCommand)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.primary.opacity(behind ? 0.7 : 0.55))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    CardActionButton(
-                        icon: copiedPluginCommands == "remarc-update" ? "checkmark" : "doc.on.doc",
-                        tooltip: "Copy update command",
-                        tint: Color.remarcPrimary(for: colorScheme)
-                    ) {
-                        copyCommands(updateCommand, key: "remarc-update")
+                if let installed, PluginInstaller.isNumericVersion(installed) {
+                    return "Up to date (\(installed))"
+                }
+                return "Update remarc"
+            }()
+            CalloutView(behind ? .warning : .info, heading) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Text(updateCommand)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.7))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        CardActionButton(
+                            icon: copiedPluginCommands == "remarc-update" ? "checkmark" : "doc.on.doc",
+                            tooltip: "Copy update command",
+                            tint: Color.remarcPrimary(for: colorScheme)
+                        ) {
+                            copyCommands(updateCommand, key: "remarc-update")
+                        }
                     }
+                    Text("Updates aren't automatic for this marketplace. Turn them on once: run /plugin, open Marketplaces, select remarc, then Enable auto-update.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.primary.opacity(0.45))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                settingsHint(
-                    "Updates aren't automatic for this marketplace. Turn them on once: run /plugin, open Marketplaces, select remarc, then Enable auto-update.",
-                    tint: .primary.opacity(0.35)
-                )
+                .padding(.top, 2)
             }
-            .padding(.top, 2)
         }
     }
 
@@ -1969,15 +2054,19 @@ struct PreferencesView: View {
         }
     }
 
+    /// One hint for the whole session-lifecycle group: how sessions start (only
+    /// worth saying when auto-create is off) and what an agent quitting does.
+    private var sessionLifecycleHint: String {
+        let ending = "Quitting an agent only unlinks its session - the session and its comments stay."
+        guard !settings.claudeCodeAutoCreateSession else { return ending }
+        return "Create sessions manually with the remarc_create_session MCP tool. " + ending
+    }
+
     private var hooksSettingsRows: some View {
         VStack(alignment: .leading, spacing: Self.itemSpacing) {
             toggleRow("Auto-create session for new conversations", isOn: $settings.claudeCodeAutoCreateSession)
 
-            if !settings.claudeCodeAutoCreateSession {
-                settingsHint("Use the remarc_create_session MCP tool to create sessions manually", tint: .primary.opacity(0.35))
-            }
-
-            settingsHint("Quitting an agent only unlinks its session - the session and its comments stay. This applies when you clear the conversation, which is the one ending that means the work is done.", tint: .primary.opacity(0.35))
+            settingsHint(sessionLifecycleHint, tint: .primary.opacity(0.35))
 
             settingsRow("When a conversation is cleared") {
                 Picker("", selection: $settings.claudeCodeSessionEndBehavior) {
@@ -2645,8 +2734,11 @@ struct PreferencesView: View {
 }
 
 private struct GetExtensionButton: View {
+    var title: String = "Get Extension"
+    var help: String = "Get Chrome extension"
     var action: () -> Void
     @State private var isHovered = false
+    @State private var isPressed = false
 
     var body: some View {
         Button(action: action) {
@@ -2654,31 +2746,34 @@ private struct GetExtensionButton: View {
                 Image(systemName: "square.and.arrow.down")
                     .font(.system(size: 10.5, weight: .medium))
 
-                Text("Get Extension")
+                Text(title)
                     .font(.system(size: 10, weight: .medium))
                     .lineLimit(1)
                     .fixedSize()
             }
-            .foregroundStyle(.primary.opacity(isHovered ? 0.7 : 0.55))
+            .foregroundStyle(.primary.opacity(isPressed ? 0.85 : (isHovered ? 0.7 : 0.55)))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(
                 Capsule()
-                    .fill(Color.primary.opacity(isHovered ? 0.1 : 0.06))
+                    .fill(Color.primary.opacity(isPressed ? 0.16 : (isHovered ? 0.1 : 0.06)))
             )
             .overlay(
                 Capsule()
-                    .strokeBorder(Color.primary.opacity(isHovered ? 0.16 : 0.1), lineWidth: 0.5)
+                    .strokeBorder(Color.primary.opacity(isPressed ? 0.22 : (isHovered ? 0.16 : 0.1)), lineWidth: 0.5)
             )
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("Get Chrome extension")
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
-        }
+        .help(help)
+        .onHover { hovering in isHovered = hovering }
+        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(.easeInOut(duration: 0.15), value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isPressed = true }
+                .onEnded { _ in isPressed = false }
+        )
     }
 }
 

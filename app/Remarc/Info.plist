@@ -14,5 +14,16 @@
     <string>Remarc uses speech recognition to transcribe your voice critiques into comments.</string>
     <key>NSScreenCaptureUsageDescription</key>
     <string>Remarc uses screen recording access to capture regions you select for screenshot comments.</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>com.metepolat.Remarc</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>remarc</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

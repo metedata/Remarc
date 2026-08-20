@@ -46,6 +46,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         #endif
+
+        RemarcURLHandler.shared.register()
+        if shouldSkipSetup {
+            // Cheap insurance, not active discarding: handleGetURLEvent hops to
+            // the main actor via Task { @MainActor }, which cannot run before
+            // this method returns, so the queue is always empty here in
+            // practice. Kept in case that dispatch ever changes.
+            RemarcURLHandler.shared.discardQueued()
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

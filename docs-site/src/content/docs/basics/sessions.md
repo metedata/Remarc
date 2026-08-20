@@ -11,7 +11,7 @@ The **Inbox** is a permanent session that catches comments not filed anywhere el
 
 ## The session bar
 
-The session bar sits at the top of the [popover](/basics/menu-bar-and-popover/). Each session is a pill showing its name and comment count. Click a pill to switch to that session.
+The session bar sits at the top of the [popover](/basics/menu-bar-and-popover/). Each session is a pill showing its name and unresolved comment count. Click a pill to switch to that session.
 
 - **Create**: click the **+** button. New sessions are named automatically (Session A, Session B, ...) and open ready to rename. At the 8-session limit the button shows a "Session limit reached" toast instead.
 - **Rename**: double-click a pill, or right-click it and choose Rename.

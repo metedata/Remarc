@@ -16,10 +16,7 @@ struct SessionBarView: View {
 
     /// Pre-compute comment counts per session once per render instead of O(s*n) per pill.
     private var commentCountsBySession: [UUID: Int] {
-        Dictionary(
-            persistence.allComments.map { ($0.sessionID, 1) },
-            uniquingKeysWith: +
-        )
+        persistence.unresolvedCommentCountsBySession
     }
 
     var body: some View {

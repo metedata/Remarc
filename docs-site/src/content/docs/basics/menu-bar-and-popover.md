@@ -7,7 +7,7 @@ Remarc lives in your menu bar. Left-click the icon to open the popover with your
 
 ## Menu bar icon
 
-The menu bar icon shows a count badge when you have comments. When a new comment lands, the badge bounces with the updated count.
+The menu bar icon shows the number of unresolved comments. When a new comment lands, the badge bounces with the updated count; resolving a comment removes it from the count without deleting it.
 
 When Remarc is paused, the icon dims and selection detection stops. Pause and resume from the right-click menu.
 

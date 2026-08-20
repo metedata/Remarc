@@ -15,10 +15,24 @@ These settings control startup, selection detection, and how dates appear on com
 | --- | --- | --- |
 | Launch at Login | On after onboarding | Remarc registers itself as a login item when onboarding completes. |
 | Show in Dock | Off | When off, the Dock icon appears only while the Settings or Permissions windows are open. |
-| Detection mode | Auto-detect + Hotkey | "Hotkey Only" disables automatic selection detection; the composer opens only via `Ctrl+Option+C`. |
+| Menu bar indicator | Count | What appears beside the menu bar icon. See [Menu bar indicator](#menu-bar-indicator) below. |
+| Hide the count at 0 | On | Only shown when the indicator is set to Count. Turn it off to keep a `0` in the menu bar when you have no unresolved comments. |
+| Detection mode | Auto-detect + Hotkey | "Hotkey Only" hides the selection popup and waits for `Ctrl+Option+C`; Remarc keeps detecting selections in the background. The composer can also open from the [PopClip](/basics/popclip/) bar if installed. |
 | Tooltip position | Above selection | Or "Below selection". |
 | Date format | Short (e.g. "Aug 8") | Five styles, shown as sample dates in the picker. |
 | Time format | 12-hour | Or 24-hour. |
+
+#### Menu bar indicator
+
+By default Remarc shows a count badge beside its menu bar icon once you have unresolved comments, which makes the icon wider than it was when empty. Resolving a comment removes it from the count without deleting it. In a crowded menu bar that extra width can push Remarc out of view, and menu bar managers like Ice, Bartender, or Hidden Bar may move it into a hidden section, so it looks like Remarc vanished.
+
+| Option | What you see | Width |
+| --- | --- | --- |
+| Count | A badge with the number of unresolved comments. Hidden at zero unless you turn off "Hide the count at 0". | Grows when unresolved comments exist |
+| Dot | A small dot when at least one unresolved comment exists, with no number. | Never changes |
+| Off | The icon only, with no indicator. | Never changes |
+
+Pick Dot or Off if your menu bar is tight on space. Both keep the icon at a fixed width, so Remarc stays where you expect it.
 
 ### Clipboard
 

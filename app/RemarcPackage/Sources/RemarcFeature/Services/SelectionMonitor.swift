@@ -27,6 +27,10 @@ public final class SelectionMonitor: ObservableObject {
     private var gestureEndMouseLocation: NSPoint?
     /// Pasteboard change count captured at gesture start for passive copy-on-select fallbacks.
     private var gestureStartPasteboardChangeCount: Int?
+    /// The last selection cleared, kept briefly for triggers that arrive after a
+    /// deselecting click. Read only via `readRecentSelection`; the hotkey path
+    /// deliberately does not consult it.
+    private var recentStash = RecentSelectionStash()
 
     private init() {}
 
@@ -77,6 +81,7 @@ public final class SelectionMonitor: ObservableObject {
         currentSelection = nil
         lastReadText = ""
         gestureStartPasteboardChangeCount = nil
+        recentStash.clear()
         debugLog("SelectionMonitor: Stopped")
     }
 
@@ -92,7 +97,11 @@ public final class SelectionMonitor: ObservableObject {
         }
 
         debugLog("readCurrentSelection: no stored selection, trying fresh read")
-        // Fresh read fallback (hotkeyOnly mode or selection not auto-detected)
+        // Fallback when no selection was captured: used directly by the hotkey,
+        // and as the last resort of readRecentSelection when neither the live
+        // selection nor the stash has anything. Not specific to hotkeyOnly mode -
+        // that mode leaves the monitor running, so currentSelection is populated
+        // the same as in auto-detect.
         if let result = TextReader.shared.readSelectionViaClipboard() {
             let mouseLocation = NSEvent.mouseLocation
             let bounds = TextReader.shared.readSelection()?.bounds
@@ -105,6 +114,27 @@ public final class SelectionMonitor: ObservableObject {
             )
         }
         return nil
+    }
+
+    /// Selection resolution for external triggers (currently the `remarc://` URL
+    /// handler). Unlike `readCurrentSelection`, this consults the stash, because
+    /// the click that invoked the trigger has already cleared the live selection.
+    ///
+    /// The stash is consumed on read. Leaving it in place would let a second
+    /// trigger inside the window silently reuse a selection the user has already
+    /// moved on from, producing a duplicate comment on stale text.
+    public func readRecentSelection(maxAge: CFAbsoluteTime = 2.0) -> TextSelection? {
+        if let existing = currentSelection {
+            debugLog("readRecentSelection: using live selection")
+            return existing
+        }
+        if let stashed = recentStash.selection(at: CFAbsoluteTimeGetCurrent(), maxAge: maxAge) {
+            recentStash.clear()
+            debugLog("readRecentSelection: using stashed selection")
+            return stashed
+        }
+        debugLog("readRecentSelection: falling back to a fresh read")
+        return readCurrentSelection()
     }
 
     // MARK: - Mouse Event Handling
@@ -142,9 +172,11 @@ public final class SelectionMonitor: ObservableObject {
                 debugLog("SelectionMonitor: Drag selection detected (dragCount=\(dragEventCount))")
                 gestureEndMouseLocation = NSEvent.mouseLocation
                 scheduleTextRead(delay: 0.1) // 100ms for app to finalize selection
-            } else if event.clickCount < 2 && currentSelection != nil {
-                // Simple click (not double-click, not drag) = deselection
-                // Only clear if we had a selection — don't AX query on every click
+            } else if event.clickCount < 2, let dismissed = currentSelection {
+                // Simple click (not double-click, not drag) = deselection.
+                // Stash it: a click on PopClip's bar lands here, and the
+                // remarc:// trigger that follows still needs the selection.
+                recentStash.store(dismissed, at: CFAbsoluteTimeGetCurrent())
                 currentSelection = nil
                 lastReadText = ""
             }
@@ -202,6 +234,10 @@ public final class SelectionMonitor: ObservableObject {
             if currentSelection != nil {
                 currentSelection = nil
             }
+            // A failed read still invalidates the stash: the user has moved on
+            // to a different (unreadable) selection, so a stale stash from the
+            // previous one must not be handed to a trigger that arrives next.
+            recentStash.clear()
             return
         }
 

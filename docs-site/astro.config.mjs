@@ -52,6 +52,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Menu bar & popover', slug: 'basics/menu-bar-and-popover' },
 						{ label: 'Comment on text selections', slug: 'basics/commenting-on-selections' },
+						{ label: 'PopClip', slug: 'basics/popclip' },
 						{ label: 'Quick notes', slug: 'basics/quick-notes' },
 						{ label: 'Sessions & the Inbox', slug: 'basics/sessions' },
 						{ label: 'Statuses & history', slug: 'basics/statuses-and-history' },

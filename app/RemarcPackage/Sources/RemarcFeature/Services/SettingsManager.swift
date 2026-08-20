@@ -88,6 +88,8 @@ public final class SettingsManager: ObservableObject {
         static let pluginMigrationCompleted = "pluginMigrationCompleted"
         static let vocabularyHints = "vocabularyHints"
         static let tooltipPosition = "tooltipPosition"
+        static let menuBarIndicatorStyle = "menuBarIndicatorStyle"
+        static let hidesMenuBarCountAtZero = "hidesMenuBarCountAtZero"
         static let inactiveSessionCleanupEnabled = "inactiveSessionCleanupEnabled"
         static let inactiveSessionCleanupInterval = "inactiveSessionCleanupInterval"
         static let webhooksConfig = "webhooksConfig"
@@ -107,6 +109,16 @@ public final class SettingsManager: ObservableObject {
 
     @Published public var tooltipPosition: TooltipPosition {
         didSet { defaults.set(tooltipPosition.rawValue, forKey: Keys.tooltipPosition) }
+    }
+
+    @Published public var menuBarIndicatorStyle: MenuBarIndicatorStyle {
+        didSet { defaults.set(menuBarIndicatorStyle.rawValue, forKey: Keys.menuBarIndicatorStyle) }
+    }
+
+    /// Only meaningful while `menuBarIndicatorStyle` is `.count`. Defaults to
+    /// true, which is the badge behavior Remarc has always shipped.
+    @Published public var hidesMenuBarCountAtZero: Bool {
+        didSet { defaults.set(hidesMenuBarCountAtZero, forKey: Keys.hidesMenuBarCountAtZero) }
     }
 
     @Published public var includeMetadataInExport: Bool {
@@ -487,6 +499,18 @@ public final class SettingsManager: ObservableObject {
             self.tooltipPosition = pos
         } else {
             self.tooltipPosition = .above
+        }
+
+        if let savedIndicator = defaults.string(forKey: Keys.menuBarIndicatorStyle),
+           let indicator = MenuBarIndicatorStyle(rawValue: savedIndicator) {
+            self.menuBarIndicatorStyle = indicator
+        } else {
+            self.menuBarIndicatorStyle = .count
+        }
+        if defaults.object(forKey: Keys.hidesMenuBarCountAtZero) != nil {
+            self.hidesMenuBarCountAtZero = defaults.bool(forKey: Keys.hidesMenuBarCountAtZero)
+        } else {
+            self.hidesMenuBarCountAtZero = true
         }
 
         if defaults.object(forKey: Keys.includeMetadataInExport) != nil {
@@ -877,6 +901,47 @@ public final class SettingsManager: ObservableObject {
             switch self {
             case .above: return "Above selection"
             case .below: return "Below selection"
+            }
+        }
+    }
+
+    /// What the menu bar button draws beside its icon.
+    ///
+    /// Resolved from `MenuBarIndicatorStyle` and the current comment count so the
+    /// rendering layer never has to reason about the user's preference.
+    public enum MenuBarIndicator: Equatable, Sendable {
+        case none
+        case count(Int)
+        case dot
+    }
+
+    /// User preference for the menu bar indicator.
+    ///
+    /// The status item is a single `NSStatusItem`. Count mode carries its value
+    /// in the button title and can widen as comments arrive; Dot mode draws on a
+    /// fixed padded canvas. `.off` and `.dot` exist for crowded menu bars and
+    /// third-party menu bar managers, which may shuffle items when width changes
+    /// (issue #8).
+    public enum MenuBarIndicatorStyle: String, CaseIterable, Sendable {
+        case count
+        case dot
+        case off
+
+        public var label: String {
+            switch self {
+            case .count: return "Count"
+            case .dot: return "Dot"
+            case .off: return "Off"
+            }
+        }
+
+        /// - Parameter hidesCountAtZero: only consulted for `.count`. The dot is
+        ///   binary by definition and `.off` draws nothing either way.
+        public func indicator(forCommentCount count: Int, hidesCountAtZero: Bool) -> MenuBarIndicator {
+            switch self {
+            case .count: return (count > 0 || !hidesCountAtZero) ? .count(count) : .none
+            case .dot: return count > 0 ? .dot : .none
+            case .off: return .none
             }
         }
     }

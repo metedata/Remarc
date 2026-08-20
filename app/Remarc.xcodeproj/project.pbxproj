@@ -101,6 +101,7 @@
 				8BC265592DEDD3F400F279A4 /* Frameworks */,
 				8BC2655A2DEDD3F400F279A4 /* Resources */,
 				A1MCP0012DEDD000000000001 /* Copy MCP Server */,
+				A1PCL0012DEDD000000000001 /* Copy PopClip Extension */,
 			);
 			buildRules = (
 			);
@@ -187,6 +188,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Fail the build rather than shipping whatever happens to be on disk.\nset -euo pipefail\n\n# The server is vendored from the plugin repo, which owns it - refresh it\n# with scripts/sync-mcp-vendor.sh. This phase used to build a gitignored\n# mcp/dist, so a clean checkout shipped nothing and a stale tree shipped a\n# server months old, silently either way.\nVENDOR=\"${SRCROOT}/../mcp/vendor\"\ntest -s \"$VENDOR/remarc-mcp.js\"\ntest -s \"$VENDOR/PROVENANCE.json\"\n\n# The recorded hash must match the bytes, or the vendor was edited by hand.\nEXPECTED=$(/usr/bin/python3 -c \"import json;print(json.load(open('$VENDOR/PROVENANCE.json'))['sha256'])\")\nACTUAL=$(/usr/bin/shasum -a 256 \"$VENDOR/remarc-mcp.js\" | /usr/bin/awk '{print $1}')\nif [ \"$EXPECTED\" != \"$ACTUAL\" ]; then\n  echo \"error: mcp/vendor/remarc-mcp.js does not match its recorded sha256\" >&2\n  exit 1\nfi\n\nRES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\ncp \"$VENDOR/remarc-mcp.js\" \"$RES/remarc-mcp.js\"\ncp \"${SRCROOT}/../mcp/skill/SKILL.md\" \"$RES/remarc-skill.md\"\n";
+		};
+		A1PCL0012DEDD000000000001 /* Copy PopClip Extension */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../popclip/Remarc.popclipext/Config.ts",
+				"$(SRCROOT)/../popclip/Remarc.popclipext/remarc-logo.svg",
+			);
+			name = "Copy PopClip Extension";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Remarc.popclipext/Config.ts",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Ship the PopClip extension as a package directory, not loose files.\nset -euo pipefail\n\nSRC=\"${SRCROOT}/../popclip/Remarc.popclipext\"\ntest -s \"$SRC/Config.ts\"\ntest -s \"$SRC/remarc-logo.svg\"\n\nRES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n# This phase is the only destructive step in the build. Confirm the target is a\n# real directory before rm -rf touches anything: set -u catches an unset\n# variable but not an empty one, and an empty RES would aim rm at \"/\".\nif [ ! -d \"$RES\" ]; then\n  echo \"error: resources directory not found at '$RES'\" >&2\n  exit 1\nfi\nrm -rf \"$RES/Remarc.popclipext\"\ncp -R \"$SRC\" \"$RES/Remarc.popclipext\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

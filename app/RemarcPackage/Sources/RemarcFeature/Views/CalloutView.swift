@@ -8,7 +8,28 @@ import SwiftUI
 /// CalloutView(.error, "Download failed: \(message)")
 /// CalloutView(.warning, "Large model requires 1 GB of disk space.")
 /// ```
+///
+/// A trailing content closure adds richer body content (a command, buttons, a
+/// hint) inside the same box, so a composite notice stays one callout rather
+/// than several stacked styles:
+/// ```
+/// CalloutView(.warning, "Update available") {
+///     Text("run this").font(.system(size: 11, design: .monospaced))
+/// }
+/// ```
+///
+/// Use trailing placement when a compact action belongs beside the message:
+/// ```
+/// CalloutView(.info, "Install the integration", contentPlacement: .trailing) {
+///     Button("Install") { install() }
+/// }
+/// ```
 struct CalloutView: View {
+    enum ContentPlacement {
+        case below
+        case trailing
+    }
+
     enum Style {
         case info
         case warning
@@ -43,6 +64,8 @@ struct CalloutView: View {
     let text: String
     let actionLabel: String?
     let action: (() -> Void)?
+    private let extraContent: AnyView?
+    private let extraContentPlacement: ContentPlacement
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -51,26 +74,67 @@ struct CalloutView: View {
         self.text = text
         self.actionLabel = actionLabel
         self.action = action
+        self.extraContent = nil
+        self.extraContentPlacement = .below
+    }
+
+    /// Callout with a rich body: `text` is the heading line, `content` renders
+    /// beneath it inside the same box.
+    init<Content: View>(
+        _ style: Style,
+        _ text: String,
+        contentPlacement: ContentPlacement = .below,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.style = style
+        self.text = text
+        self.actionLabel = nil
+        self.action = nil
+        self.extraContent = AnyView(content())
+        self.extraContentPlacement = contentPlacement
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(
+            alignment: extraContentPlacement == .trailing
+                ? .center
+                : (extraContent == nil ? .center : .top),
+            spacing: 8
+        ) {
             Image(systemName: style.icon)
                 .font(.system(size: 11))
                 .foregroundStyle(style.tint(for: colorScheme))
                 .frame(width: 14)
-            VStack(alignment: .leading, spacing: 6) {
+
+            if extraContentPlacement == .trailing {
                 Text(text)
                     .font(.system(size: 11))
                     .foregroundStyle(.primary.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
-                if let actionLabel, let action {
-                    Button(action: action) {
-                        Text(actionLabel)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(style.tint(for: colorScheme))
+
+                Spacer(minLength: 8)
+
+                if let extraContent {
+                    extraContent
+                        .fixedSize()
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(text)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.primary.opacity(0.7))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let actionLabel, let action {
+                        Button(action: action) {
+                            Text(actionLabel)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(style.tint(for: colorScheme))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    if let extraContent {
+                        extraContent
+                    }
                 }
             }
         }

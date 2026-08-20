@@ -239,8 +239,21 @@ struct CommentInputView: View {
 
     // MARK: - Header
 
+    /// Same precedence rule `saveComment` uses (`WebContextAttachmentPolicy`),
+    /// so the badge shown while composing never disagrees with what actually
+    /// gets saved. Deliberately not `.filtered()`'d, unlike the save path: this
+    /// mirrors the pre-existing behavior of this property (it never filtered
+    /// either), and filtering is a user-visible change beyond unifying which
+    /// context wins - out of scope here.
     private var activeWebContext: WebContext? {
-        controller.pendingElementWebContext ?? WebSocketService.shared.pendingWebContext
+        let isChromium = controller.currentSelection?.appBundleID
+            .flatMap { AppConstants.chromiumBundleIDs.contains($0) } ?? false
+        return WebContextAttachmentPolicy.resolve(
+            isChromium: isChromium,
+            liveChromeContext: WebSocketService.shared.pendingWebContext,
+            elementContext: controller.pendingElementWebContext,
+            externalPageContext: controller.pendingExternalPageContext
+        )
     }
 
     private var activeRegionElements: [WebContext]? {
@@ -249,7 +262,18 @@ struct CommentInputView: View {
 
     private var activeScreenshotWebContext: WebContext? {
         guard controller.shouldAttachWebContextToCurrentScreenshot else { return nil }
-        return activeWebContext
+        // Not routed through activeWebContext: screenshot drafts never carry a
+        // TextSelection (showForScreenshot's beginDraft call never passes
+        // `selection`), so activeWebContext's isChromium gate - derived from
+        // controller.currentSelection - would always read false here and hide
+        // context that is meant to show. Screenshot web context is already
+        // gated upstream, at query time, by
+        // ScreenshotWebContextPolicy.allowsWebContext(sourceBundleID:) in
+        // showForScreenshot, so pendingWebContext being set here already
+        // implies an allowed Chromium source - no additional gating needed at
+        // display time. pendingExternalPageContext is not consulted either:
+        // PopClip never triggers screenshot mode.
+        return controller.pendingElementWebContext ?? WebSocketService.shared.pendingWebContext
     }
 
     @ViewBuilder

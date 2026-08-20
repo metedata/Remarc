@@ -58,6 +58,12 @@ The app's `remarc-cli.js` and `scripts/hooks/*.sh` are gone, along with `ClaudeC
 
 The app-to-plugin contract is documented at `plugins/shared/contracts.md` in the plugin repo. Schema-breaking changes to `comments.json` require coordinated app + plugin releases.
 
+## PopClip payload
+
+`popclip/Remarc.popclipext/` is copied into the app bundle by a "Copy PopClip Extension" shell script build phase, not Copy Bundle Resources - the Xcode project uses synchronized folder groups, which would flatten a `.popclipext` directory into loose files instead of copying it as a package.
+
+This machine accumulates stale LaunchServices registrations for the `remarc:` scheme from deleted worktrees. When testing the URL scheme, confirm from `/tmp/remarc_debug.log` which bundle actually received it rather than assuming it was this build.
+
 ## Build & Relaunch
 
 Build: `cd app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData"`

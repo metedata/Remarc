@@ -356,6 +356,16 @@ public final class PersistenceManager: ObservableObject {
         appState.comments.filter { !$0.isDeleted }
     }
 
+    /// Outstanding comments across every session. Resolved comments stay in
+    /// `allComments`, but do not contribute to badges or session counters.
+    public var unresolvedCommentCount: Int {
+        CommentCountPolicy.unresolvedCount(in: appState.comments)
+    }
+
+    public var unresolvedCommentCountsBySession: [UUID: Int] {
+        CommentCountPolicy.unresolvedCountsBySession(in: appState.comments)
+    }
+
     public var activeComments: [Comment] {
         guard let activeID = appState.activeSessionID else { return [] }
         return comments(for: activeID)

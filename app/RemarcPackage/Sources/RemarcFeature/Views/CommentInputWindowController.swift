@@ -99,6 +99,16 @@ public final class CommentInputController: NSObject, ObservableObject {
     /// reads false forever, leaving the Annotate control permanently disabled.
     var onPanelLayoutReady: (() -> Void)?
     @Published public var pendingElementWebContext: WebContext?
+    /// Page context supplied by an external trigger (currently the `remarc://`
+    /// PopClip path), for browsers Remarc cannot otherwise see into - chiefly
+    /// Safari and Arc, which have no extension. Deliberately NOT routed through
+    /// `WebSocketService.shared.pendingWebContext`: that field is written
+    /// asynchronously by the extension's WebSocket listener whenever the user
+    /// selects text in any Chrome tab, independent of which draft (if any) is
+    /// open, so it cannot be told apart there from context adopted for this
+    /// specific draft. This field is written only by `beginDraft` (reset) and
+    /// the `remarc://` handler (set), so that mixing cannot happen here.
+    @Published public var pendingExternalPageContext: WebContext?
     public var pendingRegionScreenRect: CGRect?
     private let panelWidth: CGFloat = 340
     private let minPanelHeight: CGFloat = 120
@@ -154,6 +164,7 @@ public final class CommentInputController: NSObject, ObservableObject {
         self.screenshotSelectionRect = screenshotSelectionRect
         self.screenshotSourceBundleID = screenshotSourceBundleID
         pendingElementWebContext = elementWebContext
+        pendingExternalPageContext = nil
         self.targetSessionID = targetSessionID
         self.wakeOnSave = wakeOnSave
         currentText = ""
@@ -201,6 +212,7 @@ public final class CommentInputController: NSObject, ObservableObject {
             WebSocketService.shared.dismissRegionHighlight()
         }
         pendingElementWebContext = nil
+        pendingExternalPageContext = nil
         pendingRegionScreenRect = nil
     }
 
@@ -615,13 +627,12 @@ public final class CommentInputController: NSObject, ObservableObject {
         if isChromium {
             WebSocketService.shared.clearPendingContextIfStale(olderThan: 120)
         }
-        let webContext: WebContext? = if isChromium {
-            WebSocketService.shared.pendingWebContext?.filtered()
-        } else if let elementContext = pendingElementWebContext?.filtered() {
-            elementContext
-        } else {
-            nil
-        }
+        let webContext = WebContextAttachmentPolicy.resolve(
+            isChromium: isChromium,
+            liveChromeContext: WebSocketService.shared.pendingWebContext?.filtered(),
+            elementContext: pendingElementWebContext?.filtered(),
+            externalPageContext: pendingExternalPageContext?.filtered()
+        )
         let regionElements: [WebContext]? = if webContext != nil && isElementGrab {
             WebSocketService.shared.pendingRegionElements?.compactMap { $0.filtered() }
         } else {
@@ -661,6 +672,10 @@ public final class CommentInputController: NSObject, ObservableObject {
             WebSocketService.shared.dismissRegionHighlight()
             pendingElementWebContext = nil
         }
+        // Not gated on isElementGrab: this is the PopClip fallback field, which
+        // is only ever non-nil when isElementGrab is false (see its doc comment
+        // at the property declaration). Setting nil-to-nil elsewhere is harmless.
+        pendingExternalPageContext = nil
 
         debugLog("CommentInputController: Comment saved (id=\(comment.id))")
 

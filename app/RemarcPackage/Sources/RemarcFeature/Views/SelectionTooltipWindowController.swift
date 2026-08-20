@@ -37,12 +37,31 @@ public final class SelectionTooltipWindowController: ObservableObject {
         SelectionMonitor.shared.$currentSelection
             .receive(on: DispatchQueue.main)
             .sink { [weak self] selection in
-                if let selection = selection {
-                    debugLog("Tooltip: selection received, scheduling show")
-                    self?.scheduleShow(for: selection)
-                } else {
-                    self?.dismiss()
+                guard let self else { return }
+                guard let selection else {
+                    self.dismiss()
+                    return
                 }
+                guard SelectionUIPolicy.shouldShowSelectionUI(
+                    isPaused: SettingsManager.shared.isPaused,
+                    mode: SettingsManager.shared.selectionDetectionMode
+                ) else {
+                    debugLog("Tooltip: suppressed by detection mode")
+                    self.dismiss()
+                    return
+                }
+                debugLog("Tooltip: selection received, scheduling show")
+                self.scheduleShow(for: selection)
+            }
+            .store(in: &cancellables)
+
+        // Switching to Hotkey Only while a tooltip is on screen must take effect
+        // immediately, not on the next selection.
+        SettingsManager.shared.$selectionDetectionMode
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] mode in
+                guard mode == .hotkeyOnly else { return }
+                self?.dismiss()
             }
             .store(in: &cancellables)
     }

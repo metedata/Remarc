@@ -38,5 +38,5 @@ Five settings control when and where Remarc detects selections:
 | Pause | Right-click menu | Stops selection detection entirely until you resume. The menu bar icon dims while paused. |
 
 :::tip
-If the tooltip appears too often, switch Detection mode to Hotkey Only. Remarc then waits for `Ctrl+Option+C` instead of reacting to every selection.
+If the tooltip appears too often, switch Detection mode to Hotkey Only. Remarc keeps detecting selections in the background but stops showing the tooltip, so you press `Ctrl+Option+C` when you want to comment.
 :::
