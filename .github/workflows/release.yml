@@ -371,8 +371,8 @@ jobs:
     - name: Commit version and create the release tag
       run: |
         set -euo pipefail
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "Mete Polat"
+        git config user.email "20049378+metedata@users.noreply.github.com"
         git add app/Config/Shared.xcconfig
 
         if ! git diff --staged --quiet; then

@@ -67,6 +67,10 @@ Build: `cd app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc 
 
 Always use `"$(pwd)/DerivedData"` (command substitution), never `"$PWD/DerivedData"` — `$PWD` resolves incorrectly in subshells and worktree contexts.
 
+## Contribution Attribution
+
+Use `Mete Polat <20049378+metedata@users.noreply.github.com>` as the author of repository and automated release commits and as the tagger of annotated tags. Automated commits must use the same identity as committer. Do not add `Co-authored-by` or equivalent attribution for bots, models, agents, or anyone else. Attribute another contributor only when Mete explicitly requests it.
+
 ## Git Worktrees — MANDATORY
 
 **All code changes MUST be made in a git worktree, not on main.** Only exceptions: root config files (CLAUDE.md, scripts/, .claude/).

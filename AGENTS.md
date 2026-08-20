@@ -26,6 +26,10 @@ When the user describes a UI bug, confirm WHICH specific component/view they mea
 
 ## Development
 
+### Contribution Attribution
+
+Use `Mete Polat <20049378+metedata@users.noreply.github.com>` as the author of repository and automated release commits and as the tagger of annotated tags. Automated commits must use the same identity as committer. Do not add `Co-authored-by` or equivalent attribution for bots, models, agents, or anyone else. Attribute another contributor only when Mete explicitly requests it.
+
 ### Git Worktrees — MANDATORY
 
 **All code changes MUST be made in a git worktree, not on main.** Always create a worktree before starting any feature, bugfix, or refactor. The only exceptions are edits to root config files (AGENTS.md, scripts/, .Codex/).
