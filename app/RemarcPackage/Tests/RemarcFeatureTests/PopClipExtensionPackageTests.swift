@@ -23,6 +23,41 @@ struct PopClipExtensionPackageTests {
         return (try? String(contentsOf: path, encoding: .utf8)) ?? ""
     }
 
+    private static var readme: String {
+        let path = repoRoot()
+            .appendingPathComponent("popclip/Remarc.popclipext/readme.md")
+        return (try? String(contentsOf: path, encoding: .utf8)) ?? ""
+    }
+
+    private static var directoryConfig: String {
+        let path = repoRoot().appendingPathComponent("popclip-directory.yaml")
+        return (try? String(contentsOf: path, encoding: .utf8)) ?? ""
+    }
+
+    private static var xcodeProject: String {
+        let path = repoRoot().appendingPathComponent("app/Remarc.xcodeproj/project.pbxproj")
+        return (try? String(contentsOf: path, encoding: .utf8)) ?? ""
+    }
+
+    private static var packageFiles: [URL] {
+        let package = repoRoot().appendingPathComponent("popclip/Remarc.popclipext")
+        let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey]
+        guard let enumerator = FileManager.default.enumerator(
+            at: package,
+            includingPropertiesForKeys: keys
+        ) else {
+            return []
+        }
+        return enumerator.compactMap { element in
+            guard let url = element as? URL,
+                  let values = try? url.resourceValues(forKeys: Set(keys)),
+                  values.isRegularFile == true else {
+                return nil
+            }
+            return url
+        }
+    }
+
     @Test("Config declares the Remarc identifier")
     func declaresIdentifier() {
         #expect(Self.config.contains("identifier: com.metepolat.remarc.popclip"))
@@ -36,6 +71,18 @@ struct PopClipExtensionPackageTests {
     @Test("Config declares a popclipVersion new enough for module extensions")
     func declaresModuleCapableVersion() {
         #expect(Self.config.contains("popclipVersion: 4586"))
+    }
+
+    @Test("Config declares Remarc's supported macOS version")
+    func declaresSupportedMacOSVersion() {
+        #expect(Self.config.contains("macosVersion: \"14.0\""))
+    }
+
+    @Test("Config uses the documented target-app bundle identifier array")
+    func declaresTargetAppBundleIdentifiers() {
+        #expect(Self.config.contains("bundleIdentifiers: [\"com.metepolat.Remarc\"]"))
+        #expect(!Self.config.contains("bundleIdentifier: com.metepolat.Remarc"))
+        #expect(Self.config.contains("checkInstalled: true"))
     }
 
     /// Checks the declaration, not the word. A substring search for "entitlements"
@@ -78,5 +125,38 @@ struct PopClipExtensionPackageTests {
     @Test("Config's icon spec keeps the file: prefix required alongside a modifier")
     func iconSpecKeepsFilePrefix() {
         #expect(Self.config.contains("icon: scale=80 file:remarc-logo.svg"))
+    }
+
+    @Test("Directory config opts in only the Remarc package")
+    func directoryConfigTargetsRemarc() {
+        #expect(Self.directoryConfig.contains("include: \"popclip/Remarc.popclipext\""))
+        #expect(Self.directoryConfig.contains("versionPrefix: popclip-v"))
+    }
+
+    @Test("Directory readme covers setup, privacy, and changes")
+    func directoryReadmeIsHelpful() {
+        #expect(Self.readme.contains("## Use"))
+        #expect(Self.readme.contains("## Privacy"))
+        #expect(Self.readme.contains("never transmits the selected text"))
+        #expect(Self.readme.contains("## Changelog"))
+    }
+
+    @Test("App build tracks the directory readme as an extension resource")
+    func appBuildTracksDirectoryReadme() {
+        #expect(Self.xcodeProject.contains("$(SRCROOT)/../popclip/Remarc.popclipext/readme.md"))
+        #expect(Self.xcodeProject.contains(
+            "$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Remarc.popclipext/readme.md"
+        ))
+    }
+
+    @Test("Directory package stays within submission limits")
+    func directoryPackageStaysWithinLimits() {
+        let sizes = Self.packageFiles.compactMap {
+            try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize
+        }
+        #expect(!sizes.isEmpty)
+        #expect(sizes.count <= 100)
+        #expect(sizes.allSatisfy { $0 <= 1_048_576 })
+        #expect(sizes.reduce(0, +) <= 2_097_152)
     }
 }

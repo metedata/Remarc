@@ -197,14 +197,17 @@
 			inputPaths = (
 				"$(SRCROOT)/../popclip/Remarc.popclipext/Config.ts",
 				"$(SRCROOT)/../popclip/Remarc.popclipext/remarc-logo.svg",
+				"$(SRCROOT)/../popclip/Remarc.popclipext/readme.md",
 			);
 			name = "Copy PopClip Extension";
 			outputPaths = (
 				"$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Remarc.popclipext/Config.ts",
+				"$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Remarc.popclipext/remarc-logo.svg",
+				"$(BUILT_PRODUCTS_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Remarc.popclipext/readme.md",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Ship the PopClip extension as a package directory, not loose files.\nset -euo pipefail\n\nSRC=\"${SRCROOT}/../popclip/Remarc.popclipext\"\ntest -s \"$SRC/Config.ts\"\ntest -s \"$SRC/remarc-logo.svg\"\n\nRES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n# This phase is the only destructive step in the build. Confirm the target is a\n# real directory before rm -rf touches anything: set -u catches an unset\n# variable but not an empty one, and an empty RES would aim rm at \"/\".\nif [ ! -d \"$RES\" ]; then\n  echo \"error: resources directory not found at '$RES'\" >&2\n  exit 1\nfi\nrm -rf \"$RES/Remarc.popclipext\"\ncp -R \"$SRC\" \"$RES/Remarc.popclipext\"\n";
+			shellScript = "# Ship the PopClip extension as a package directory, not loose files.\nset -euo pipefail\n\nSRC=\"${SRCROOT}/../popclip/Remarc.popclipext\"\ntest -s \"$SRC/Config.ts\"\ntest -s \"$SRC/remarc-logo.svg\"\ntest -s \"$SRC/readme.md\"\n\nRES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n# This phase is the only destructive step in the build. Confirm the target is a\n# real directory before rm -rf touches anything: set -u catches an unset\n# variable but not an empty one, and an empty RES would aim rm at \"/\".\nif [ ! -d \"$RES\" ]; then\n  echo \"error: resources directory not found at '$RES'\" >&2\n  exit 1\nfi\nrm -rf \"$RES/Remarc.popclipext\"\ncp -R \"$SRC\" \"$RES/Remarc.popclipext\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
