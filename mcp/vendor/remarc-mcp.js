@@ -21949,17 +21949,54 @@ var TRANSCRIPT_GRACE_MS = 5 * 60 * 1e3;
 
 // src/harness.ts
 var declared = null;
+var connected = null;
+function harnessFromClientName(name) {
+  const normalized = name.trim().toLowerCase();
+  if (normalized === "codex" || normalized.startsWith("codex-") || normalized.startsWith("codex_")) {
+    return "codex";
+  }
+  if (normalized === "omp" || normalized.startsWith("omp-") || normalized.startsWith("omp_") || normalized === "oh-my-pi" || normalized.startsWith("oh-my-pi-")) {
+    return "omp";
+  }
+  if (normalized === "claude" || normalized.startsWith("claude-") || normalized.startsWith("claude_")) {
+    return "claudeCode";
+  }
+  return null;
+}
 function setHarnessFromArgv(argv) {
   const i = argv.indexOf("--harness");
   const value = i >= 0 ? argv[i + 1] : void 0;
   declared = value === "codex" || value === "claudeCode" || value === "omp" ? value : null;
 }
+function setHarnessFromClientInfo(clientInfo) {
+  connected = clientInfo?.name ? harnessFromClientName(clientInfo.name) : null;
+}
+function bindHarnessToMcpServer(source) {
+  const previousHandler = source.oninitialized;
+  source.oninitialized = () => {
+    setHarnessFromClientInfo(source.getClientVersion());
+    previousHandler?.();
+  };
+}
 function currentHarness(env = process.env) {
+  if (connected) return connected;
   if (declared) return declared;
   if (env.CLAUDE_PLUGIN_ROOT) return "claudeCode";
-  const haystack = [env.CODEX_HOME ?? "", process.cwd(), process.argv[1] ?? ""];
-  if (haystack.some((s) => s.includes(".codex") || s.includes("/codex/"))) {
+  const launchPaths = [
+    env.PLUGIN_ROOT ?? "",
+    env.PLUGIN_DATA ?? "",
+    process.cwd(),
+    process.argv[1] ?? ""
+  ].map((value) => value.toLowerCase());
+  if (launchPaths.some((path) => path.includes(".codex/") || path.includes("/codex/"))) {
     return "codex";
+  }
+  if (launchPaths.some((path) => path.includes(".omp/") || path.includes("/omp/"))) {
+    return "omp";
+  }
+  if (env.CODEX_HOME) return "codex";
+  if (env.OMP_PROFILE || env.OMP_PROCESSING_AGENT_DIR || env.PI_CODING_AGENT_DIR) {
+    return "omp";
   }
   return "claudeCode";
 }
@@ -22423,12 +22460,12 @@ Summary: ${summary}`);
     }
   });
   server2.registerTool("remarc_create_session", {
-    description: "Create a new Remarc session for Claude Code, Codex, or OMP. OMP sessions use the trusted server identity and pair separately for instant delivery.",
+    description: "Create a new Remarc session for Claude Code, Codex, or OMP. The server derives the host from the MCP initialization identity; OMP sessions pair separately for instant delivery.",
     inputSchema: {
       name: external_exports.string().describe("Session name (e.g. directory name or task description)."),
       claude_session_id: external_exports.string().optional().describe("Your agent session ID. Required for Claude Code and Codex; OMP pairing is owned by remarc-wake."),
       harness: external_exports.enum(["claudeCode", "codex"]).optional().describe(
-        "Which agent you are. Pass this - the server cannot tell. One MCP server serves whichever agent connects to it, so a Codex agent running inside Claude Code reaches Claude Code's server and would otherwise be labelled Claude Code."
+        "Override the detected host only for a nested Claude Code or Codex agent. Usually omit this. For example, a Codex agent running inside Claude Code reaches Claude Code's MCP client and must identify the nested agent explicitly."
       )
     }
   }, async ({ name, claude_session_id, harness }) => {
@@ -22521,12 +22558,13 @@ setHarnessFromArgv(process.argv);
 var server = new McpServer(
   {
     name: "remarc",
-    version: "0.3.0"
+    version: "0.3.1"
   },
   {
     instructions: `Remarc is a macOS contextual commenting app. Comments have short IDs (first 5 UUID chars, e.g. 'a3f2b'). After addressing a comment, call remarc_set_status with status "resolved" and a brief summary of what you did. When resolving multiple comments, use remarc_bulk_set_status to save context.`
   }
 );
+bindHarnessToMcpServer(server.server);
 registerTools(server);
 async function main() {
   const transport = new StdioServerTransport();

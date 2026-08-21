@@ -3,5 +3,5 @@
 enum BundledPluginVersion {
     /// The `remarc` plugin version this app build vendors. Used to tell whether
     /// an installed Claude Code plugin is behind what this app shipped with.
-    static let remarc = "0.13.0"
+    static let remarc = "0.13.1"
 }
