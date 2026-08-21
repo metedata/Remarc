@@ -370,11 +370,11 @@ html.hero-intro-enabled .hero-intro-scene{display:flex}
   filter:drop-shadow(0 4px 4px rgba(0,0,0,.25)) drop-shadow(0 24px 80px rgba(0,0,0,.6));
   animation:hero-intro-fade-in 1s cubic-bezier(.25,.1,.25,1) 1.68s forwards;
 }
-.hero-intro-r-inner{opacity:0;animation:hero-intro-fade-in 1s cubic-bezier(.22,1,.36,1) 1.68s forwards}
+.hero-intro-r-inner{opacity:0;animation:hero-intro-fade-in 1.25s cubic-bezier(.22,1,.36,1) 1.4s forwards}
 .hero-intro-r-inner-bowl{fill:#161728}
 .hero-intro-r-glow{
   opacity:0;transform-box:fill-box;transform-origin:50% 42%;
-  animation:hero-intro-glow-grow .58s cubic-bezier(.25,.1,.25,1) 2.1s forwards,
+  animation:hero-intro-glow-grow .95s cubic-bezier(.25,.1,.25,1) 1.7s forwards,
             hero-intro-breathe 2.4s ease-in-out 3.18s infinite;
 }
 .hero-intro-light{
@@ -1193,6 +1193,7 @@ html.hero-intro-enabled .hero-intro-scene{display:flex}
   var SHRINK_DURATION=1200;
   var HANDOFF_DURATION=400;
   var HANDOFF_DIP=0.28;
+  var HANDOFF_VECTOR_Y=-1;
   var CONTENT_QUEUE_DELAY=400;
   var introCompletionSent=false;
 
@@ -1355,7 +1356,7 @@ html.hero-intro-enabled .hero-intro-scene{display:flex}
 
     var scale=targetRect.width/svgRect.width;
     var dx=(targetRect.left+targetRect.width/2)-(svgRect.left+svgRect.width/2);
-    var dy=(targetRect.top+targetRect.height/2)-(svgRect.top+svgRect.height/2);
+    var dy=(targetRect.top+targetRect.height/2)-(svgRect.top+svgRect.height/2)+HANDOFF_VECTOR_Y;
     shrinkAnimation=canvas.animate([
       {transform:'translate(0px, 0px) scale(1)'},
       {transform:'translate('+dx+'px, '+dy+'px) scale('+scale.toFixed(4)+')'}
