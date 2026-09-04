@@ -8,6 +8,8 @@ import ApplicationServices
 /// Method 4: Clipboard fallback (simulate Cmd+C, read, restore)
 @MainActor
 public final class TextReader {
+    /// Distinguishes our own selection probe from a user/other app's Copy event.
+    static let syntheticCopyEventTag: Int64 = 0x52454D415243
     public static let shared = TextReader()
 
     // Bundle IDs that need AX activation (Electron/Chromium apps)
@@ -291,86 +293,35 @@ public final class TextReader {
         return nil
     }
 
-    /// Pasteboard type markers that tell clipboard managers (Maccy, Paste, Alfred, Raycast)
-    /// to ignore this entry. Convention from 1Password, widely adopted.
-    private static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
-    private static let concealedType = NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType")
-
-    /// Method 3: Clipboard fallback — simulate Cmd+C, read, restore
+    /// Clipboard fallback — simulate Cmd+C, read, restore if no later copy arrived.
     private func simulateCopyAndRead() -> String? {
-        let pasteboard = NSPasteboard.general
-
-        // Save current clipboard state (all items and types)
-        let savedItems = saveClipboard()
-        let previousChangeCount = pasteboard.changeCount
-
-        // Mark clipboard as transient BEFORE Cmd+C so clipboard managers
-        // that snapshot on change see the marker immediately
-        pasteboard.clearContents()
-        pasteboard.setData(Data(), forType: Self.transientType)
-        pasteboard.setData(Data(), forType: Self.concealedType)
-
-        let source = CGEventSource(stateID: .combinedSessionState)
-        let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true) // 'c'
-        let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false)
-        keyDown?.flags = .maskCommand
-        keyUp?.flags = .maskCommand
-        keyDown?.post(tap: .cghidEventTap)
-        keyUp?.post(tap: .cghidEventTap)
-
-        // Wait for clipboard to update
-        usleep(100_000) // 100ms
-
-        let newText: String?
-        if pasteboard.changeCount != previousChangeCount {
-            newText = pasteboard.string(forType: .string)
-        } else {
-            newText = nil
+        // Construct both events before borrowing the clipboard, so a creation
+        // failure leaves the user's contents untouched.
+        guard let source = CGEventSource(stateID: .combinedSessionState),
+              let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true),
+              let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false) else {
+            return nil
         }
-
-        // Restore clipboard with transient markers so the restore itself
-        // doesn't pollute clipboard history either
-        restoreClipboard(savedItems, markTransient: true)
-
-        return newText
-    }
-
-    // MARK: - Clipboard Save/Restore
-
-    private func saveClipboard() -> [[(NSPasteboard.PasteboardType, Data)]] {
-        let pasteboard = NSPasteboard.general
-        guard let items = pasteboard.pasteboardItems else { return [] }
-        return items.map { item in
-            item.types.compactMap { type in
-                guard let data = item.data(forType: type) else { return nil }
-                return (type, data)
-            }
-        }
-    }
-
-    private func restoreClipboard(_ items: [[(NSPasteboard.PasteboardType, Data)]], markTransient: Bool = false) {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-
-        if items.isEmpty {
-            // Clipboard was empty before — just leave it empty with transient marker
-            if markTransient {
-                pasteboard.setData(Data(), forType: Self.transientType)
-            }
-            return
-        }
-
-        for itemData in items {
-            let item = NSPasteboardItem()
-            for (type, data) in itemData {
-                item.setData(data, forType: type)
-            }
-            if markTransient {
-                item.setData(Data(), forType: Self.transientType)
-                item.setData(Data(), forType: Self.concealedType)
-            }
-            pasteboard.writeObjects([item])
-        }
+        keyDown.flags = .maskCommand
+        keyUp.flags = .maskCommand
+        keyDown.setIntegerValueField(.eventSourceUserData, value: Self.syntheticCopyEventTag)
+        keyUp.setIntegerValueField(.eventSourceUserData, value: Self.syntheticCopyEventTag)
+        // These counters also advance while this synchronous read is waiting.
+        // NSEvent's main-thread monitor cannot notice a competing Copy until
+        // after the wait has returned. Allow our one synthetic key-down only.
+        let keyCount = CGEventSource.counterForEventType(.combinedSessionState, eventType: .keyDown)
+        let clickCount = CGEventSource.counterForEventType(.combinedSessionState, eventType: .leftMouseDown)
+        let rightClickCount = CGEventSource.counterForEventType(.combinedSessionState, eventType: .rightMouseDown)
+        let sourcePID = NSWorkspace.shared.frontmostApplication?.processIdentifier
+        return ClipboardCopyReader.read(from: .general, copy: {
+            keyDown.post(tap: .cghidEventTap)
+            keyUp.post(tap: .cghidEventTap)
+        }, isInterrupted: {
+            CGEventSource.counterForEventType(.combinedSessionState, eventType: .keyDown) &- keyCount > 1
+                || CGEventSource.counterForEventType(.combinedSessionState, eventType: .leftMouseDown) != clickCount
+                || CGEventSource.counterForEventType(.combinedSessionState, eventType: .rightMouseDown) != rightClickCount
+                || NSWorkspace.shared.frontmostApplication?.processIdentifier != sourcePID
+        })
     }
 
     // MARK: - Focused Element

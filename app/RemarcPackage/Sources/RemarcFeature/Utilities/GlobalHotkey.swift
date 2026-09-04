@@ -577,10 +577,6 @@ public final class GlobalHotkey {
             return
         }
 
-        // Deep-copy clipboard before overwriting
-        let pasteboard = NSPasteboard.general
-        let savedItems = deepCopyPasteboard(pasteboard)
-
         let text: String
         do {
             text = try await dictationService.stopRecording()
@@ -608,21 +604,21 @@ public final class GlobalHotkey {
         }
         PersistenceManager.shared.addTranscription(text: text, appBundleID: appBundleID, appName: appName)
 
-        // Write text to pasteboard and simulate Cmd+V
-        pasteboard.clearContents()
-        pasteboard.setString(text + " ", forType: .string)
+        // Snapshot immediately before the write: transcription can take time,
+        // during which the user may have copied something they want to keep.
+        guard let restoration = ClipboardRestoration.begin(on: .general, text: text + " ") else {
+            debugLog("GlobalHotkey: clipboard unavailable, skipping dictation paste")
+            return
+        }
 
         DictationSounds.playStop()
 
-        simulatePaste()
+        simulatePaste(ifCurrent: { restoration.isCurrent })
 
         // Restore original clipboard after paste settles
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [savedItems] in
-            pasteboard.clearContents()
-            for item in savedItems {
-                pasteboard.writeObjects([item])
-            }
-            debugLog("GlobalHotkey: clipboard restored")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let restored = restoration.restore()
+            debugLog("GlobalHotkey: dictation clipboard restore \(restored ? "completed" : "skipped after change")")
         }
     }
 
@@ -641,26 +637,26 @@ public final class GlobalHotkey {
             return
         }
 
-        let pasteboard = NSPasteboard.general
-        let savedItems = deepCopyPasteboard(pasteboard)
+        guard let restoration = ClipboardRestoration.begin(on: .general, text: transcription.text + " ") else {
+            debugLog("GlobalHotkey: clipboard unavailable, skipping paste-last-transcription")
+            return
+        }
 
-        pasteboard.clearContents()
-        pasteboard.setString(transcription.text + " ", forType: .string)
+        simulatePaste(ifCurrent: { restoration.isCurrent })
 
-        simulatePaste()
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [savedItems] in
-            pasteboard.clearContents()
-            for item in savedItems {
-                pasteboard.writeObjects([item])
-            }
-            debugLog("GlobalHotkey: clipboard restored after paste-last-transcription")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            let restored = restoration.restore()
+            debugLog("GlobalHotkey: paste-last-transcription restore \(restored ? "completed" : "skipped after change")")
         }
     }
 
     /// Simulate Cmd+V keystroke after a brief delay for the clipboard to settle.
-    private func simulatePaste() {
+    private func simulatePaste(ifCurrent: @escaping @MainActor () -> Bool = { true }) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            guard ifCurrent() else {
+                debugLog("GlobalHotkey: clipboard changed before paste, skipping")
+                return
+            }
             let source = CGEventSource(stateID: .combinedSessionState)
             let keyDown = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: true)
             let keyUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false)
@@ -672,19 +668,4 @@ public final class GlobalHotkey {
         }
     }
 
-    /// Deep-copies all pasteboard items so we can restore after paste.
-    private func deepCopyPasteboard(_ pasteboard: NSPasteboard) -> [NSPasteboardItem] {
-        guard let items = pasteboard.pasteboardItems else { return [] }
-        var copies: [NSPasteboardItem] = []
-        for item in items {
-            let copy = NSPasteboardItem()
-            for type in item.types {
-                if let data = item.data(forType: type) {
-                    copy.setData(data, forType: type)
-                }
-            }
-            copies.append(copy)
-        }
-        return copies
-    }
 }

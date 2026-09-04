@@ -50,8 +50,16 @@ public final class SelectionMonitor: ObservableObject {
 
         keyMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return }
-            // Ignore Cmd+key shortcuts (Cmd+C, Cmd+A, etc.) — those aren't typing
-            guard !event.modifierFlags.contains(.command) else { return }
+            if event.modifierFlags.contains(.command) {
+                // A real Copy/Cut just after highlighting takes precedence over
+                // an automatic probe that has not started yet. Keep any selection
+                // already captured for a subsequent hotkey or PopClip action.
+                if (event.keyCode == 8 || event.keyCode == 7),
+                   event.cgEvent?.getIntegerValueField(.eventSourceUserData) != TextReader.syntheticCopyEventTag {
+                    self.readWorkItem?.cancel()
+                }
+                return
+            }
 
             // Cancel any pending text read (user started typing before read fired)
             self.readWorkItem?.cancel()
