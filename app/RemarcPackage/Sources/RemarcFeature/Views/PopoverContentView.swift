@@ -68,6 +68,9 @@ struct PopoverContentView: View {
                 return map
             }()
             result = result.filter { comment in
+                if comment.id.uuidString.localizedStandardContains(query) {
+                    return true
+                }
                 if let displayText = comment.type.displayText,
                    displayText.lowercased().contains(query) {
                     return true

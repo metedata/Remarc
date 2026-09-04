@@ -19,6 +19,9 @@ struct CommentHistoryView: View {
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             result = result.filter { comment in
+                if comment.id.uuidString.localizedStandardContains(query) {
+                    return true
+                }
                 if let displayText = comment.type.displayText,
                    displayText.lowercased().contains(query) {
                     return true
