@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Refresh the vendored MCP server from the plugin repo, which owns it.
+# Refresh the vendored MCP server and skill from the plugin repo, which owns them.
 #
 # The server used to be written twice - here and in the plugin repo - and kept
 # in sync by hand. It wasn't: the app shipped a build with none of the document
 # transaction, unknown-field passthrough, or status compare-and-set, for months.
 # Every fix had to be made in two places and one of them was always forgotten.
 #
-# There is one implementation now. This copies its built artifact and records
+# There is one implementation now. This copies its built artifact and skill and records
 # exactly which commit produced it, so a stale vendor is a visible fact rather
 # than an invisible one.
 #
@@ -14,42 +14,55 @@
 set -euo pipefail
 
 PLUGIN_REPO="${1:-${REMARC_PLUGIN_REPO:-$HOME/Developer/remarc-agent-plugins}}"
-DEST="$(cd "$(dirname "$0")/.." && pwd)/mcp/vendor"
+APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DEST="$APP_ROOT/mcp/vendor"
 SRC="$PLUGIN_REPO/plugins/remarc/mcp"
+SKILL_SRC="$PLUGIN_REPO/plugins/remarc/skills/remarc/SKILL.md"
+SKILL_DEST="$APP_ROOT/mcp/skill/SKILL.md"
 
 [ -d "$SRC" ] || { echo "error: no plugin repo at $PLUGIN_REPO" >&2; exit 1; }
+[ -s "$SKILL_SRC" ] || { echo "error: no canonical Remarc skill at $SKILL_SRC" >&2; exit 1; }
 
 # Build from source rather than trusting a committed dist that may itself be
 # stale - the exact failure this script exists to prevent.
 ( cd "$SRC" && npm ci --prefer-offline --no-audit --fund=false >/dev/null && npm run build >/dev/null )
 
 COMMIT="$(git -C "$PLUGIN_REPO" rev-parse HEAD)"
-DIRTY="$(git -C "$PLUGIN_REPO" status --porcelain | head -1)"
+DIRTY="$(git -C "$PLUGIN_REPO" status --porcelain)"
 if [ -n "$DIRTY" ]; then
   echo "error: plugin repo has uncommitted changes; vendor only from a committed state" >&2
   exit 1
 fi
 
-VERSION="$(python3 -c "import json;print(json.load(open('$PLUGIN_REPO/plugins/remarc/.claude-plugin/plugin.json'))['version'])")"
+VERSION="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$PLUGIN_REPO/plugins/remarc/.claude-plugin/plugin.json")"
 
-mkdir -p "$DEST"
+mkdir -p "$DEST" "$(dirname "$SKILL_DEST")"
 cp "$SRC/dist/index.js" "$DEST/remarc-mcp.js"
+cp "$SKILL_SRC" "$SKILL_DEST"
 SHA="$(shasum -a 256 "$DEST/remarc-mcp.js" | awk '{print $1}')"
+SKILL_SHA="$(shasum -a 256 "$SKILL_DEST" | awk '{print $1}')"
 
-cat > "$DEST/PROVENANCE.json" <<EOF
-{
-  "source": "https://github.com/metedata/remarc-agent-plugins",
-  "path": "plugins/remarc/mcp/dist/index.js",
-  "commit": "$COMMIT",
-  "pluginVersion": "$VERSION",
-  "sha256": "$SHA"
-}
-EOF
+python3 - "$DEST/PROVENANCE.json" "$COMMIT" "$VERSION" "$SHA" "$SKILL_SHA" <<'PY'
+import json
+import sys
+
+destination, commit, version, server_sha, skill_sha = sys.argv[1:]
+with open(destination, "w") as output:
+    json.dump({
+        "source": "https://github.com/metedata/remarc-agent-plugins",
+        "path": "plugins/remarc/mcp/dist/index.js",
+        "commit": commit,
+        "pluginVersion": version,
+        "sha256": server_sha,
+        "skillPath": "plugins/remarc/skills/remarc/SKILL.md",
+        "skillSha256": skill_sha,
+    }, output, indent=2)
+    output.write("\n")
+PY
 
 # Surface the vendored plugin version to Swift so Preferences can tell when an
 # installed Claude Code plugin is behind what this build shipped with. Generated,
 # committed, and kept in lockstep with PROVENANCE by this same script.
-APP_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GEN_DIR="$APP_ROOT/app/RemarcPackage/Sources/RemarcFeature/Generated"
 mkdir -p "$GEN_DIR"
 cat > "$GEN_DIR/BundledPluginVersion.swift" <<EOF
@@ -62,4 +75,4 @@ enum BundledPluginVersion {
 }
 EOF
 
-echo "vendored $VERSION from ${COMMIT:0:12} (sha256 ${SHA:0:16})"
+echo "vendored $VERSION from ${COMMIT:0:12} (server ${SHA:0:16}, skill ${SKILL_SHA:0:16})"

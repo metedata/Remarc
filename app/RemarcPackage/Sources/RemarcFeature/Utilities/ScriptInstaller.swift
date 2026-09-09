@@ -10,17 +10,6 @@ enum ScriptInstaller {
         ("remarc-mcp", "js"),
     ]
 
-    // Bundle path is constant for the process lifetime.
-    private static let parentDirectories: [URL] = {
-        var dir = URL(fileURLWithPath: Bundle.main.bundlePath)
-        var dirs: [URL] = []
-        for _ in 0..<10 {
-            dir = dir.deletingLastPathComponent()
-            dirs.append(dir)
-        }
-        return dirs
-    }()
-
     /// Copies bundled scripts to App Support. Call on every launch.
     @discardableResult
     static func installBundledScripts() -> Bool {
@@ -107,15 +96,17 @@ enum ScriptInstaller {
     }
 
     /// Walks up from the app bundle looking for a source tree file.
-    /// Returns the shallowest match (project root over worktree).
-    static func sourceTreePath(_ relativePath: String) -> String? {
-        var best: String?
-        for dir in parentDirectories {
+    /// The nearest checkout owns this build. Selecting an enclosing main
+    /// checkout would run an older MCP server with the new bundle's skill.
+    static func sourceTreePath(_ relativePath: String, bundleURL: URL = Bundle.main.bundleURL) -> String? {
+        var dir = bundleURL
+        for _ in 0..<10 {
+            dir = dir.deletingLastPathComponent()
             let candidate = dir.appendingPathComponent(relativePath)
             if FileManager.default.fileExists(atPath: candidate.path) {
-                best = candidate.path
+                return candidate.path
             }
         }
-        return best
+        return nil
     }
 }

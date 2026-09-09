@@ -160,16 +160,11 @@ public final class SettingsManager: ObservableObject {
     }
 
     /// Absolute folder for new screenshots. Empty means Application Support/Remarc/images.
-    @Published public var screenshotDirectoryPath: String {
-        didSet {
-            if screenshotDirectoryPath.isEmpty {
-                defaults.removeObject(forKey: Keys.screenshotDirectoryPath)
-            } else {
-                defaults.set(screenshotDirectoryPath, forKey: Keys.screenshotDirectoryPath)
-            }
-            try? FileManager.default.createDirectory(
-                at: remarcImagesDirectoryURL, withIntermediateDirectories: true)
-        }
+    @Published public private(set) var screenshotDirectoryPath: String
+
+    /// Changes the destination only after the folder has been validated for saving images.
+    public func setScreenshotDirectory(_ directory: URL?) throws {
+        screenshotDirectoryPath = try ScreenshotStorage.configure(directory: directory, defaults: defaults)
     }
 
     @Published public var resolvedCommentDeletion: ResolvedCommentDeletion {

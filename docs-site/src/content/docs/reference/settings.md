@@ -47,7 +47,11 @@ Two settings shape what ends up on the clipboard.
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| Storage folder | `~/Library/Application Support/Remarc/images` | Choose a folder agents and other apps can read. New screenshots go there; existing images stay where they were saved. Use Default restores Application Support. |
+| Storage folder | `~/Library/Application Support/Remarc/images` | Choose a folder for new screenshots and pasted image attachments. Use Default restores Application Support for new images. |
+
+Choose a folder that Remarc can write to and your agent can access. Existing images stay editable in their original locations; choosing another folder or Use Default does not migrate them. Keep those folders available for previewing and editing older images.
+
+If the selected folder becomes unavailable or a write fails, Remarc does not silently fall back to Application Support. Reconnect the folder or choose another location before saving again. Image retention continues to apply to Remarc images and their annotation sidecars in current and previous folders.
 
 ### Retention
 

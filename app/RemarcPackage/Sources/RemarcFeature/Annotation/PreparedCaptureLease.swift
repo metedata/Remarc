@@ -159,6 +159,7 @@ public enum PreparedCaptureLeaseRegistry {
         public var deleted: [String] = []
         public var keptLive: [String] = []
         public var keptReferenced: [String] = []
+        public var keptFailed: [String] = []
         public var rejectedPath: [String] = []
     }
 
@@ -195,8 +196,16 @@ public enum PreparedCaptureLeaseRegistry {
                 // never have sidecars - annotation happens on committed comments
                 // - but this sweep exists to reclaim files nothing references,
                 // and leaving a base behind would defeat exactly that.
-                try? AnnotationMarkStore.deleteImageFamily(lease.path)
-                result.deleted.append(lease.path)
+                do {
+                    try AnnotationMarkStore.deleteImageFamily(lease.path)
+                    result.deleted.append(lease.path)
+                } catch {
+                    // An unavailable custom folder or partial family deletion
+                    // must remain tracked so a later launch can finish it.
+                    survivors.append(lease)
+                    result.keptFailed.append(lease.path)
+                    debugLog("PreparedCaptureLeaseRegistry: keeping failed cleanup for \(lease.path) - \(error)")
+                }
             }
             leases = survivors
             return result

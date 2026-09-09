@@ -6,12 +6,19 @@ import AppKit
 final class AnnotationExporterTests: XCTestCase {
 
     private var written: [String] = []
+    private var storage = TemporaryStorageRoot()
+
+    override func setUpWithError() throws {
+        storage = TemporaryStorageRoot()
+        try storage.install()
+    }
 
     override func tearDownWithError() throws {
         for path in written {
             try? FileManager.default.removeItem(at: resolveImagePath(path))
         }
         written.removeAll()
+        storage.remove()
     }
 
     private func makeStoredImage(width: Int = 40, height: Int = 30) throws -> String {

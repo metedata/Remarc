@@ -75,11 +75,6 @@ public func debugLog(_ message: String) {
 
 // MARK: - Image Path Helpers
 
-/// UserDefaults key for a custom screenshot folder. Empty / missing means
-/// `Application Support/Remarc/images`. Read from path helpers off the main
-/// actor, so this is not owned by `SettingsManager`.
-public let remarcScreenshotDirectoryPathKey = "screenshotDirectoryPath"
-
 /// The real storage root. Computed once; the app never uses anything else.
 private let productionAppSupportURL: URL = {
     let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -97,72 +92,6 @@ nonisolated(unsafe) var remarcAppSupportOverride: URL?
 
 var remarcAppSupportURL: URL {
     remarcAppSupportOverride ?? productionAppSupportURL
-}
-
-var remarcUsesCustomScreenshotDirectory: Bool {
-    let path = UserDefaults.standard.string(forKey: remarcScreenshotDirectoryPathKey) ?? ""
-    return !path.isEmpty
-}
-
-var remarcImagesDirectoryURL: URL {
-    if let custom = UserDefaults.standard.string(forKey: remarcScreenshotDirectoryPathKey),
-       !custom.isEmpty {
-        return URL(fileURLWithPath: custom, isDirectory: true)
-    }
-    return remarcAppSupportURL.appendingPathComponent("images", isDirectory: true)
-}
-
-/// Resolves a stored image path. Relative paths stay under App Support/Remarc/;
-/// absolute paths (custom screenshot folders) are used as-is so MCP and other
-/// apps can open the file.
-public func resolveImagePath(_ storedPath: String) -> URL {
-    if storedPath.hasPrefix("/") {
-        return URL(fileURLWithPath: storedPath)
-    }
-    return remarcAppSupportURL.appendingPathComponent(storedPath)
-}
-
-func remarcNewScreenshotStoredPath() throws -> String {
-    let dir = remarcImagesDirectoryURL
-    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    let filename = "\(UUID().uuidString).png"
-    if remarcUsesCustomScreenshotDirectory {
-        return dir.appendingPathComponent(filename).path
-    }
-    return "images/\(filename)"
-}
-
-func writeNewScreenshotData(_ data: Data) throws -> String {
-    let stored = try remarcNewScreenshotStoredPath()
-    try data.write(to: resolveImagePath(stored), options: .atomic)
-    return stored
-}
-
-func isRemarcManagedImageFilename(_ name: String) -> Bool {
-    for suffix in [".base.png", ".marks.json", ".png"] where name.hasSuffix(suffix) {
-        return UUID(uuidString: String(name.dropLast(suffix.count))) != nil
-    }
-    return false
-}
-
-/// Direct child of the current screenshot folder or the default `images/` folder.
-/// Absolute UUID-named files from a previous custom folder stay writable so
-/// annotation and retention still work after the setting moves.
-/// ponytail: absolute UUID pngs trusted without a root history; allowlist previous roots if comments.json is ever untrusted
-func remarcOwnedImageURL(for storedPath: String) -> URL? {
-    let target = resolveImagePath(storedPath).standardizedFileURL.resolvingSymlinksInPath()
-    let parent = target.deletingLastPathComponent()
-    let current = remarcImagesDirectoryURL.standardizedFileURL.resolvingSymlinksInPath()
-    let fallback = remarcAppSupportURL
-        .appendingPathComponent("images", isDirectory: true)
-        .standardizedFileURL.resolvingSymlinksInPath()
-    if parent.path == current.path || parent.path == fallback.path {
-        return target
-    }
-    if storedPath.hasPrefix("/"), isRemarcManagedImageFilename(target.lastPathComponent) {
-        return target
-    }
-    return nil
 }
 
 /// Loads an NSImage from a stored image path.

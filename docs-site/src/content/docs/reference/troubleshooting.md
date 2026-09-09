@@ -50,9 +50,17 @@ A harness can list the plugin as installed even when the MCP server fails to sta
 
 Screenshot comments require the Screen Recording permission. Grant it in System Settings > Privacy & Security > Screen & System Audio Recording (called Screen Recording on older macOS), then try again. If macOS offers Quit & Reopen after you change the setting, accept it.
 
+If capture opens but saving fails, check Settings > General > Screenshots > Storage folder. A custom folder must remain available and writable. Reconnect its drive, restore write access, or choose another folder and try again. Remarc does not silently save to the default folder when the selected location fails.
+
+## My agent cannot open a screenshot file
+
+Some agents cannot read `~/Library` or cannot access files on your Mac. Choose an accessible folder under Settings > General > Screenshots > Storage folder for new screenshots and pasted image attachments. A local folder choice cannot give a remote agent access to your Mac's filesystem.
+
+Existing images stay in their original folders and remain editable there; changing the setting does not migrate them. Keep those folders available. The preview panel's Save As action exports a separate copy without changing the path referenced by the comment.
+
 ## Quick answers
 
-**Where is my data stored?** In `~/Library/Application Support/Remarc/`, as `comments.json` plus image files. Screenshots can use a different folder if you set one in Settings. See [data, privacy & updates](/reference/data-and-privacy/).
+**Where is my data stored?** Sessions and comments live in `~/Library/Application Support/Remarc/comments.json`. Screenshots and pasted image attachments use its `images/` folder by default, or a custom folder selected in Settings. See [data, privacy & updates](/reference/data-and-privacy/).
 
 **Is anything sent to a server?** Remarc stores comments, screenshots, and audio on your Mac. Data can leave through agents and webhooks you explicitly use; other network activity is limited to update checks, transcription model downloads, and agent plugin installs.
 
@@ -66,7 +74,7 @@ Screenshot comments require the Screen Recording permission. Grant it in System 
 
 1. If the Cursor integration is enabled, turn it off in Settings > MCP Integrations; this removes the files Remarc wrote to `~/.cursor`. If you skip this, remove the `remarc` entry from `~/.cursor/mcp.json` and delete `~/.cursor/skills/remarc/` by hand.
 2. If you installed the Claude Code or Codex plugins, uninstall them from those tools (for example `/plugin` in Claude Code).
-3. Quit Remarc, delete the app, and delete `~/Library/Application Support/Remarc/` to remove all data.
+3. Quit Remarc, delete the app, and delete `~/Library/Application Support/Remarc/`. If you used custom screenshot folders, remove Remarc's images and annotation sidecars from those folders too when you want to remove all captured data.
 
 ## Still stuck
 

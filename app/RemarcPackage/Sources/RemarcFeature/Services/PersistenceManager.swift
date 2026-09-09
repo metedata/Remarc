@@ -239,24 +239,46 @@ public final class PersistenceManager: ObservableObject {
     /// copy of the original capture, so a missed sidecar means a permanently
     /// deleted comment's screenshot stays on disk.
     ///
-    /// Callers are fire-and-forget deletion paths that cannot meaningfully
-    /// recover, but the failure is logged rather than dropped: a surviving
-    /// sidecar is what resurrects stale marks later.
-    static func deleteImageFamily(_ relativePath: String) {
+    /// A failed deletion stays tracked by the caller so an unavailable custom
+    /// folder or a partially deleted family can be retried on a later launch.
+    @discardableResult
+    static func deleteImageFamily(_ relativePath: String) -> Bool {
         do {
             try AnnotationMarkStore.deleteImageFamily(relativePath)
+            return true
         } catch {
             debugLog("PersistenceManager: could not fully delete \(relativePath) - \(error)")
+            return false
+        }
+    }
+
+    /// Permanent deletion removes the comment immediately; any files that
+    /// could not be removed still need a durable cleanup reference.
+    static func deleteImageOrRetainForRetry(_ path: String, orphanedImages: inout [OrphanedImage]) {
+        guard !deleteImageFamily(path) else { return }
+        if let index = orphanedImages.firstIndex(where: { $0.path == path }) {
+            orphanedImages[index] = OrphanedImage(
+                id: orphanedImages[index].id, path: path, deletedAt: .distantPast)
+        } else {
+            orphanedImages.append(OrphanedImage(path: path, deletedAt: .distantPast))
+        }
+    }
+
+    /// Keep failed cleanup records, including when the primary PNG was removed
+    /// but one of its annotation sidecars could not be deleted.
+    static func pruneExpiredImages(_ orphanedImages: inout [OrphanedImage], before cutoff: Date) {
+        orphanedImages.removeAll { orphan in
+            orphan.deletedAt < cutoff && deleteImageFamily(orphan.path)
         }
     }
 
     public func permanentlyDeleteSession(_ id: UUID) {
         for comment in appState.comments where comment.sessionID == id {
             if let imagePath = comment.type.imagePath {
-                Self.deleteImageFamily(imagePath)
+                Self.deleteImageOrRetainForRetry(imagePath, orphanedImages: &appState.orphanedImages)
             }
             for attachment in comment.attachments {
-                Self.deleteImageFamily(attachment)
+                Self.deleteImageOrRetainForRetry(attachment, orphanedImages: &appState.orphanedImages)
             }
         }
         appState.sessions.removeAll { $0.id == id }
@@ -464,12 +486,10 @@ public final class PersistenceManager: ObservableObject {
                 WebhookService.shared.dispatch(.commentDeleted, comment: comment)
             }
             if let imagePath = comment.type.imagePath {
-                Self.deleteImageFamily(imagePath)
-                debugLog("PersistenceManager: Deleted image file \(imagePath)")
+                Self.deleteImageOrRetainForRetry(imagePath, orphanedImages: &appState.orphanedImages)
             }
             for attachment in comment.attachments {
-                Self.deleteImageFamily(attachment)
-                debugLog("PersistenceManager: Deleted attachment file \(attachment)")
+                Self.deleteImageOrRetainForRetry(attachment, orphanedImages: &appState.orphanedImages)
             }
         }
         appState.comments.removeAll { $0.id == id }
@@ -1062,9 +1082,10 @@ public final class PersistenceManager: ObservableObject {
             return self.referencesImage(path)
         }
         guard !result.deleted.isEmpty || !result.keptReferenced.isEmpty
-                || !result.rejectedPath.isEmpty else { return }
+                || !result.keptFailed.isEmpty || !result.rejectedPath.isEmpty else { return }
         debugLog("PersistenceManager: Lease reconcile - deleted \(result.deleted.count), "
                  + "kept referenced \(result.keptReferenced.count), "
+                 + "kept failed \(result.keptFailed.count), "
                  + "kept live \(result.keptLive.count), rejected path \(result.rejectedPath.count)")
     }
 
@@ -1378,17 +1399,12 @@ public final class PersistenceManager: ObservableObject {
 
         // Pass 2: Prune orphaned images past image retention
         let orphansBefore = appState.orphanedImages.count
-        for orphan in appState.orphanedImages where orphan.deletedAt < imageCutoff {
-            Self.deleteImageFamily(orphan.path)
-            debugLog("PersistenceManager: Pruned orphaned image \(orphan.path)")
-        }
+        Self.pruneExpiredImages(&appState.orphanedImages, before: imageCutoff)
 
         // Sweep up pairs stranded by an older build or by a delete that failed
         // partway. Without this, sidecars orphaned before deleteImageFamily
         // existed would never be collected by anything.
         AnnotationMarkStore.removeOrphanedSidecars()
-
-        appState.orphanedImages.removeAll { $0.deletedAt < imageCutoff }
 
         // Pass 3: Prune old transcriptions (soft-deleted or past retention)
         let transcriptionsBefore = appState.transcriptions.count

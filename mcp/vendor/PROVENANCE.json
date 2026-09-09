@@ -1,7 +1,9 @@
 {
   "source": "https://github.com/metedata/remarc-agent-plugins",
   "path": "plugins/remarc/mcp/dist/index.js",
-  "commit": "b2d154b84a9168bce288ee7cf329e4a8e2298fd0",
-  "pluginVersion": "0.13.1",
-  "sha256": "e17664b2dea302bee7969a2c3b4693d96a57443fe8ad252a983512ed7047f4a8"
+  "commit": "10212dc0bb509167217dff1ce782d6c0a0231bc4",
+  "pluginVersion": "0.13.3",
+  "sha256": "afdae8acdec43877ff6ba7d35f7a645ab5692e9d3f4092e87fc1a63d3fa96873",
+  "skillPath": "plugins/remarc/skills/remarc/SKILL.md",
+  "skillSha256": "739c1eee609e271b385ddf094f9c08ed864fdbbfdc025165012cdf6dace80d45"
 }

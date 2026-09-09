@@ -216,6 +216,7 @@ struct PreferencesView: View {
     @State private var codexPluginChecked = false
     @State private var codexInstalling = false
     @State private var codexInstallError: String?
+    @State private var screenshotFolderError: String?
     private let codexDetector = CodexPluginDetector()
     @ObservedObject private var webSocketService = WebSocketService.shared
     @State private var pendingHarnesses: Set<SkillInstaller.Harness> = []
@@ -420,11 +421,11 @@ struct PreferencesView: View {
                     VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
                         settingsRow("Storage folder") {
                             HStack(spacing: 8) {
-                                textButton("Choose\u{2026}") { chooseScreenshotFolder() }
+                                textButton("Choose\u{2026}", action: chooseScreenshotFolder)
+                                    .accessibilityLabel("Choose screenshot storage folder")
                                 if !settings.screenshotDirectoryPath.isEmpty {
-                                    textButton("Use Default", restOpacity: 0.6) {
-                                        settings.screenshotDirectoryPath = ""
-                                    }
+                                    textButton("Use Default", restOpacity: 0.6, action: useDefaultScreenshotFolder)
+                                        .accessibilityLabel("Use default screenshot storage folder")
                                 }
                             }
                         }
@@ -432,9 +433,12 @@ struct PreferencesView: View {
                             .settingDescriptionStyle()
                             .lineLimit(2)
                             .truncationMode(.middle)
-                            .help(screenshotFolderDescription)
-                        Text("New screenshots go here. Existing images stay where they were saved.")
+                            .help(screenshotFolderURL.path)
+                        Text("Existing images stay in their original folders. Your coding agent needs access to this folder.")
                             .settingDescriptionStyle()
+                        if let error = screenshotFolderError {
+                            settingsHint(error, icon: "exclamationmark.triangle.fill", tint: Color.remarcError(for: colorScheme))
+                        }
                     }
                 }
 
@@ -2566,18 +2570,33 @@ struct PreferencesView: View {
         .onAppear { loadExcludedApps() }
     }
 
-    private var screenshotFolderDescription: String {
-        let path: String
+    private var screenshotFolderURL: URL {
         if settings.screenshotDirectoryPath.isEmpty {
-            path = remarcAppSupportURL.appendingPathComponent("images", isDirectory: true).path
-        } else {
-            path = settings.screenshotDirectoryPath
+            return remarcAppSupportURL.appendingPathComponent("images", isDirectory: true)
         }
+        return URL(fileURLWithPath: settings.screenshotDirectoryPath, isDirectory: true)
+    }
+
+    private var screenshotFolderDescription: String {
+        let path = screenshotFolderURL.path
         let home = NSHomeDirectory()
-        if path.hasPrefix(home) {
+        if path == home || path.hasPrefix(home + "/") {
             return "~" + path.dropFirst(home.count)
         }
         return path
+    }
+
+    private func useDefaultScreenshotFolder() {
+        setScreenshotFolder(nil)
+    }
+
+    private func setScreenshotFolder(_ directory: URL?) {
+        do {
+            try settings.setScreenshotDirectory(directory)
+            screenshotFolderError = nil
+        } catch {
+            screenshotFolderError = error.localizedDescription
+        }
     }
 
     private func chooseScreenshotFolder() {
@@ -2586,21 +2605,13 @@ struct PreferencesView: View {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
         panel.message = "Choose a folder for screenshot files"
-        if !settings.screenshotDirectoryPath.isEmpty {
-            panel.directoryURL = URL(fileURLWithPath: settings.screenshotDirectoryPath, isDirectory: true)
-        }
+        panel.directoryURL = screenshotFolderURL
 
         let handler: (NSApplication.ModalResponse) -> Void = { response in
             guard response == .OK, let url = panel.url else { return }
-            let defaultDir = remarcAppSupportURL
-                .appendingPathComponent("images", isDirectory: true)
-                .standardizedFileURL
-            if url.standardizedFileURL.path == defaultDir.path {
-                self.settings.screenshotDirectoryPath = ""
-            } else {
-                self.settings.screenshotDirectoryPath = url.path
-            }
+            self.setScreenshotFolder(url)
         }
 
         if let window = NSApp.keyWindow {

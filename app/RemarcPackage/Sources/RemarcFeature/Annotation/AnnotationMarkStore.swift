@@ -4,7 +4,7 @@ import CryptoKit
 
 /// Durable storage for re-editable annotations.
 ///
-/// Three files per annotated image, all inside `Remarc/images`:
+/// Three files per annotated image, together in its original storage folder:
 ///
 /// - `<uuid>.png`        the flattened result. Unchanged in role: thumbnails,
 ///                       Copy, Save As and every export still read only this.
@@ -203,19 +203,12 @@ public enum AnnotationMarkStore {
     /// number of files removed.
     @discardableResult
     public static func removeOrphanedSidecars() -> Int {
-        var removed = removeOrphanedSidecars(
-            in: remarcImagesDirectoryURL,
-            storedPathForFile: { name in
-                remarcUsesCustomScreenshotDirectory
-                    ? remarcImagesDirectoryURL.appendingPathComponent(name).path
-                    : "images/\(name)"
-            })
-        let defaultDir = remarcAppSupportURL.appendingPathComponent("images", isDirectory: true)
-        if defaultDir.standardizedFileURL.resolvingSymlinksInPath().path
-            != remarcImagesDirectoryURL.standardizedFileURL.resolvingSymlinksInPath().path {
-            removed += removeOrphanedSidecars(in: defaultDir, storedPathForFile: { name in
-                "images/\(name)"
-            })
+        var removed = 0
+        for directory in ScreenshotStorage.ownedDirectories {
+            // A previously selected folder may be offline or replaced by a
+            // symlink. Never enumerate a new destination through that alias.
+            guard directory.resolvingSymlinksInPath().path == directory.path else { continue }
+            removed += removeOrphanedSidecars(in: directory)
         }
         if removed > 0 {
             debugLog("AnnotationMarkStore: removed \(removed) orphaned sidecar file(s)")
@@ -223,10 +216,7 @@ public enum AnnotationMarkStore {
         return removed
     }
 
-    private static func removeOrphanedSidecars(
-        in imagesDir: URL,
-        storedPathForFile: (String) -> String
-    ) -> Int {
+    private static func removeOrphanedSidecars(in imagesDir: URL) -> Int {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: imagesDir.path) else {
             return 0
         }
@@ -238,12 +228,19 @@ public enum AnnotationMarkStore {
             else if name.hasSuffix(marksSuffix) { suffix = marksSuffix }
             else { continue }
 
-            let primary = storedPathForFile(String(name.dropLast(suffix.count)) + ".png")
-            guard !FileManager.default.fileExists(atPath: resolveImagePath(primary).path) else {
+            let sidecar = imagesDir.appendingPathComponent(name).path
+            guard remarcOwnedImageURL(for: sidecar) != nil else { continue }
+            let primary = imagesDir.appendingPathComponent(String(name.dropLast(suffix.count)) + ".png")
+            // An inaccessible primary is not evidence of an orphan. Only an
+            // explicit ENOENT permits deletion of its editable state.
+            do {
+                _ = try primary.resourceValues(forKeys: [.isRegularFileKey])
                 continue
+            } catch {
+                guard isMissingFile(error) else { continue }
             }
             do {
-                try removeOwnedFileIfPresent(storedPathForFile(name))
+                try removeOwnedFileIfPresent(sidecar)
                 removed += 1
             } catch {
                 debugLog("AnnotationMarkStore: could not remove orphaned \(name) - \(error)")
@@ -276,11 +273,24 @@ public enum AnnotationMarkStore {
 
     private static func removeOwnedFileIfPresent(_ relativePath: String) throws {
         let url = try ownedURL(for: relativePath)
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        // Missing custom roots must remain retryable, including an unplugged
+        // drive. A missing file within an available directory is already clean.
+        try ScreenshotStorage.requireDirectory(url.deletingLastPathComponent())
         do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            guard attributes[.type] as? FileAttributeType == .typeRegular else {
+                throw AnnotationExporter.ExportError.notOwnedPath(relativePath)
+            }
             try FileManager.default.removeItem(at: url)
         } catch {
+            guard !isMissingFile(error) else { return }
             throw AnnotationExporter.ExportError.writeFailed("\(error)")
         }
+    }
+
+    private static func isMissingFile(_ error: Error) -> Bool {
+        let error = error as NSError
+        return error.domain == NSCocoaErrorDomain
+            && (error.code == NSFileNoSuchFileError || error.code == NSFileReadNoSuchFileError)
     }
 }

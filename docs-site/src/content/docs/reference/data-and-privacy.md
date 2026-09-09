@@ -7,10 +7,12 @@ Everything Remarc captures stays on your Mac. There is no account, no sign-in, a
 
 ## Where your data lives
 
-Remarc stores all data in `~/Library/Application Support/Remarc/`:
+Remarc stores sessions and comments in `~/Library/Application Support/Remarc/`:
 
 - `comments.json` holds your sessions and comments.
-- Screenshots and image attachments are stored as files in `images/` by default, and referenced by comments. You can choose a different screenshot folder in [Settings](/reference/settings/) if another app cannot read `~/Library`. New captures use that folder; existing images stay where they were saved.
+- Screenshots and pasted image attachments are stored as files in `images/` by default, and referenced by comments. You can choose a different screenshot folder in [Settings](/reference/settings/) if another app cannot read `~/Library`. New images use that folder; existing images remain accessible and editable in their original locations. Changing the setting does not migrate files.
+
+Keep custom folders available to Remarc and accessible to any agent that needs to open their files. If a folder is unavailable or a write fails, Remarc does not silently save the image in the default folder.
 
 Agents read and update comments through MCP (Model Context Protocol) tools rather than editing the file directly. See the [agents overview](/agents/overview/).
 
@@ -32,6 +34,8 @@ The [Chrome extension](/chrome-extension/) talks to the app over a local WebSock
 ## Retention
 
 The retention pickers in [Settings](/reference/settings/) prune data automatically: comment history, stored images, and dictation transcriptions each have their own setting and schedule. Deleting a comment moves it to History first, where it can be restored until retention removes it.
+
+Image retention also applies to Remarc images in custom folders, including folders you used previously. Removing an image removes its annotation sidecars too. Unrelated files in those folders are left alone.
 
 ## Debug logging
 
