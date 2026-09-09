@@ -53,12 +53,19 @@ final class ThirdPartyNoticesTests: XCTestCase {
 
     func testNoticeCoversVendoredMCPPackages() throws {
         let notice = try canonicalNotice()
+        let provenance = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(
+            contentsOf: repositoryRoot.appendingPathComponent("mcp/vendor/PROVENANCE.json")
+        )) as? [String: Any])
+        let commit = try XCTUnwrap(provenance["commit"] as? String)
+        let version = try XCTUnwrap(provenance["pluginVersion"] as? String)
+        XCTAssertTrue(notice.contains(commit), "MCP notices must identify the vendored source commit.")
+        XCTAssertTrue(notice.contains("plugin version `\(version)`"), "MCP notices must identify the vendored plugin version.")
         let mcpPackages = [
             "@modelcontextprotocol/sdk 1.29.0",
             "ajv 8.20.0",
             "ajv-formats 3.0.1",
             "fast-deep-equal 3.1.3",
-            "fast-uri 3.1.5",
+            "fast-uri 3.1.7",
             "json-schema-traverse 1.0.0",
             "zod 3.25.76",
             "zod-to-json-schema 3.25.2",

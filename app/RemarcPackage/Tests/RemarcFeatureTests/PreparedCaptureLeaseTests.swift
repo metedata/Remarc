@@ -6,6 +6,20 @@ import XCTest
 /// orphans from pruned comments, and attachments written before any comment
 /// points at them.
 final class PreparedCaptureLeaseTests: XCTestCase {
+    private var storage: TemporaryStorageRoot!
+
+    override func setUpWithError() throws {
+        storage = TemporaryStorageRoot()
+        try storage.install()
+        // Lease bookkeeping must also work on a clean install. Fixture
+        // writers below create directories only when they place files there.
+        try FileManager.default.removeItem(at: storage.url.appendingPathComponent("images"))
+    }
+
+    override func tearDownWithError() throws {
+        storage?.remove()
+        storage = nil
+    }
 
     private func lease(_ path: String,
                        pid: Int32 = 424242,
@@ -118,8 +132,7 @@ final class PreparedCaptureLeaseTests: XCTestCase {
         // PNG, sees nothing referencing it, deletes it, and the original process
         // then creates a comment pointing at a missing file.
         let path = "images/\(UUID().uuidString).png"
-        let url = resolveImagePath(path)
-        try Data("png".utf8).write(to: url)
+        let url = try writeImageFixture(path)
         defer { try? FileManager.default.removeItem(at: url) }
 
         try PreparedCaptureLeaseRegistry.record(path: path)
@@ -136,8 +149,7 @@ final class PreparedCaptureLeaseTests: XCTestCase {
 
     func testACrashLeftoverIsDeletedAndDropped() throws {
         let path = "images/\(UUID().uuidString).png"
-        let url = resolveImagePath(path)
-        try Data("png".utf8).write(to: url)
+        let url = try writeImageFixture(path)
         defer { try? FileManager.default.removeItem(at: url) }
 
         try writeRawLeases([lease(path, pid: 99_999)])
@@ -154,8 +166,7 @@ final class PreparedCaptureLeaseTests: XCTestCase {
         // The owner died after the comment landed. The file is real and
         // referenced; only the bookkeeping is stale.
         let path = "images/\(UUID().uuidString).png"
-        let url = resolveImagePath(path)
-        try Data("png".utf8).write(to: url)
+        let url = try writeImageFixture(path)
         defer { try? FileManager.default.removeItem(at: url) }
 
         try writeRawLeases([lease(path, pid: 99_999)])
@@ -173,8 +184,7 @@ final class PreparedCaptureLeaseTests: XCTestCase {
         // Stands in for a retained orphan or a draft-held attachment: on disk,
         // unreferenced, and not in the registry.
         let path = "images/\(UUID().uuidString).png"
-        let url = resolveImagePath(path)
-        try Data("png".utf8).write(to: url)
+        let url = try writeImageFixture(path)
         defer { try? FileManager.default.removeItem(at: url) }
 
         let result = PreparedCaptureLeaseRegistry.reconcile { _ in false }
@@ -185,20 +195,35 @@ final class PreparedCaptureLeaseTests: XCTestCase {
     }
 
     func testACorruptRegistryPathIsRejectedNotDeleted() throws {
-        try writeRawLeases([lease("images/../../../../../../tmp/remarc-lease-probe.png",
+        let outside = storage.url.appendingPathComponent("\(UUID().uuidString).png")
+        let original = Data("unrelated file".utf8)
+        try original.write(to: outside)
+        try writeRawLeases([lease("images/../\(outside.lastPathComponent)",
                                   pid: 99_999)])
         let result = PreparedCaptureLeaseRegistry.reconcile { _ in false }
         XCTAssertEqual(result.deleted, [])
         XCTAssertEqual(result.rejectedPath.count, 1)
+        XCTAssertEqual(try Data(contentsOf: outside), original)
     }
 
     // MARK: - Helper
 
+    private func writeImageFixture(_ path: String) throws -> URL {
+        let url = resolveImagePath(path)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        try Data("png".utf8).write(to: url)
+        return url
+    }
+
     /// Writes leases straight into the registry, so a dead-owner lease can be
     /// staged without a second process.
     private func writeRawLeases(_ leases: [PreparedCaptureLease]) throws {
+        let url = PreparedCaptureLeaseRegistry.registryURL
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
         let existing = PreparedCaptureLeaseRegistry.currentLeases()
         let data = try JSONEncoder().encode(existing + leases)
-        try data.write(to: PreparedCaptureLeaseRegistry.registryURL, options: .atomic)
+        try data.write(to: url, options: .atomic)
     }
 }
