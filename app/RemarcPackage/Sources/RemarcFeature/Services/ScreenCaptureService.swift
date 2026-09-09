@@ -991,29 +991,14 @@ public final class ScreenCaptureService {
 
     // MARK: - Save
 
-    /// Save the captured image as a PNG in the Remarc images directory.
-    /// Returns the relative path from the Remarc Application Support directory (e.g. "images/{uuid}.png").
+    /// Save the captured image as a PNG in the current screenshot directory.
+    /// Returns the stored path (`images/{uuid}.png` or an absolute path).
     private func saveImage(_ image: NSImage) throws -> String {
         guard let pngData = image.pngData()
         else {
             throw CaptureError.imageConversionFailed
         }
-
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let imagesDir = appSupport
-            .appendingPathComponent("Remarc", isDirectory: true)
-            .appendingPathComponent("images", isDirectory: true)
-
-        // Ensure directory exists
-        if !FileManager.default.fileExists(atPath: imagesDir.path) {
-            try FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true)
-        }
-
-        let filename = "\(UUID().uuidString).png"
-        let fileURL = imagesDir.appendingPathComponent(filename)
-        try pngData.write(to: fileURL, options: .atomic)
-
-        return "images/\(filename)"
+        return try writeNewScreenshotData(pngData)
     }
 
     // MARK: - Clipboard
@@ -1428,7 +1413,13 @@ public final class ScreenCaptureService {
             }
         }
 
-        let relativePath = "images/\(UUID().uuidString).png"
+        let relativePath: String
+        do {
+            relativePath = try remarcNewScreenshotStoredPath()
+        } catch {
+            report(error, operation: "prepareCommit.write")
+            return .failure(error, cleanup: nil)
+        }
         var leaseRecorded = false
         do {
             // Off the main actor: the registry is guarded by DocumentLock, which
@@ -1443,8 +1434,6 @@ public final class ScreenCaptureService {
 
             let data = try AnnotationExporter.pngData(from: image)
             let url = resolveImagePath(relativePath)
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try data.write(to: url, options: .atomic)
 
             // After the PNG, and deliberately not fatal. The capture is complete

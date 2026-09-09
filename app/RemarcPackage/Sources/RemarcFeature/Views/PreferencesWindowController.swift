@@ -414,6 +414,32 @@ struct PreferencesView: View {
 
                 Divider()
 
+                VStack(alignment: .leading, spacing: Self.itemSpacing) {
+                    sectionHeader("Screenshots", description: "Where captured images are stored.")
+
+                    VStack(alignment: .leading, spacing: SettingsMetrics.descriptionSpacing) {
+                        settingsRow("Storage folder") {
+                            HStack(spacing: 8) {
+                                textButton("Choose\u{2026}") { chooseScreenshotFolder() }
+                                if !settings.screenshotDirectoryPath.isEmpty {
+                                    textButton("Use Default", restOpacity: 0.6) {
+                                        settings.screenshotDirectoryPath = ""
+                                    }
+                                }
+                            }
+                        }
+                        Text(screenshotFolderDescription)
+                            .settingDescriptionStyle()
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                            .help(screenshotFolderDescription)
+                        Text("New screenshots go here. Existing images stay where they were saved.")
+                            .settingDescriptionStyle()
+                    }
+                }
+
+                Divider()
+
                 // Retention section
                 VStack(alignment: .leading, spacing: Self.itemSpacing) {
                     sectionHeader("Retention", description: "How long comments and images are kept.")
@@ -2538,6 +2564,50 @@ struct PreferencesView: View {
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear { loadExcludedApps() }
+    }
+
+    private var screenshotFolderDescription: String {
+        let path: String
+        if settings.screenshotDirectoryPath.isEmpty {
+            path = remarcAppSupportURL.appendingPathComponent("images", isDirectory: true).path
+        } else {
+            path = settings.screenshotDirectoryPath
+        }
+        let home = NSHomeDirectory()
+        if path.hasPrefix(home) {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
+    }
+
+    private func chooseScreenshotFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose a folder for screenshot files"
+        if !settings.screenshotDirectoryPath.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: settings.screenshotDirectoryPath, isDirectory: true)
+        }
+
+        let handler: (NSApplication.ModalResponse) -> Void = { response in
+            guard response == .OK, let url = panel.url else { return }
+            let defaultDir = remarcAppSupportURL
+                .appendingPathComponent("images", isDirectory: true)
+                .standardizedFileURL
+            if url.standardizedFileURL.path == defaultDir.path {
+                self.settings.screenshotDirectoryPath = ""
+            } else {
+                self.settings.screenshotDirectoryPath = url.path
+            }
+        }
+
+        if let window = NSApp.keyWindow {
+            panel.beginSheetModal(for: window, completionHandler: handler)
+        } else {
+            panel.begin(completionHandler: handler)
+        }
     }
 
     private func addExcludedApp() {

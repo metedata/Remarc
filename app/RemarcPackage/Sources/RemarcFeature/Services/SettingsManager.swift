@@ -13,6 +13,7 @@ public final class SettingsManager: ObservableObject {
     nonisolated static let fnKeyDictationKey = "dictationUsesFnKey"
     nonisolated static let fnKeyHandsFreeKey = "dictationHandsFreeUsesFnKey"
     nonisolated static let dictationEnabledKey = "dictationEnabled"
+    nonisolated static let screenshotDirectoryPathKey = remarcScreenshotDirectoryPathKey
 
     nonisolated static func isDictationEnabled(in defaults: UserDefaults) -> Bool {
         defaults.bool(forKey: dictationEnabledKey)
@@ -32,6 +33,7 @@ public final class SettingsManager: ObservableObject {
         static let widgetCorner = "widgetCorner"
         static let normalizeWhitespace = "normalizeWhitespace"
         static let copyScreenshotToClipboard = "copyScreenshotToClipboard"
+        static let screenshotDirectoryPath = SettingsManager.screenshotDirectoryPathKey
         static let deleteResolvedComments = "deleteResolvedComments" // legacy migration key
         static let resolvedCommentDeletion = "resolvedCommentDeletion"
         static let autoClearAfterExport = "autoClearAfterExport" // legacy migration key
@@ -155,6 +157,19 @@ public final class SettingsManager: ObservableObject {
 
     @Published public var copyScreenshotToClipboard: Bool {
         didSet { defaults.set(copyScreenshotToClipboard, forKey: Keys.copyScreenshotToClipboard) }
+    }
+
+    /// Absolute folder for new screenshots. Empty means Application Support/Remarc/images.
+    @Published public var screenshotDirectoryPath: String {
+        didSet {
+            if screenshotDirectoryPath.isEmpty {
+                defaults.removeObject(forKey: Keys.screenshotDirectoryPath)
+            } else {
+                defaults.set(screenshotDirectoryPath, forKey: Keys.screenshotDirectoryPath)
+            }
+            try? FileManager.default.createDirectory(
+                at: remarcImagesDirectoryURL, withIntermediateDirectories: true)
+        }
     }
 
     @Published public var resolvedCommentDeletion: ResolvedCommentDeletion {
@@ -531,6 +546,7 @@ public final class SettingsManager: ObservableObject {
             self.normalizeWhitespace = true
         }
         self.copyScreenshotToClipboard = defaults.bool(forKey: Keys.copyScreenshotToClipboard)
+        self.screenshotDirectoryPath = defaults.string(forKey: Keys.screenshotDirectoryPath) ?? ""
 
         // Migration: old Bool deleteResolvedComments → new enum resolvedCommentDeletion
         if let saved = defaults.string(forKey: Keys.resolvedCommentDeletion),

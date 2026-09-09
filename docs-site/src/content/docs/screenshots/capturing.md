@@ -24,11 +24,12 @@ The preview panel opens when you click a screenshot thumbnail on a comment card.
 
 ## Settings
 
-Two screenshot settings live in Settings > General:
+Screenshot settings live in Settings > General:
 
 | Setting | Default | Notes |
 | --- | --- | --- |
 | Add screenshots to clipboard | Off | Also copies the image to the clipboard when a capture is saved |
+| Storage folder | Application Support | Choose a folder for new screenshots so agents and other apps can read the files. Existing images stay where they were saved. |
 | Image retention | 1 week | 1 week, 2 weeks, 1 month |
 
 Remarc keeps images longer than comment history so exported references stay valid.

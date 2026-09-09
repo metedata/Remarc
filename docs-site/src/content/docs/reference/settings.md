@@ -43,6 +43,12 @@ Two settings shape what ends up on the clipboard.
 | Clean up whitespace | On | Normalizes whitespace in the quoted selection text. |
 | Add screenshots to clipboard | Off | Also copies the captured image when you save a screenshot comment. |
 
+### Screenshots
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| Storage folder | `~/Library/Application Support/Remarc/images` | Choose a folder agents and other apps can read. New screenshots go there; existing images stay where they were saved. Use Default restores Application Support. |
+
 ### Retention
 
 Retention settings decide how long Remarc keeps history, images, and resolved comments.

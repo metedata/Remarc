@@ -31,8 +31,8 @@ public enum AnnotationExporter {
         return data
     }
 
-    /// Atomically replace a stored image, refusing anything outside
-    /// `Remarc/images`.
+    /// Atomically replace a stored image, refusing anything outside an owned
+    /// screenshot folder.
     ///
     /// Both sides are resolved through `standardizedFileURL` and
     /// `resolvingSymlinksInPath()` before comparison, so `..` traversal and a
@@ -48,14 +48,7 @@ public enum AnnotationExporter {
     /// encoding the image twice, and without the risk that a second encode
     /// produces something subtly different from what landed on disk.
     public static func replaceOwnedData(_ data: Data, at relativePath: String) throws {
-        let imagesDir = remarcAppSupportURL
-            .appendingPathComponent("images", isDirectory: true)
-            .standardizedFileURL.resolvingSymlinksInPath()
-        let target = resolveImagePath(relativePath)
-            .standardizedFileURL.resolvingSymlinksInPath()
-
-        guard target.pathComponents.count == imagesDir.pathComponents.count + 1,
-              target.deletingLastPathComponent().path == imagesDir.path else {
+        guard let target = remarcOwnedImageURL(for: relativePath) else {
             throw ExportError.notOwnedPath(relativePath)
         }
 
@@ -66,20 +59,14 @@ public enum AnnotationExporter {
         }
     }
 
-    /// Write a fresh PNG under `Remarc/images` and return its relative path.
+    /// Write a fresh PNG under the current screenshot folder and return its stored path.
     public static func writeNewImage(_ image: CGImage) throws -> String {
-        let imagesDir = remarcAppSupportURL.appendingPathComponent("images", isDirectory: true)
-        if !FileManager.default.fileExists(atPath: imagesDir.path) {
-            try FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true)
-        }
-        let relativePath = "images/\(UUID().uuidString).png"
         let data = try pngData(from: image)
         do {
-            try data.write(to: resolveImagePath(relativePath), options: .atomic)
+            return try writeNewScreenshotData(data)
         } catch {
             throw ExportError.writeFailed("\(error)")
         }
-        return relativePath
     }
 
     /// Decode at exact pixel dimensions. `NSImage(contentsOf:)` reports points and

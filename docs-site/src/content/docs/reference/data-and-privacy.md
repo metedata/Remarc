@@ -10,7 +10,7 @@ Everything Remarc captures stays on your Mac. There is no account, no sign-in, a
 Remarc stores all data in `~/Library/Application Support/Remarc/`:
 
 - `comments.json` holds your sessions and comments.
-- Screenshots and image attachments are stored as files in the same folder and referenced by comments.
+- Screenshots and image attachments are stored as files in `images/` by default, and referenced by comments. You can choose a different screenshot folder in [Settings](/reference/settings/) if another app cannot read `~/Library`. New captures use that folder; existing images stay where they were saved.
 
 Agents read and update comments through MCP (Model Context Protocol) tools rather than editing the file directly. See the [agents overview](/agents/overview/).
 

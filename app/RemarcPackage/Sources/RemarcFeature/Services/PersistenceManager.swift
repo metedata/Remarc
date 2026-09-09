@@ -332,14 +332,12 @@ public final class PersistenceManager: ObservableObject {
             return nil
         }
 
-        let filename = "images/\(UUID().uuidString).png"
-        let url = resolveImagePath(filename)
         do {
-            try pngData.write(to: url)
-            debugLog("PersistenceManager: Saved attachment image \(filename)")
-            return filename
+            let stored = try writeNewScreenshotData(pngData)
+            debugLog("PersistenceManager: Saved attachment image \(stored)")
+            return stored
         } catch {
-            debugLog("PersistenceManager: Failed to save attachment image — \(error)")
+            debugLog("PersistenceManager: Failed to save attachment image - \(error)")
             return nil
         }
     }

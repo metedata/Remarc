@@ -52,7 +52,7 @@ Screenshot comments require the Screen Recording permission. Grant it in System 
 
 ## Quick answers
 
-**Where is my data stored?** In `~/Library/Application Support/Remarc/`, as `comments.json` plus image files. See [data, privacy & updates](/reference/data-and-privacy/).
+**Where is my data stored?** In `~/Library/Application Support/Remarc/`, as `comments.json` plus image files. Screenshots can use a different folder if you set one in Settings. See [data, privacy & updates](/reference/data-and-privacy/).
 
 **Is anything sent to a server?** Remarc stores comments, screenshots, and audio on your Mac. Data can leave through agents and webhooks you explicitly use; other network activity is limited to update checks, transcription model downloads, and agent plugin installs.
 

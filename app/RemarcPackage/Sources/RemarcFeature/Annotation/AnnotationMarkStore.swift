@@ -203,7 +203,30 @@ public enum AnnotationMarkStore {
     /// number of files removed.
     @discardableResult
     public static func removeOrphanedSidecars() -> Int {
-        let imagesDir = remarcAppSupportURL.appendingPathComponent("images", isDirectory: true)
+        var removed = removeOrphanedSidecars(
+            in: remarcImagesDirectoryURL,
+            storedPathForFile: { name in
+                remarcUsesCustomScreenshotDirectory
+                    ? remarcImagesDirectoryURL.appendingPathComponent(name).path
+                    : "images/\(name)"
+            })
+        let defaultDir = remarcAppSupportURL.appendingPathComponent("images", isDirectory: true)
+        if defaultDir.standardizedFileURL.resolvingSymlinksInPath().path
+            != remarcImagesDirectoryURL.standardizedFileURL.resolvingSymlinksInPath().path {
+            removed += removeOrphanedSidecars(in: defaultDir, storedPathForFile: { name in
+                "images/\(name)"
+            })
+        }
+        if removed > 0 {
+            debugLog("AnnotationMarkStore: removed \(removed) orphaned sidecar file(s)")
+        }
+        return removed
+    }
+
+    private static func removeOrphanedSidecars(
+        in imagesDir: URL,
+        storedPathForFile: (String) -> String
+    ) -> Int {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: imagesDir.path) else {
             return 0
         }
@@ -215,19 +238,16 @@ public enum AnnotationMarkStore {
             else if name.hasSuffix(marksSuffix) { suffix = marksSuffix }
             else { continue }
 
-            let primary = "images/" + String(name.dropLast(suffix.count)) + ".png"
+            let primary = storedPathForFile(String(name.dropLast(suffix.count)) + ".png")
             guard !FileManager.default.fileExists(atPath: resolveImagePath(primary).path) else {
                 continue
             }
             do {
-                try removeOwnedFileIfPresent("images/" + name)
+                try removeOwnedFileIfPresent(storedPathForFile(name))
                 removed += 1
             } catch {
                 debugLog("AnnotationMarkStore: could not remove orphaned \(name) - \(error)")
             }
-        }
-        if removed > 0 {
-            debugLog("AnnotationMarkStore: removed \(removed) orphaned sidecar file(s)")
         }
         return removed
     }
@@ -239,14 +259,7 @@ public enum AnnotationMarkStore {
     /// comparison, so `..` traversal and a symlinked images directory land on
     /// the real path rather than a string that merely looks contained.
     private static func ownedURL(for relativePath: String) throws -> URL {
-        let imagesDir = remarcAppSupportURL
-            .appendingPathComponent("images", isDirectory: true)
-            .standardizedFileURL.resolvingSymlinksInPath()
-        let target = resolveImagePath(relativePath)
-            .standardizedFileURL.resolvingSymlinksInPath()
-
-        guard target.pathComponents.count == imagesDir.pathComponents.count + 1,
-              target.deletingLastPathComponent().path == imagesDir.path else {
+        guard let target = remarcOwnedImageURL(for: relativePath) else {
             throw AnnotationExporter.ExportError.notOwnedPath(relativePath)
         }
         return target

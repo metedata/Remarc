@@ -92,15 +92,10 @@ public enum PreparedCaptureLeaseRegistry {
     /// `resolveImagePath` appends whatever components it is handed, so a corrupt
     /// or hand-edited registry could otherwise aim a delete anywhere on disk.
     public static func isDeletableImagePath(_ relativePath: String) -> Bool {
-        let imagesDir = remarcAppSupportURL
-            .appendingPathComponent("images", isDirectory: true)
-            .standardizedFileURL.resolvingSymlinksInPath()
-        let candidate = resolveImagePath(relativePath)
-            .standardizedFileURL.resolvingSymlinksInPath()
-
-        guard candidate.deletingLastPathComponent().path == imagesDir.path else { return false }
+        guard let candidate = remarcOwnedImageURL(for: relativePath) else { return false }
         let name = candidate.lastPathComponent
-        guard name.lowercased().hasSuffix(".png") else { return false }
+        guard name.lowercased().hasSuffix(".png"),
+              !name.lowercased().hasSuffix(".base.png") else { return false }
         return UUID(uuidString: String(name.dropLast(4))) != nil
     }
 
@@ -111,6 +106,8 @@ public enum PreparedCaptureLeaseRegistry {
     /// target explicitly is what makes this atomic across instances.
     private static func mutate<T>(_ body: (inout [PreparedCaptureLease]) -> T) throws -> T {
         let url = registryURL
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         return try DocumentLock.withLock(url) {
             var leases = readUnlocked(url)
             let result = body(&leases)
