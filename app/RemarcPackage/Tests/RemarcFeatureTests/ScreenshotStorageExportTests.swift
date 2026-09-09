@@ -24,7 +24,7 @@ final class ScreenshotStorageExportTests: XCTestCase {
         try assertExport(comments, session: session, directory: ScreenshotStorage.defaultDirectory)
     }
 
-    func testCustomFolderWithSpacesAndParenthesesSurvivesJSONExport() throws {
+    func testCustomFolderWithSpacesAndParenthesesSurvivesExport() throws {
         let directory = try chooseFolder("Design review (screenshots)")
         let session = Session(name: "Custom storage")
         let comments = try makeComments(session: session)
@@ -32,6 +32,37 @@ final class ScreenshotStorageExportTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(comments[1].attachments.first).hasPrefix(directory.path + "/"))
 
         try assertExport(comments, session: session, directory: directory)
+    }
+
+    func testMarkdownDelimitersAndUnicodeRoundTripToReadableImages() throws {
+        let directory = try chooseFolder("Design [v1] (final) <tag> #?%20\\\nMété 日本")
+        let session = Session(name: "Unusual folder characters")
+        let comments = try makeComments(session: session)
+
+        try assertExport(comments, session: session, directory: directory)
+    }
+
+    func testWebhookPayloadPreservesCustomScreenshotAndAttachmentPaths() throws {
+        _ = try chooseFolder("Design review (Mété 日本) #percent%")
+        let session = Session(name: "Webhook storage")
+        let comments = try makeComments(session: session)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        for comment in comments {
+            let body = WebhookService.buildDefaultBody(
+                event: .commentCreated, comment: comment, sessionName: session.name,
+                sessionID: session.id, timestamp: Date(), appVersion: "test")
+            let payload = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            let serialized = try JSONSerialization.data(withJSONObject: XCTUnwrap(payload["comment"]))
+            let delivered = try decoder.decode(RemarcFeature.Comment.self, from: serialized)
+            XCTAssertEqual(delivered.type, comment.type)
+            XCTAssertEqual(delivered.attachments, comment.attachments)
+            for path in (delivered.type.imagePath.map { [$0] } ?? []) + delivered.attachments {
+                XCTAssertTrue(path.hasPrefix("/"))
+                XCTAssertNotNil(NSImage(contentsOfFile: path))
+            }
+        }
     }
 
     func testChangingAndResettingFolderDoesNotRedirectExportedReferences() throws {
@@ -84,6 +115,28 @@ final class ScreenshotStorageExportTests: XCTestCase {
         _ comments: [RemarcFeature.Comment], session: Session, directory: URL,
         file: StaticString = #filePath, line: UInt = #line
     ) throws {
+        let markdown = ExportManager.shared.markdownForComments(
+            comments, referenceStyle: .blockquote, numberingStyle: .none,
+            dividerStyle: .horizontalRule, dateFormat: .iso,
+            includeRemarkID: false, includeSource: false, includeDate: false,
+            includeStatus: false, includeType: false)
+        // Parse the whole export, rather than comparing against another copy
+        // of the formatter. Every image must still resolve to its actual PNG.
+        let parsed = try AttributedString(markdown: markdown)
+        let imageURLs = parsed.runs.compactMap(\.imageURL)
+        let expectedPaths = comments.flatMap { comment in
+            (comment.type.imagePath.map { [$0] } ?? []) + comment.attachments
+        }.map { resolveImagePath($0).path }
+        XCTAssertEqual(imageURLs.map { $0.path(percentEncoded: false) }, expectedPaths,
+                       file: file, line: line)
+        for imageURL in imageURLs {
+            XCTAssertNil(imageURL.query, file: file, line: line)
+            XCTAssertNil(imageURL.fragment, file: file, line: line)
+            let fileURL = URL(fileURLWithPath: imageURL.path(percentEncoded: false))
+            XCTAssertNotNil(NSImage(contentsOf: fileURL), "Parsed Markdown must load the saved PNG",
+                            file: file, line: line)
+        }
+
         for includeMetadata in [false, true] {
             let json = ExportManager.shared.jsonForSession(
                 session, comments: comments, includeMetadata: includeMetadata)

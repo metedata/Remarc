@@ -171,11 +171,15 @@ struct ExportFormatTests {
     }
 
     @Test("Screenshot comment reference")
-    @MainActor func screenshotReference() {
+    @MainActor func screenshotReference() throws {
         let comment = makeScreenshotComment()
-        let result = ExportManager.shared.formatReference(comment, style: .blockquote)
+        let result = try #require(ExportManager.shared.formatReference(comment, style: .blockquote))
         let expectedPath = resolveImagePath("images/screenshot.png").path
-        #expect(result == "![screenshot](\(expectedPath))")
+        let parsed = try AttributedString(markdown: result)
+        let images = parsed.runs.compactMap(\.imageURL)
+        #expect(images.count == 1)
+        #expect(images.first?.path(percentEncoded: false) == expectedPath)
+        #expect(String(parsed.characters) == "screenshot")
     }
 
     @Test("Quick note reference")

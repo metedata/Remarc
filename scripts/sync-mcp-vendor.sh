@@ -19,9 +19,11 @@ DEST="$APP_ROOT/mcp/vendor"
 SRC="$PLUGIN_REPO/plugins/remarc/mcp"
 SKILL_SRC="$PLUGIN_REPO/plugins/remarc/skills/remarc/SKILL.md"
 SKILL_DEST="$APP_ROOT/mcp/skill/SKILL.md"
+NOTICE_SRC="$PLUGIN_REPO/plugins/remarc/THIRD-PARTY-NOTICES.md"
 
 [ -d "$SRC" ] || { echo "error: no plugin repo at $PLUGIN_REPO" >&2; exit 1; }
 [ -s "$SKILL_SRC" ] || { echo "error: no canonical Remarc skill at $SKILL_SRC" >&2; exit 1; }
+[ -s "$NOTICE_SRC" ] || { echo "error: no canonical MCP notices at $NOTICE_SRC" >&2; exit 1; }
 
 # Build from source rather than trusting a committed dist that may itself be
 # stale - the exact failure this script exists to prevent.
@@ -58,6 +60,34 @@ with open(destination, "w") as output:
         "skillSha256": skill_sha,
     }, output, indent=2)
     output.write("\n")
+PY
+
+# Keep the distributed licenses and their source attribution aligned with the
+# bundle, preserving the app's separate Swift dependency notices.
+python3 - "$APP_ROOT" "$NOTICE_SRC" "$COMMIT" "$VERSION" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+root, source, commit, version = sys.argv[1:]
+root = Path(root)
+notice = root / "THIRD-PARTY-NOTICES.md"
+marker = "## Bundled Remarc MCP server\n"
+existing = notice.read_text()
+if existing.count(marker) != 1:
+    raise SystemExit("error: expected exactly one bundled MCP notices section")
+canonical = Path(source).read_text()
+dependencies = canonical[canonical.index("\n## ") + 1:]
+dependencies = re.sub(r"^## ", "### ", dependencies, flags=re.MULTILINE)
+updated = existing.split(marker)[0] + marker + "\n" + (
+    "`mcp/vendor/remarc-mcp.js` is a single-file bundle built from\n"
+    "https://github.com/metedata/remarc-agent-plugins at commit\n"
+    f"`{commit}` (plugin version `{version}`).\n"
+    "The following packages are present in that bundle. Build-only and test-only\n"
+    "packages from the source repository are not redistributed in this file.\n\n"
+) + dependencies
+notice.write_text(updated)
+(root / "app/RemarcPackage/Sources/RemarcFeature/Resources/THIRD-PARTY-NOTICES.md").write_text(updated)
 PY
 
 # Surface the vendored plugin version to Swift so Preferences can tell when an

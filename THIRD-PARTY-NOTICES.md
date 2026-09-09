@@ -932,7 +932,7 @@ SOFTWARE.
 
 `mcp/vendor/remarc-mcp.js` is a single-file bundle built from
 https://github.com/metedata/remarc-agent-plugins at commit
-`d09a9552d61287eb52bbb4a63ac3ef54fadee2a3` (plugin version `0.12.0`).
+`f83bad48573a0d5abbdf64d72b390efa6c2c72a2` (plugin version `0.13.3`).
 The following packages are present in that bundle. Build-only and test-only
 packages from the source repository are not redistributed in this file.
 
@@ -994,7 +994,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 ```
 
 ### ajv-formats 3.0.1
@@ -1057,7 +1056,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### fast-uri 3.1.5
+### fast-uri 3.1.7
 
 - Source: https://github.com/fastify/fast-uri
 

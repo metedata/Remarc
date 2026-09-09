@@ -69,6 +69,14 @@ public final class ExportManager {
 
     // MARK: - Formatting Helpers
 
+    /// Keep each filesystem path a single Markdown destination. URL encoding
+    /// preserves literal percent signs, delimiters, and newlines in folder
+    /// names; angle brackets also protect parentheses from Markdown parsing.
+    private func markdownImage(_ storedPath: String, label: String) -> String {
+        let destination = resolveImagePath(storedPath).path(percentEncoded: true)
+        return "![\(label)](<\(destination)>)"
+    }
+
     /// Format a comment's reference text according to the chosen style.
     /// Returns nil for quick notes (no reference to show).
     public func formatReference(_ comment: Comment, style: SettingsManager.ReferenceStyle) -> String? {
@@ -87,7 +95,7 @@ public final class ExportManager {
                 return "\"\(oneLine)\""
             }
         case .screenshot(let imagePath):
-            return "![screenshot](\(resolveImagePath(imagePath).path))"
+            return markdownImage(imagePath, label: "screenshot")
         case .quickNote:
             return nil
         case .critMode:
@@ -301,7 +309,7 @@ public final class ExportManager {
 
             // Attachments
             for attachment in comment.attachments {
-                lines.append("![attachment](\(resolveImagePath(attachment).path))")
+                lines.append(markdownImage(attachment, label: "attachment"))
             }
 
             // Metadata line
@@ -546,7 +554,7 @@ public final class ExportManager {
                 if !prefix.isEmpty {
                     segments.append(PreviewSegment(text: prefix, highlights: [.numbering]))
                 }
-                segments.append(PreviewSegment(text: "![screenshot](\(imagePath))", highlights: [.reference]))
+                segments.append(PreviewSegment(text: markdownImage(imagePath, label: "screenshot"), highlights: [.reference]))
                 lines.append(PreviewLine(id: lines.count, segments: segments))
             case .quickNote:
                 break

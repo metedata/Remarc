@@ -69,7 +69,7 @@ gh workflow run release.yml \
 1. Require the repository to be public and the dispatch to come from `main`, validate semantic-version/build inputs against the live appcast, and fail closed if that version/build or a conflicting tag or GitHub Release already exists.
 2. Checkout the current `main`, select Xcode 26.2, and bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Shared.xcconfig`.
 3. Install the Developer ID certificate and provisioning profile into an ephemeral keychain.
-4. Archive and export the Release configuration using only versions pinned in `Package.resolved`. A build phase verifies the committed `mcp/vendor/remarc-mcp.js` against its recorded SHA-256 and bundles it; there is no npm build.
+4. Archive and export the Release configuration using only versions pinned in `Package.resolved`. A build phase verifies the committed MCP server and skill against their recorded SHA-256 values and bundles both; there is no npm build. Before landing an MCP update, run `scripts/sync-mcp-vendor.sh` against the clean companion release commit to refresh the server, skill, and dependency notices together.
 5. Submit the app to Apple notarization, staple the accepted ticket, and validate the signed app with `codesign`, Gatekeeper, and `stapler`.
 6. Create `Remarc.zip`, create `Remarc.zip.sha256`, extract the archive, and repeat the signature, Gatekeeper, and stapling checks on the extracted app.
 7. Sign the zip with the `sign_update` tool from the resolved Sparkle 2.9.5 artifact, recording its EdDSA signature and exact byte length.

@@ -54,6 +54,7 @@ jobs:
           fi
           git ls-files --error-unmatch -- "$path" >/dev/null
         done
+        cmp THIRD-PARTY-NOTICES.md app/RemarcPackage/Sources/RemarcFeature/Resources/THIRD-PARTY-NOTICES.md
         for path in "${FORBIDDEN_PATHS[@]}"; do
           if [[ -e "$path" ]] || git ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
             echo "Private or retired path must not be published: $path" >&2
@@ -120,3 +121,6 @@ jobs:
           CODE_SIGN_IDENTITY=- \
           CODE_SIGNING_REQUIRED=NO \
           CODE_SIGNING_ALLOWED=NO
+
+    - name: Test packaged MCP image delivery
+      run: node scripts/smoke-mcp-images.mjs app/DerivedData/Build/Products/Debug/Remarc.app/Contents/Resources/remarc-mcp.js
