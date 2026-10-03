@@ -42,6 +42,7 @@ public final class TextReader {
 
     // Bundle ID prefixes for GPU-rendered app families (Java Swing, Sublime's custom engine)
     private static let gpuRenderedAppPrefixes: [String] = [
+        "com.cmuxterm.", // cmux embeds Ghostty's renderer; covers nightly/debug builds
         "com.jetbrains.",
         "com.sublimetext.",
         "com.sublimemerge",
@@ -73,6 +74,7 @@ public final class TextReader {
     ]
 
     private static let passiveSelectionClipboardAppPrefixes: [String] = [
+        "com.cmuxterm.",
         "com.jetbrains.",
     ]
 
