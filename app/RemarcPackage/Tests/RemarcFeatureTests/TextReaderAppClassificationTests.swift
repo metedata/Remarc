@@ -10,6 +10,7 @@ struct TextReaderAppClassificationTests {
         #expect(TextReader.appMayPublishSelectionToClipboard(bundleID: "com.apple.Terminal"))
         #expect(TextReader.appMayPublishSelectionToClipboard(bundleID: "com.googlecode.iterm2"))
         #expect(TextReader.appMayPublishSelectionToClipboard(bundleID: "com.mitchellh.ghostty"))
+        #expect(TextReader.appMayPublishSelectionToClipboard(bundleID: "com.cmuxterm.app"))
         #expect(TextReader.appMayPublishSelectionToClipboard(bundleID: "com.microsoft.VSCode"))
         #expect(TextReader.appMayPublishSelectionToClipboard(bundleID: "com.todesktop.230313mzl4w4u92"))
     }
@@ -25,6 +26,8 @@ struct TextReaderAppClassificationTests {
         #expect(TextReader.appNeedsClipboardFallback(bundleID: "dev.warp.Warp-Stable"))
         #expect(TextReader.appNeedsClipboardFallback(bundleID: "dev.zed.Zed"))
         #expect(TextReader.appNeedsClipboardFallback(bundleID: "com.jetbrains.intellij"))
+        #expect(TextReader.appNeedsClipboardFallback(bundleID: "com.cmuxterm.app"))
+        #expect(TextReader.appNeedsClipboardFallback(bundleID: "com.cmuxterm.app.nightly"))
         #expect(!TextReader.appNeedsClipboardFallback(bundleID: "com.apple.Terminal"))
     }
 }
