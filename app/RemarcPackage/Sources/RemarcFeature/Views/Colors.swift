@@ -156,7 +156,7 @@ extension Color {
                     startRadiusFraction: 0.0,
                     endRadiusFraction: 1.0
                 )
-                .blendMode(.plusLighter)
+                .viewBlendMode(.plusLighter)
             )
             .overlay(
                 EllipticalGradient(
@@ -165,7 +165,7 @@ extension Color {
                     startRadiusFraction: 0.0,
                     endRadiusFraction: 0.7
                 )
-                .blendMode(.plusLighter)
+                .viewBlendMode(.plusLighter)
             )
     }
 }
@@ -255,4 +255,12 @@ struct EdgeRefractionModifier: ViewModifier {
         default:              return UnitPoint(x: 0.96, y: 0.08)
         }
     }
+}
+
+private extension View {
+    /// `EllipticalGradient` is both a View and a ShapeStyle, and the macOS 27 SDK
+    /// gave ShapeStyle its own `blendMode(_:)`, so a bare `.blendMode` on a gradient
+    /// no longer compiles. Inside a View extension only the View modifier is in
+    /// scope, which keeps the original behavior on every SDK.
+    func viewBlendMode(_ mode: BlendMode) -> some View { blendMode(mode) }
 }
