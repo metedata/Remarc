@@ -10,6 +10,7 @@ struct PopoverContentView: View {
     /// background gradient keeps filling the full view, so the arrow matches the body color.
     var topInset: CGFloat = 0
 
+    @ObservedObject private var toastManager = ToastManager.shared
     @ObservedObject private var persistence = PersistenceManager.shared
     @ObservedObject private var popoverController = MenuBarPopoverController.shared
     @ObservedObject private var detachedController = DetachedWindowController.shared
@@ -172,23 +173,18 @@ struct PopoverContentView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            if let toast = ToastManager.shared.currentToast {
+            if let toast = toastManager.currentToast {
                 ToastOverlay(toast: toast)
                     .padding(.bottom, hasComments ? 52 : 12)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: ToastManager.shared.currentToast?.id)
+        .animation(.easeInOut(duration: 0.2), value: toastManager.currentToast?.id)
         // Material background, rounded corners, and shadow provided by
         // NSVisualEffectView + maskImage in MenuBarPopoverController
-        .onKeyPress(.downArrow) {
-            moveFocus(direction: 1)
-            return .handled
+        .remarcArrowKeys { direction in
+            moveFocus(direction: direction)
         }
-        .onKeyPress(.upArrow) {
-            moveFocus(direction: -1)
-            return .handled
-        }
-        .onChange(of: popoverController.isVisible) { _, visible in
+        .onRemarcChange(of: popoverController.isVisible) { visible in
             if !visible {
                 searchText = ""
                 isSearching = false
@@ -206,10 +202,10 @@ struct PopoverContentView: View {
                 }
             }
         }
-        .onChange(of: persistence.appState.activeSessionID) { _, _ in
+        .onRemarcChange(of: persistence.appState.activeSessionID) { _ in
             popoverController.resizeAfterLayoutSettles()
         }
-        .onChange(of: popoverController.requestCritMode) { _, requested in
+        .onRemarcChange(of: popoverController.requestCritMode) { requested in
             if requested {
                 popoverController.requestCritMode = false
                 startCritMode()
@@ -248,7 +244,7 @@ struct PopoverContentView: View {
 
             Spacer()
 
-            creationButton(icon: "bubble.and.pencil") {
+            creationButton(icon: RemarcSymbols.quickNote) {
                 FloatingEditorController.shared.showForQuickNote()
             }
             .help("New quick note")

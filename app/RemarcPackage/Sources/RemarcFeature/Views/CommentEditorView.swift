@@ -188,20 +188,20 @@ struct CommentEditorView: View {
             isFocused = true
             editorSessionID = comment?.sessionID ?? FloatingEditorController.shared.targetSessionID
         }
-        .onChange(of: editorSessionID) { _, newValue in
+        .onRemarcChange(of: editorSessionID) { newValue in
             guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             if comment == nil {
                 FloatingEditorController.shared.targetSessionID = newValue
             }
         }
-        .onChange(of: commentText) { _, newValue in
+        .onRemarcChange(of: commentText) { newValue in
             guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             floatingController.currentText = newValue
             if floatingController.autoSaveCountdownActive && !suppressTextCancelAutoSave {
                 floatingController.cancelAutoSave()
             }
         }
-        .onChange(of: floatingController.pendingVoiceText) { _, text in
+        .onRemarcChange(of: floatingController.pendingVoiceText) { text in
             guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             guard let text, !text.isEmpty else { return }
             suppressTextCancelAutoSave = true
@@ -215,7 +215,7 @@ struct CommentEditorView: View {
                 suppressTextCancelAutoSave = false
             }
         }
-        .onChange(of: floatingController.validationFeedbackTrigger) { _, trigger in
+        .onRemarcChange(of: floatingController.validationFeedbackTrigger) { trigger in
             guard floatingController.isCurrentPresentation(presentationGeneration) else { return }
             guard trigger > 0 else { return }
             refocusEditor()

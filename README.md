@@ -82,6 +82,49 @@ open DerivedData/Build/Products/Debug/Remarc.app
 
 Release builds are signed with a Developer ID certificate and notarized through the [release workflow](.github/workflows/release.yml); see [RELEASING.md](RELEASING.md).
 
+## Ventura / Intel compatibility build
+
+An opt-in build supports **macOS 13.0+ / x86_64**,
+including Ventura 13.7.8. The standard build keeps the upstream macOS 14 minimum.
+Comments, sessions, selection monitoring, screenshots, annotations and exports
+share the same implementation and data format. Voice features still require
+macOS 26; FluidAudio/Parakeet is omitted from the compatibility build. Official
+Sparkle updates are disabled for this build so updates are installed manually.
+
+Use the **Ventura Intel** GitHub Actions workflow to compile with
+Xcode 26.2. Download the `Remarc-Ventura-x86_64` artifact, then extract its inner
+ZIP with Archive Utility or `ditto` to preserve the app bundle. No Developer ID
+certificate or notarization is needed. The CI artifact has an ad-hoc signature;
+re-sign it on the Ventura machine before granting Accessibility and Screen Recording
+permissions:
+
+```bash
+bash scripts/sign-ventura-local.sh /absolute/path/Remarc.app
+```
+
+This generates/reuses a self-signed code-signing identity in a dedicated keychain
+under `~/Library/Application Support/RemarcLocalSigning`, with a code-signing trust
+entry for the current user. The private key and keychain password stay outside the
+repository. Keep the installed application at a stable path. This is a local build,
+not an Apple-notarized distribution.
+
+To build on a Mac that can run Xcode 26.2:
+
+```bash
+bash scripts/build-ventura.sh
+```
+
+The script selects `REMARC_VENTURA=1` and `Config/Ventura.xcconfig`, performs a
+clean Debug build, relaunches the app, and verifies all bundled Mach-O images
+have an Intel slice and support macOS 13.0 or earlier. It retains the upstream
+pinned dependency revisions and fails if resolution changes them. Output:
+`app/DerivedData/Build/Products/Debug/Remarc.app`.
+
+Ventura itself cannot run Xcode 26.2; it is the runtime test machine, while the
+cloud runner is the compiler host. On Ventura, verify first launch and permissions,
+selection-to-comment, session rename/cancel, search-field arrow keys, toast/undo,
+screenshot annotation (including blur/pixelation), export and restart persistence.
+
 ## Repository layout
 
 | Path | Contents |

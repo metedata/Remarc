@@ -100,7 +100,7 @@ struct SessionPickerPill: View {
             .onExitCommand {
                 cancelNewSession()
             }
-            .onChange(of: isTextFieldFocused) { _, focused in
+            .onRemarcChange(of: isTextFieldFocused) { focused in
                 if !focused {
                     commitNewSession()
                 }

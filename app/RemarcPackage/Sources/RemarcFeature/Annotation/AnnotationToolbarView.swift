@@ -188,6 +188,7 @@ private struct InkSwatch: View {
 /// popover, which is dismissed before capture starts, so an error shown through
 /// the global manager during annotation would render nowhere.
 struct AnnotationToolbarView: View {
+    @ObservedObject private var toastManager = ToastManager.shared
     @ObservedObject var session: AnnotationSession
 
     /// nil hides the stepper entirely: it appears only when magnification can
@@ -253,7 +254,7 @@ struct AnnotationToolbarView: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .overlay(alignment: .top) {
-            if let toast = ToastManager.shared.currentToast {
+            if let toast = toastManager.currentToast {
                 ToastOverlay(toast: toast)
                     .offset(y: -34)
                     .transition(.opacity)

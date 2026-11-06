@@ -53,12 +53,12 @@ struct SessionBarView: View {
                     proxy.scrollTo(activeID, anchor: .center)
                 }
             }
-            .onChange(of: popoverController.isVisible) { _, visible in
+            .onRemarcChange(of: popoverController.isVisible) { visible in
                 if visible, let activeID = persistence.appState.activeSessionID {
                     proxy.scrollTo(activeID, anchor: .center)
                 }
             }
-            .onChange(of: persistence.appState.activeSessionID) { _, newID in
+            .onRemarcChange(of: persistence.appState.activeSessionID) { newID in
                 guard let newID else { return }
                 withAnimation(.easeInOut(duration: 0.2)) {
                     proxy.scrollTo(newID, anchor: .center)
@@ -114,11 +114,23 @@ struct SessionBarView: View {
     // MARK: - Animated Delete
 
     private func animateDeleteSession(_ sessionID: UUID) {
-        withAnimation(.easeOut(duration: 0.2)) {
-            deletingSessionIDs.insert(sessionID)
-        } completion: {
+        let finishDeletion = {
             deletingSessionIDs.remove(sessionID)
             persistence.deleteSession(sessionID)
+        }
+        if #available(macOS 14, *) {
+            withAnimation(.easeOut(duration: 0.2)) {
+                _ = deletingSessionIDs.insert(sessionID)
+            } completion: {
+                finishDeletion()
+            }
+        } else {
+            withAnimation(.easeOut(duration: 0.2)) {
+                _ = deletingSessionIDs.insert(sessionID)
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                finishDeletion()
+            }
         }
     }
 
@@ -349,11 +361,8 @@ private struct SessionRenameField: View {
             .onSubmit {
                 handleCommit()
             }
-            .onKeyPress(.escape) {
-                onCancel()
-                return .handled
-            }
-            .onChange(of: isFocused) { _, focused in
+            .onExitCommand(perform: onCancel)
+            .onRemarcChange(of: isFocused) { focused in
                 if !focused {
                     handleCommit()
                 }

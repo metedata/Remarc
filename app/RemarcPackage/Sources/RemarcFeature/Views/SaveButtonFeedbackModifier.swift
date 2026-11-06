@@ -18,8 +18,7 @@ struct SaveButtonFeedbackModifier: ViewModifier {
                     .strokeBorder(.red.opacity(showsErrorOutline ? 0.9 : 0), lineWidth: 1.5)
                     .allowsHitTesting(false)
             }
-            .onChange(of: trigger) { oldValue, newValue in
-                guard newValue != oldValue else { return }
+            .onRemarcChange(of: trigger) { newValue in
                 guard newValue > 0 else {
                     // The long-lived comment composer reuses this modifier across
                     // drafts. Clear any in-flight Reduce Motion outline instead of

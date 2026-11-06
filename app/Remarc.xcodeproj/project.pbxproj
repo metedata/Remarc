@@ -32,6 +32,8 @@
 				Debug.xcconfig,
 				Release.xcconfig,
 				Shared.xcconfig,
+				Ventura.xcconfig,
+				Ventura.entitlements,
 			);
 			target = 8BC2655B2DEDD3F400F279A4 /* Remarc */;
 		};

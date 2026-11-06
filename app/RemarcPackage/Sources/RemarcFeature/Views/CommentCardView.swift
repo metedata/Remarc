@@ -269,7 +269,7 @@ struct CommentCardView: View {
                 .overlay(DropdownAnchor(ref: webhookAnchorRef).allowsHitTesting(false))
             }
             if canMoveComment {
-                cardActionButton(icon: "arrow.forward.folder", tooltip: "Move to session", tint: Color.remarcPrimary(for: colorScheme)) {
+                cardActionButton(icon: RemarcSymbols.moveToSession, tooltip: "Move to session", tint: Color.remarcPrimary(for: colorScheme)) {
                     if isMoveDropdownOpen {
                         DropdownPanelController.shared.dismiss()
                     } else {
