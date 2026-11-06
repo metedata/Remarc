@@ -632,12 +632,12 @@ struct FloatingEditorWrapper: View {
         .frame(width: AppConstants.editorWidth)
         // Material background and shadow provided by NSVisualEffectView + maskImage
         // in FloatingEditorController — no SwiftUI material backgrounds here.
-        .onChange(of: text) { _, newValue in
+        .onRemarcChange(of: text) { newValue in
             let controller = FloatingEditorController.shared
             guard controller.isCurrentPresentation(presentationGeneration) else { return }
             controller.currentText = newValue
         }
-        .onChange(of: attachments) { _, newValue in
+        .onRemarcChange(of: attachments) { newValue in
             let controller = FloatingEditorController.shared
             guard controller.isCurrentPresentation(presentationGeneration) else { return }
             controller.currentAttachments = newValue

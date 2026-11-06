@@ -151,7 +151,7 @@ struct CommentInputView: View {
             attachments = []
             isFocused = true
         }
-        .onChange(of: controller.textResetToken) {
+        .onRemarcChange(of: controller.textResetToken) { _ in
             if #available(macOS 26, *), VoiceInputService.shared.state != .idle {
                 VoiceInputService.shared.cancelRecording()
             }
@@ -159,20 +159,20 @@ struct CommentInputView: View {
             attachments = []
             isFocused = true
         }
-        .onChange(of: commentText) {
+        .onRemarcChange(of: commentText) { _ in
             controller.currentText = commentText
             if controller.autoSaveCountdownActive && !suppressTextCancelAutoSave {
                 controller.cancelAutoSave()
             }
         }
-        .onChange(of: attachments) {
+        .onRemarcChange(of: attachments) { _ in
             controller.currentAttachments = attachments
         }
-        .onChange(of: controller.validationFeedbackTrigger) { _, trigger in
+        .onRemarcChange(of: controller.validationFeedbackTrigger) { trigger in
             guard trigger > 0 else { return }
             refocusEditor()
         }
-        .onChange(of: controller.pendingVoiceText) {
+        .onRemarcChange(of: controller.pendingVoiceText) { _ in
             if let text = controller.pendingVoiceText, !text.isEmpty {
                 // Suppress auto-save cancellation for this programmatic text change
                 suppressTextCancelAutoSave = true

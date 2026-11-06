@@ -13,6 +13,14 @@ public enum TranscriptionEngineType: String, CaseIterable, Identifiable, Sendabl
     case whisperKit = "WhisperKit"
     case parakeet = "Parakeet"
 
+    public static var availableCases: [Self] {
+        #if canImport(FluidAudio)
+        allCases
+        #else
+        allCases.filter { $0 != .parakeet }
+        #endif
+    }
+
     public var id: String { rawValue }
 }
 

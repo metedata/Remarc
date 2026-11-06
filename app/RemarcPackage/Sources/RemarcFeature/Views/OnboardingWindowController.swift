@@ -18,8 +18,15 @@ public final class OnboardingWindowController: NSObject, ObservableObject {
 
     public var onComplete: ((_ hasPermission: Bool) -> Void)?
 
+    public var requiresMicrophonePermission: Bool {
+        if #available(macOS 26, *) { return true }
+        return false
+    }
+
     public var allPermissionsGranted: Bool {
-        accessibilityState == .granted && microphoneState == .granted && screenRecordingState == .granted
+        accessibilityState == .granted
+            && (!requiresMicrophonePermission || microphoneState == .granted)
+            && screenRecordingState == .granted
     }
 
     private override init() {
@@ -31,7 +38,8 @@ public final class OnboardingWindowController: NSObject, ObservableObject {
     }
 
     private func checkMicrophonePermission() -> Bool {
-        AVAudioApplication.shared.recordPermission == .granted
+        guard #available(macOS 14, *) else { return false }
+        return AVAudioApplication.shared.recordPermission == .granted
     }
 
     public func show() {
@@ -95,6 +103,7 @@ public final class OnboardingWindowController: NSObject, ObservableObject {
     }
 
     public func requestMicrophone() {
+        guard #available(macOS 14, *), requiresMicrophonePermission else { return }
         microphoneState = .waitingForGrant
         AVAudioApplication.requestRecordPermission { [weak self] granted in
             Task { @MainActor in

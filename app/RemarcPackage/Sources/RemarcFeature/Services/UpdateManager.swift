@@ -5,13 +5,14 @@ import Sparkle
 public final class UpdateManager: NSObject, ObservableObject {
     public static let shared = UpdateManager()
 
-    private var updaterController: SPUStandardUpdaterController!
+    private var updaterController: SPUStandardUpdaterController?
 
     @Published public private(set) var canCheckForUpdates: Bool = false
 
     private override init() {
         super.init()
 
+        #if !REMARC_VENTURA
         if UserDefaults.standard.object(forKey: "SUEnableAutomaticChecks") == nil {
             UserDefaults.standard.set(true, forKey: "SUEnableAutomaticChecks")
         }
@@ -24,9 +25,11 @@ public final class UpdateManager: NSObject, ObservableObject {
 
         setupObservers()
         debugLog("UpdateManager initialized")
+        #endif
     }
 
     private func setupObservers() {
+        guard let updaterController else { return }
         updaterController.updater.publisher(for: \.canCheckForUpdates)
             .receive(on: DispatchQueue.main)
             .assign(to: &$canCheckForUpdates)
@@ -34,6 +37,6 @@ public final class UpdateManager: NSObject, ObservableObject {
 
     public func checkForUpdates() {
         debugLog("Manual update check triggered")
-        updaterController.checkForUpdates(nil)
+        updaterController?.checkForUpdates(nil)
     }
 }

@@ -23,9 +23,13 @@ enum TranscriptionEngineFactory {
             debugLog("TranscriptionEngineFactory: Using WhisperKit (\(model.rawValue))")
             return WhisperKitEngine(model: model)
         case .parakeet:
+            #if canImport(FluidAudio)
             let version = SettingsManager.shared.parakeetModelVersion
             debugLog("TranscriptionEngineFactory: Using Parakeet (\(version.rawValue))")
             return ParakeetEngine(version: version)
+            #else
+            return SpeechAnalyzerEngine()
+            #endif
         }
     }
 }

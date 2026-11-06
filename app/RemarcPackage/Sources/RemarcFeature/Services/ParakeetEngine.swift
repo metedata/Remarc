@@ -1,3 +1,4 @@
+#if canImport(FluidAudio)
 @preconcurrency import AVFAudio
 import FluidAudio
 import Foundation
@@ -269,3 +270,5 @@ struct ParakeetEngine: TranscriptionEngine, Sendable {
         return segments.isEmpty ? [text] : segments
     }
 }
+
+#endif

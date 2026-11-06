@@ -83,13 +83,15 @@ struct OnboardingContentView: View {
                 waitingAction: { controller.openAccessibilitySettings() }
             )
 
-            permissionRow(
-                icon: "mic.fill",
-                title: "Microphone",
-                description: "Used for voice dictation and speaking your comments hands-free.",
-                state: controller.microphoneState,
-                action: { controller.requestMicrophone() }
-            )
+            if controller.requiresMicrophonePermission {
+                permissionRow(
+                    icon: "mic.fill",
+                    title: "Microphone",
+                    description: "Used for voice dictation and speaking your comments hands-free.",
+                    state: controller.microphoneState,
+                    action: { controller.requestMicrophone() }
+                )
+            }
 
             permissionRow(
                 icon: "rectangle.dashed.badge.record",

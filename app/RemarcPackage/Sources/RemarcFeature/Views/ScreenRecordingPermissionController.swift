@@ -65,6 +65,7 @@ public final class ScreenRecordingPermissionController: NSObject, ObservableObje
     /// Triggers the "bypass window picker" dialog on macOS 15+ now so it
     /// won't interrupt actual screenshot capture later.
     public func preAuthorizeCapture() {
+        guard #available(macOS 14, *) else { return }
         Task {
             if let content = try? await SCShareableContent.current,
                let display = content.displays.first {

@@ -1,0 +1,74 @@
+name: Ventura Intel
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'scripts/*ventura*'
+      - '.github/workflows/ventura.yml'
+  push:
+    branches: [main, compat/macos13]
+    paths:
+      - 'app/**'
+      - 'scripts/*ventura*'
+      - '.github/workflows/ventura.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ventura-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+    timeout-minutes: 45
+    env:
+      REMARC_VENTURA: '1'
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and launch Ventura app
+        run: bash scripts/build-ventura.sh
+      - name: Package app
+        run: |
+          mkdir -p build/ventura
+          ditto -c -k --sequesterRsrc --keepParent \
+            app/DerivedData/Build/Products/Debug/Remarc.app build/ventura/Remarc-Ventura-x86_64.zip
+          shasum -a 256 build/ventura/Remarc-Ventura-x86_64.zip > build/ventura/SHA256SUMS
+      # Intel hosted VMs lack a usable Metal device for Core Image tests.
+      # Run keyboard/toast/backend behavior here; the full suite runs below.
+      - name: Run compatibility behavior tests on Intel
+        run: |
+          cd app/RemarcPackage
+          env -u THREADS_ACCESS_TOKEN swift test --filter VenturaCompatibilityTests
+      - name: Test packaged MCP image delivery
+        run: node scripts/smoke-mcp-images.mjs app/DerivedData/Build/Products/Debug/Remarc.app/Contents/Resources/remarc-mcp.js
+      - name: Upload app
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Remarc-Ventura-x86_64
+          path: build/ventura/
+          if-no-files-found: warn
+          retention-days: 14
+
+  package-tests:
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [standard, ventura]
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      REMARC_VENTURA: ${{ matrix.profile == 'ventura' && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run full Swift suite
+        run: |
+          cd app/RemarcPackage
+          env -u THREADS_ACCESS_TOKEN swift test

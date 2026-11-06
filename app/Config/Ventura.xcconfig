@@ -1,0 +1,13 @@
+// Pass with -xcconfig and REMARC_VENTURA=1 in the build environment.
+// The standard Debug/Release configurations retain upstream behavior.
+MACOSX_DEPLOYMENT_TARGET = 13.0
+ARCHS = x86_64
+ONLY_ACTIVE_ARCH = NO
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+DEVELOPMENT_TEAM =
+PROVISIONING_PROFILE_SPECIFIER =
+// -xcconfig also applies to package resource bundles. Sign app entitlements
+// explicitly after building, so dependency bundles do not inherit them.
+CODE_SIGN_ENTITLEMENTS =
+ENABLE_HARDENED_RUNTIME = NO

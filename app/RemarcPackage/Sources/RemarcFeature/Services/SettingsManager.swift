@@ -374,10 +374,14 @@ public final class SettingsManager: ObservableObject {
                 // Cancel any pending unload timers so a stale timer
                 // doesn't evict a model the user wants kept in memory.
                 WhisperKitModelManager.shared.cancelPendingUnloads()
+                #if canImport(FluidAudio)
                 ParakeetModelManager.shared.cancelPendingUnloads()
+                #endif
             } else {
                 WhisperKitModelManager.shared.scheduleUnloadIfIdle()
+                #if canImport(FluidAudio)
                 ParakeetModelManager.shared.scheduleUnloadIfIdle()
+                #endif
                 // Disable preload on launch when keep-in-memory is turned off
                 if preloadModelOnLaunch {
                     preloadModelOnLaunch = false
@@ -717,7 +721,7 @@ public final class SettingsManager: ObservableObject {
 
         if let saved = defaults.string(forKey: Keys.transcriptionEngine),
            let engine = TranscriptionEngineType(rawValue: saved) {
-            self.transcriptionEngine = engine
+            self.transcriptionEngine = TranscriptionEngineType.availableCases.contains(engine) ? engine : .appleSpeech
         } else {
             self.transcriptionEngine = .appleSpeech
         }

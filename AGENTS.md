@@ -3,7 +3,7 @@
 macOS menu bar app (SwiftUI + AppKit) for contextual commenting on text selections.
 
 - Bundle ID: `com.metepolat.Remarc`
-- Min macOS: 14.0 (`MACOSX_DEPLOYMENT_TARGET` in `app/Config/Shared.xcconfig` is the source of truth), Swift 6.0+, LSUIElement (no dock icon)
+- Min macOS: standard build 14.0 (`app/Config/Shared.xcconfig`); opt-in Ventura build 13.0 (`app/Config/Ventura.xcconfig` with `REMARC_VENTURA=1`). Xcode 26.2 / Swift 6.2 is required by the locked dependencies. LSUIElement (no dock icon)
 - Build: `cd app && xcodebuild build -workspace Remarc.xcworkspace -scheme Remarc -configuration Debug -derivedDataPath "$(pwd)/DerivedData"`
 - Debug log: `/tmp/remarc_debug.log` (Debug builds only; release builds write no log file unless `defaults write com.metepolat.Remarc debugFileLoggingEnabled -bool YES`)
 - Data: `~/Library/Application Support/Remarc/comments.json` (legacy fallback: `data.json`)

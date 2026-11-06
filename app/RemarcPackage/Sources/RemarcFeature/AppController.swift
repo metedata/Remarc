@@ -122,6 +122,7 @@ public final class AppController: NSObject, ObservableObject {
                     await manager.prewarmModel(model)
                 }
             case .parakeet:
+                #if canImport(FluidAudio)
                 let model = await settings.parakeetModelVersion
                 let manager = await ParakeetModelManager.shared
                 guard await manager.isModelDownloaded(model) else { return }
@@ -129,6 +130,9 @@ public final class AppController: NSObject, ObservableObject {
                     let success = await manager.prepareModel(model)
                     await debugLog("AppController: Parakeet preload \(success ? "succeeded" : "failed")")
                 }
+                #else
+                break
+                #endif
             case .appleSpeech:
                 await debugLog("AppController: Apple Speech — no prewarm needed")
             }

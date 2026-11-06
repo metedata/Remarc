@@ -1,11 +1,10 @@
 import SwiftUI
 
 @MainActor
-@Observable
-final class ToastManager {
+final class ToastManager: ObservableObject {
     static let shared = ToastManager()
 
-    var currentToast: ToastItem?
+    @Published var currentToast: ToastItem?
 
     struct ToastItem: Identifiable {
         let id = UUID()
